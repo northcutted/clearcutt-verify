@@ -3,7 +3,7 @@
   "kind": "EstateReport",
   "metadata": {
     "name": "northcutted-images",
-    "generatedAt": "2026-10-06T23:14:41Z",
+    "generatedAt": "2026-10-06T23:30:46Z",
     "generator": {
       "name": "clearcutt-verify",
       "version": "dev"
@@ -43,7 +43,8 @@
     "trustedSigners": [
       {
         "identityRegexp": "^https://github\\.com/northcutted/clearcutt-factory/",
-        "issuer": "https://token.actions.githubusercontent.com"
+        "issuer": "https://token.actions.githubusercontent.com",
+        "sourceRepository": "https://github.com/northcutted/clearcutt-factory"
       },
       {
         "identityRegexp": "^https://github\\.com/chainguard-images/images/",
@@ -279,7 +280,9 @@
           "predicateType": "https://sigstore.dev/cosign/sign/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:0b3a0d0553bb5cdeb63a73051ae06ae47333556a257858a64326b804e5b77c9b",
           "timestamp": "2026-10-06T00:46:24Z"
@@ -290,7 +293,9 @@
           "predicateType": "https://cyclonedx.org/bom",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:8a745be4794604b2b48159798c8ad18383c99258ffab9163805676ef395d2758",
           "timestamp": "2026-10-06T00:46:43Z",
@@ -305,7 +310,9 @@
           "predicateType": "https://cosign.sigstore.dev/attestation/vuln/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:2d73b6aac73c6bd9293e397eca8ec92524853317e1587c43157f741749bdd8d0",
           "timestamp": "2026-10-06T00:46:46Z",
@@ -320,7 +327,9 @@
           "predicateType": "https://slsa.dev/provenance/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:a5735b7a30f4539f13b94d7c069834acc45b3747b13ea22090a1a50e3f299697",
           "timestamp": "2026-10-06T00:47:05Z"
@@ -331,7 +340,9 @@
           "predicateType": "https://github.com/northcutted/clearcutt-factory/recipe/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:a2a3a3262bd620f710c9b9c87e3589efac7e9aaf9aad313d853021d7e1e2da75",
           "timestamp": "2026-10-06T00:46:38Z"
@@ -381,7 +392,7 @@
       "reproducibility": {
         "status": "reproduced",
         "method": "recipe-rebuild",
-        "checkedAt": "2026-10-06T23:15:56Z",
+        "checkedAt": "2026-10-06T23:36:50Z",
         "digest": "sha256:c5dc5b031a4f4476d6a0efacf34d9747c12a86630c8506975d617ade44bc03ec"
       },
       "factory": {
@@ -453,7 +464,9 @@
           "predicateType": "https://sigstore.dev/cosign/sign/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/debian-tools@sha256:e74a36bbb21c6fc5075864e27231d0b8b946b31c8b0f28b680e79c4870dfc8ad",
           "timestamp": "2026-10-06T00:47:35Z"
@@ -464,7 +477,9 @@
           "predicateType": "https://cyclonedx.org/bom",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/debian-tools@sha256:4d5933ac2012466b48886f8cc8a118b40c8317e718ddfbe765304b91dba53b29",
           "timestamp": "2026-10-06T00:47:57Z",
@@ -479,7 +494,9 @@
           "predicateType": "https://cosign.sigstore.dev/attestation/vuln/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/debian-tools@sha256:c47f3b30f065f48403fe87fd3b5a242d11d6f64056b33637c87576af5560782e",
           "timestamp": "2026-10-06T00:48:03Z",
@@ -494,7 +511,9 @@
           "predicateType": "https://slsa.dev/provenance/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/debian-tools@sha256:56c4542ec26cb7b6615860801874458714e43df04714f78a95eda2fa79da64f1",
           "timestamp": "2026-10-06T00:48:20Z"
@@ -505,7 +524,9 @@
           "predicateType": "https://github.com/northcutted/clearcutt-factory/recipe/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/debian-tools@sha256:7375d104421b126ac54c4cb45aa358656e87794b0102e021ba793eb69ed234b9",
           "timestamp": "2026-10-06T00:47:49Z"
@@ -3438,7 +3459,7 @@
       "reproducibility": {
         "status": "reproduced",
         "method": "recipe-rebuild",
-        "checkedAt": "2026-10-06T23:17:42Z",
+        "checkedAt": "2026-10-06T23:34:53Z",
         "digest": "sha256:7e01b47b2d360f1bb810429d25d0b7a46b8be3dbe878bc6d7543a1bf8f7d366e"
       },
       "factory": {
@@ -3578,7 +3599,9 @@
           "predicateType": "https://sigstore.dev/cosign/sign/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/hello-app@sha256:de613e0f55e0f1d6b0f157431d77f81384b550a7b58a8aa6753a98dc9cac745e",
           "timestamp": "2026-10-06T00:46:06Z"
@@ -3589,7 +3612,9 @@
           "predicateType": "https://cyclonedx.org/bom",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/hello-app@sha256:d4a31e0b93e676e19836be1fc0d0eb298cbacfde5a84257e185d74548de3151b",
           "timestamp": "2026-10-06T00:46:27Z",
@@ -3604,7 +3629,9 @@
           "predicateType": "https://cosign.sigstore.dev/attestation/vuln/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/hello-app@sha256:3337acc063d6a897f83de11eebcc03b5161dddf8018ad8f1a29913e1bc6a0bc8",
           "timestamp": "2026-10-06T00:46:34Z",
@@ -3619,7 +3646,9 @@
           "predicateType": "https://slsa.dev/provenance/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/hello-app@sha256:85f479dd07cb2b73192f1f443be8ad85758f87b6dea72858d6fc9fff2eefb507",
           "timestamp": "2026-10-06T00:46:50Z"
@@ -3630,7 +3659,9 @@
           "predicateType": "https://github.com/northcutted/clearcutt-factory/recipe/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/hello-app@sha256:89457f89822e7ba76086493e251d2705205e66cf1fbf7f71f580a1bf043670ec",
           "timestamp": "2026-10-06T00:46:23Z"
@@ -3669,7 +3700,7 @@
       "reproducibility": {
         "status": "reproduced",
         "method": "recipe-rebuild",
-        "checkedAt": "2026-10-06T23:20:20Z",
+        "checkedAt": "2026-10-06T23:35:47Z",
         "digest": "sha256:7cfade5b8fab4ba04eef23b1ff35dfc2d9af5402f91f22d8bb489cbc1405f30d"
       },
       "factory": {
@@ -3742,7 +3773,9 @@
           "predicateType": "https://sigstore.dev/cosign/sign/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/platform-tools@sha256:10c44eed55f0ac8d582a61a02d62c7eb7435000e033d2734d138788c074cfdab",
           "timestamp": "2026-10-06T00:46:31Z"
@@ -3753,7 +3786,9 @@
           "predicateType": "https://cyclonedx.org/bom",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/platform-tools@sha256:f0feb3f559381236c2d5fe92b56545d64ba7e5cfe4a2bac2e6fc7fe64470e8b3",
           "timestamp": "2026-10-06T00:46:53Z",
@@ -3768,7 +3803,9 @@
           "predicateType": "https://cosign.sigstore.dev/attestation/vuln/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/platform-tools@sha256:0b5bace8dd5c7da3cb01cd293882765414020ae37bc901406c73a860b379aee7",
           "timestamp": "2026-10-06T00:47:00Z",
@@ -3783,7 +3820,9 @@
           "predicateType": "https://slsa.dev/provenance/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/platform-tools@sha256:7f120872c3e6e2930450bf115ab8d0401099f611d3b7f96847b1869d1a68fc35",
           "timestamp": "2026-10-06T00:47:20Z"
@@ -3794,7 +3833,9 @@
           "predicateType": "https://github.com/northcutted/clearcutt-factory/recipe/v1",
           "signer": {
             "identity": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "ghcr.io/northcutted/images/platform-tools@sha256:53f46910f15e1fd532bf2471e25e6f19534462ee7c161e1b42487e75798bbddf",
           "timestamp": "2026-10-06T00:46:49Z"
@@ -4252,7 +4293,7 @@
       "reproducibility": {
         "status": "reproduced",
         "method": "recipe-rebuild",
-        "checkedAt": "2026-10-06T23:19:32Z",
+        "checkedAt": "2026-10-06T23:33:02Z",
         "digest": "sha256:ef24c469db863fe33c4e149d2622477da57a03fba2feb11243905065f1ed0240"
       },
       "factory": {
@@ -4311,7 +4352,9 @@
           "predicateType": "https://sigstore.dev/cosign/sign/v1",
           "signer": {
             "identity": "https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/chainguard-images/images",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "cgr.dev/chainguard/static:sha256-fe55470f22d3259488d9d3739168d8f04da67755f0b69382bc26eda4a7d3d327.sig"
         },
@@ -4321,7 +4364,9 @@
           "predicateType": "https://spdx.dev/Document",
           "signer": {
             "identity": "https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/chainguard-images/images",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "cgr.dev/chainguard/static:sha256-a40219f3b0c2719e4e4220310e80a2230a4b95881644292c130e3a8e8287fc6c.att",
           "platforms": {
@@ -4342,7 +4387,9 @@
           "predicateType": "https://slsa.dev/provenance/v1",
           "signer": {
             "identity": "https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/chainguard-images/images",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "cgr.dev/chainguard/static:sha256-fe55470f22d3259488d9d3739168d8f04da67755f0b69382bc26eda4a7d3d327.att"
         },
@@ -4409,7 +4456,9 @@
           "predicateType": "https://sigstore.dev/cosign/sign/v1",
           "signer": {
             "identity": "https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/chainguard-images/images",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "cgr.dev/chainguard/wolfi-base:sha256-6f6d440fa7d30767525d2a561870a616193e9ed3442aea55d8d9d8aa413ab054.sig"
         },
@@ -4419,7 +4468,9 @@
           "predicateType": "https://spdx.dev/Document",
           "signer": {
             "identity": "https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/chainguard-images/images",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "cgr.dev/chainguard/wolfi-base:sha256-6f31b0949fe7d8133f3e632bfa654339845cfb7410f2ca55a0217c85d36baf6d.att",
           "platforms": {
@@ -4440,7 +4491,9 @@
           "predicateType": "https://slsa.dev/provenance/v1",
           "signer": {
             "identity": "https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main",
-            "issuer": "https://token.actions.githubusercontent.com"
+            "issuer": "https://token.actions.githubusercontent.com",
+            "sourceRepository": "https://github.com/chainguard-images/images",
+            "sourceRef": "refs/heads/main"
           },
           "ref": "cgr.dev/chainguard/wolfi-base:sha256-6f6d440fa7d30767525d2a561870a616193e9ed3442aea55d8d9d8aa413ab054.att"
         },

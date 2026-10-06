@@ -50,6 +50,13 @@ const (
 // SAN, the issuer in the v2 extension.
 func fulcioCert(t *testing.T, identity, issuer string) string {
 	t.Helper()
+	return fulcioCertFrom(t, identity, issuer, "")
+}
+
+// fulcioCertFrom also names the repository whose run signed (the Source
+// Repository URI extension), as GitHub Actions certificates do.
+func fulcioCertFrom(t *testing.T, identity, issuer, sourceRepo string) string {
+	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -61,11 +68,21 @@ func fulcioCert(t *testing.T, identity, issuer string) string {
 		URIs:            []*url.URL{u},
 		ExtraExtensions: []pkix.Extension{{Id: oidIssuerV2, Value: iss}},
 	}
+	if sourceRepo != "" {
+		v, _ := asn1.MarshalWithParams(sourceRepo, "utf8")
+		tmpl.ExtraExtensions = append(tmpl.ExtraExtensions, pkix.Extension{Id: oidSourceRepository, Value: v},
+			pkix.Extension{Id: oidSourceRef, Value: mustUTF8("refs/heads/main")})
+	}
 	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return base64.StdEncoding.EncodeToString(der)
+}
+
+func mustUTF8(v string) []byte {
+	b, _ := asn1.MarshalWithParams(v, "utf8")
+	return b
 }
 
 // bundleJSON is a Sigstore bundle holding an in-toto statement.
@@ -148,14 +165,14 @@ func TestVerifierTriesEachSigner(t *testing.T) {
 			return nil, errors.New("no matching signatures")
 		},
 	}
-	s, err := v.Verify(context.Background(), "r@sha256:x", KindSBOM, "https://cyclonedx.org/bom")
+	s, err := v.Verify(context.Background(), Subject{Ref: "r@sha256:x", Kind: KindSBOM, PredicateType: "https://cyclonedx.org/bom"})
 	if err != nil || s.IdentityRegexp != `^https://github\.com/acme/` {
 		t.Fatalf("verify: %+v, %v", s, err)
 	}
 	if len(calls) != 2 || !strings.HasPrefix(calls[1], "verify-attestation --type https://cyclonedx.org/bom --output json") {
 		t.Errorf("calls %q", calls)
 	}
-	if _, err := (&Verifier{}).Verify(context.Background(), "r@sha256:x", KindSignature, ""); !errors.Is(err, ErrNoSigner) {
+	if _, err := (&Verifier{}).Verify(context.Background(), Subject{Ref: "r@sha256:x", Kind: KindSignature}); !errors.Is(err, ErrNoSigner) {
 		t.Errorf("no signers: %v", err)
 	}
 }
@@ -363,12 +380,19 @@ func acmeVerifier() *Verifier {
 			if args[0] == "verify-attestation" {
 				typ = args[2]
 			}
+			caller := ""
+			for i, a := range args {
+				if a == "--certificate-github-workflow-repository" {
+					caller = "https://github.com/" + args[i+1]
+				}
+			}
 			found, err := (&Discoverer{}).Discover(ctx, repo, digest)
 			if err != nil {
 				return nil, err
 			}
 			for _, f := range found {
-				if f.PredicateType == typ && f.Signer != nil && strings.HasPrefix(f.Signer.Identity, "https://github.com/acme/") {
+				if f.PredicateType == typ && f.Signer != nil && strings.HasPrefix(f.Signer.Identity, "https://github.com/acme/") &&
+					(caller == "" || f.Signer.SourceRepository == caller) {
 					return nil, nil
 				}
 			}

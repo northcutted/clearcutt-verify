@@ -15,7 +15,8 @@ What it shows:
 
 - The four factory images are `verified`. Their signature, SBOM,
   vulnerability scan, SLSA provenance, and recipe are all verified against
-  the factory's signer, and each rebuilt from its recipe to the same digest.
+  the factory's signer, which is bound to runs in the clearcutt-factory
+  repository. Each image also rebuilt from its recipe to the same digest.
 - Every base is proven by layer digest. `debian-tools` is 17 days behind
   `debian:trixie-slim` and `platform-tools` 3 days behind `wolfi-base`.
 - The Chainguard images verify against Chainguard's signer, but are

@@ -95,14 +95,33 @@ type Policy struct {
 	Reproduce bool `json:"reproduce"`
 }
 
-// Signer is a trusted signing identity: a keyless certificate identity
-// (exact or as a regular expression) with its OIDC issuer, or a public key.
+// Signer is a signing identity: a keyless certificate identity (exact or as
+// a regular expression) with its OIDC issuer, or a public key. In the policy
+// it is who is trusted; on evidence, who signed it, as the certificate says.
+//
+// The source fields matter for reusable GitHub workflows. Their certificate
+// identity is the called workflow, which any repository can call, so a
+// trusted signer for one should say which calling repositories it accepts.
 type Signer struct {
 	Identity       string `json:"identity,omitempty"`
 	IdentityRegexp string `json:"identityRegexp,omitempty"`
 	Issuer         string `json:"issuer,omitempty"`
 	// Key names a public key (a file name or KMS URI), never key material.
 	Key string `json:"key,omitempty"`
+	// SourceRepository is the repository whose workflow run signed, e.g.
+	// https://github.com/acme/billing (the certificate's Source Repository
+	// URI). In the policy, signatures must come from runs in it.
+	SourceRepository string `json:"sourceRepository,omitempty"`
+	// SourceRepositoryOwner, in the policy, accepts runs in any of the
+	// owner's repositories, e.g. https://github.com/acme.
+	SourceRepositoryOwner string `json:"sourceRepositoryOwner,omitempty"`
+	// SourceRef is the ref the run was on, e.g. refs/heads/main. In the
+	// policy, signatures must come from runs on it.
+	SourceRef string `json:"sourceRef,omitempty"`
+	// SourceMatchesImage, in the policy, requires the run to be in the
+	// repository the image names as its source
+	// (org.opencontainers.image.source).
+	SourceMatchesImage bool `json:"sourceMatchesImage,omitempty"`
 }
 
 // Summary holds the estate's headline numbers.

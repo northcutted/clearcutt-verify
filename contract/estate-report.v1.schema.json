@@ -799,7 +799,7 @@
     },
     "Signer": {
       "additionalProperties": false,
-      "description": "Signer is a trusted signing identity: a keyless certificate identity (exact or as a regular expression) with its OIDC issuer, or a public key.",
+      "description": "Signer is a signing identity: a keyless certificate identity (exact or as a regular expression) with its OIDC issuer, or a public key. In the policy it is who is trusted; on evidence, who signed it, as the certificate says. The source fields matter for reusable GitHub workflows. Their certificate identity is the called workflow, which any repository can call, so a trusted signer for one should say which calling repositories it accepts.",
       "properties": {
         "identity": {
           "type": "string"
@@ -812,6 +812,22 @@
         },
         "key": {
           "description": "Key names a public key (a file name or KMS URI), never key material.",
+          "type": "string"
+        },
+        "sourceMatchesImage": {
+          "description": "SourceMatchesImage, in the policy, requires the run to be in the repository the image names as its source (org.opencontainers.image.source).",
+          "type": "boolean"
+        },
+        "sourceRef": {
+          "description": "SourceRef is the ref the run was on, e.g. refs/heads/main. In the policy, signatures must come from runs on it.",
+          "type": "string"
+        },
+        "sourceRepository": {
+          "description": "SourceRepository is the repository whose workflow run signed, e.g. https://github.com/acme/billing (the certificate's Source Repository URI). In the policy, signatures must come from runs in it.",
+          "type": "string"
+        },
+        "sourceRepositoryOwner": {
+          "description": "SourceRepositoryOwner, in the policy, accepts runs in any of the owner's repositories, e.g. https://github.com/acme.",
           "type": "string"
         }
       },

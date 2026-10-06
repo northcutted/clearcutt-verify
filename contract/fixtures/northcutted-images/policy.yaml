@@ -4,6 +4,7 @@ required: [signature, sbom, provenance]
 trustedSigners:
   - identityRegexp: ^https://github\.com/northcutted/clearcutt-factory/
     issuer: https://token.actions.githubusercontent.com
+    sourceRepository: https://github.com/northcutted/clearcutt-factory
   - identityRegexp: ^https://github\.com/chainguard-images/images/
     issuer: https://token.actions.githubusercontent.com
 failOn: critical
