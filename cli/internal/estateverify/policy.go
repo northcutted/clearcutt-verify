@@ -17,6 +17,7 @@ import (
 //	trustedSigners:
 //	  - identityRegexp: ^https://github\.com/acme/
 //	    issuer: https://token.actions.githubusercontent.com
+//	    sourceRepositoryOwner: https://github.com/acme
 //	failOn: critical
 //	onlyFixed: true
 //	maxDaysBehind: 30
@@ -60,6 +61,9 @@ func ValidatePolicy(p report.Policy) error {
 	for _, s := range p.TrustedSigners {
 		if _, err := signerFlags(s); err != nil {
 			return err
+		}
+		if s.Key != "" && (constrainsCaller(s) || s.SourceRef != "") {
+			return fmt.Errorf("trusted signer %s: source constraints apply to keyless (GitHub Actions) signers, not keys", s.Key)
 		}
 	}
 	return nil

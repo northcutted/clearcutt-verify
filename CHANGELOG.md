@@ -17,6 +17,14 @@ Add an entry here in the same PR as any user-visible behavior change
 workflow archives this section into the release notes.
 -->
 
+- `verify estate` trusted signers can say which workflow runs count:
+  `sourceRepository`, `sourceRepositoryOwner`, `sourceRef`, and
+  `sourceMatchesImage` (the run must be in the repository the image names as
+  its source), enforced by cosign. This matters for reusable workflows, whose
+  certificate identity is the called workflow, which any repository can call:
+  evidence they sign is now `present`, not `verified`, unless the signer
+  constrains the caller. Evidence signers in the report gain
+  `sourceRepository` and `sourceRef`.
 - New `clearcutt verify estate` verifies every image in an estate and writes the
   estate report bundle (`estate-report.json`, `estate-history.json`). It finds
   evidence in the registry (cosign v3 Sigstore bundles, cosign v2 tags, unsigned

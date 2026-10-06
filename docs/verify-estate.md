@@ -64,6 +64,30 @@ onlyFixed: true       # ...counting only those with a fix
 maxDaysBehind: 30     # a base more than 30 days behind its newest version fails
 ```
 
+### Reusable workflows
+
+A signature made in a reusable GitHub workflow (clearcutt-factory's
+`images.yml` and `fleet.yml`, for instance) carries the identity of the called
+workflow, which any repository can call. So trust in it should also say which
+calling repositories count:
+
+```yaml
+trustedSigners:
+  - identityRegexp: ^https://github\.com/northcutted/clearcutt-factory/\.github/workflows/(images|fleet)\.yml@refs/tags/v0\.
+    issuer: https://token.actions.githubusercontent.com
+    sourceRepositoryOwner: https://github.com/acme   # runs in acme's repositories
+    sourceMatchesImage: true    # ...in the repository the image names as its source
+    sourceRef: refs/heads/main  # ...on main
+```
+
+`sourceRepository` names one repository exactly. Each constraint resolves to the
+one repository the run must have been in, and cosign checks the certificate's
+GitHub workflow repository against it (`--certificate-github-workflow-repository`).
+Evidence signed by a reusable workflow with no caller constraint is reported
+as `present`, not `verified`, with the repository it was called from. The
+report records each signer's repository and ref (`signer.sourceRepository`,
+`signer.sourceRef`).
+
 With `maxDaysBehind`, an image whose base couldn't be placed is `unverified`:
 it might be behind. Roots (images others are built on, with no base of their
 own) are exempt.

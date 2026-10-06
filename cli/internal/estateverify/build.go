@@ -159,9 +159,12 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 	}
 	img.Platforms = platforms
 
-	ev, data := gatherEvidence(ctx, repo, img.Digest, platforms, opts)
+	// The source the image claims, which signers may require the run that
+	// signed to be in.
+	claimedSource := firstNonEmpty(obs.Labels["org.opencontainers.image.source"], obs.Annotations["org.opencontainers.image.source"])
+	ev, data := gatherEvidence(ctx, repo, img.Digest, claimedSource, platforms, opts)
 	if f := data.factory; f != nil && f.Kind == "" && f.RebasedFrom != "" && data.rebaseVerified {
-		if err := originalRecipe(ctx, f, opts); err != nil {
+		if err := originalRecipe(ctx, f, claimedSource, opts); err != nil {
 			img.Warnings = append(img.Warnings, "the recipe of the image it was rebased from couldn't be read: "+err.Error())
 		}
 	}
@@ -529,7 +532,7 @@ var perPlatform = map[string]bool{KindSBOM: true, KindVulnerabilityScan: true}
 
 // gatherEvidence discovers and verifies every kind of evidence on the image
 // (index-level kinds) and its platform images (SBOMs and scans).
-func gatherEvidence(ctx context.Context, repo, digest string, platforms []report.Platform, opts Options) (report.Evidence, imageData) {
+func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platforms []report.Platform, opts Options) (report.Evidence, imageData) {
 	data := imageData{vulns: map[string]vulnScan{}}
 	type subject struct{ platform, digest string }
 	subjects := []subject{{"", digest}}
@@ -565,7 +568,7 @@ func gatherEvidence(ctx context.Context, repo, digest string, platforms []report
 		}
 		var statuses []string
 		for _, s := range look {
-			st := verifyKind(ctx, repo, s.digest, kind, found[s.digest], unknown[s.digest], opts, item, &data, s.platform)
+			st := verifyKind(ctx, repo, s.digest, kind, imageSource, found[s.digest], unknown[s.digest], opts, item, &data, s.platform)
 			statuses = append(statuses, st)
 			if s.platform != "" && perPlatform[kind] {
 				if item.Platforms == nil {
@@ -598,7 +601,7 @@ func gatherEvidence(ctx context.Context, repo, digest string, platforms []report
 
 // verifyKind finds and verifies kind on one subject, records what the
 // payload says, and returns the status.
-func verifyKind(ctx context.Context, repo, digest, kind string, found []Found, lookErr error, opts Options, item *report.EvidenceItem, data *imageData, platform string) string {
+func verifyKind(ctx context.Context, repo, digest, kind, imageSource string, found []Found, lookErr error, opts Options, item *report.EvidenceItem, data *imageData, platform string) string {
 	if lookErr != nil {
 		item.Detail = "The registry couldn't be read: " + lookErr.Error()
 		return "unknown"
@@ -615,20 +618,9 @@ func verifyKind(ctx context.Context, repo, digest, kind string, found []Found, l
 		item.Signer = f.Signer
 	}
 
-	status := "present"
-	if f.Format == FormatRawReferrer {
-		item.Detail = "An unsigned document; nothing to verify."
-	} else {
-		_, err := opts.Verifier.Verify(ctx, repo+"@"+digest, kind, f.PredicateType)
-		switch {
-		case err == nil:
-			status = "verified"
-		case errors.Is(err, ErrNoSigner):
-			item.Detail = "No trusted signer is configured, so it can't be verified."
-		default:
-			status = "failed"
-			item.Detail = err.Error()
-		}
+	status, detail := check(ctx, opts.Verifier, repo+"@"+digest, f, imageSource)
+	if detail != "" {
+		item.Detail = detail
 	}
 
 	// Read the payload. Present evidence is still read, but the verdict
@@ -694,7 +686,7 @@ func newest(found []Found, kind, digest string) (Found, bool) {
 // from: a rebase record names only the image whose layers moved, so it
 // follows verified rebase records back (an image may have been rebased more
 // than once) to a verified recipe, and reads its kind, name, and stack.
-func originalRecipe(ctx context.Context, f *report.Factory, opts Options) error {
+func originalRecipe(ctx context.Context, f *report.Factory, imageSource string, opts Options) error {
 	ref := f.RebasedFrom
 	for range 8 {
 		repo, digest := splitDigestRef(ref)
@@ -706,8 +698,8 @@ func originalRecipe(ctx context.Context, f *report.Factory, opts Options) error 
 			return err
 		}
 		if e, ok := newest(found, KindRecipe, digest); ok {
-			if _, err := opts.Verifier.Verify(ctx, ref, KindRecipe, e.PredicateType); err != nil {
-				return fmt.Errorf("recipe of %s: %w", ref, err)
+			if status, detail := check(ctx, opts.Verifier, ref, e, imageSource); status != "verified" {
+				return fmt.Errorf("recipe of %s is %s: %s", ref, status, detail)
 			}
 			r, _, ok := readRecipe(e.Predicate())
 			if !ok {
@@ -720,8 +712,8 @@ func originalRecipe(ctx context.Context, f *report.Factory, opts Options) error 
 		if !ok {
 			return fmt.Errorf("%s has neither a recipe nor a rebase record", ref)
 		}
-		if _, err := opts.Verifier.Verify(ctx, ref, KindRebase, e.PredicateType); err != nil {
-			return fmt.Errorf("rebase record of %s: %w", ref, err)
+		if status, detail := check(ctx, opts.Verifier, ref, e, imageSource); status != "verified" {
+			return fmt.Errorf("rebase record of %s is %s: %s", ref, status, detail)
 		}
 		r, ok := readRebase(e.Predicate())
 		if !ok {
@@ -730,6 +722,28 @@ func originalRecipe(ctx context.Context, f *report.Factory, opts Options) error 
 		ref = r.RebasedFrom
 	}
 	return fmt.Errorf("gave up following rebase records at %s", ref)
+}
+
+// check verifies evidence found on ref and returns its status (verified,
+// present, or failed) and, when it isn't verified, why.
+func check(ctx context.Context, v *Verifier, ref string, f Found, imageSource string) (status, detail string) {
+	if f.Format == FormatRawReferrer {
+		return "present", "An unsigned document; nothing to verify."
+	}
+	trusted, err := v.Verify(ctx, Subject{Ref: ref, Kind: f.Kind, PredicateType: f.PredicateType, ImageSource: imageSource, Signer: f.Signer})
+	switch {
+	case errors.Is(err, ErrNoSigner):
+		return "present", "No trusted signer is configured, so it can't be verified."
+	case err != nil:
+		return "failed", err.Error()
+	}
+	// A reusable workflow signs with its own identity wherever it is
+	// called from; trusting the identity alone trusts every caller.
+	if caller, ok := calledFromElsewhere(f.Signer); ok && !constrainsCaller(trusted) {
+		return "present", fmt.Sprintf("Signed by %s, called from %s. The trusted signer doesn't say which calling repositories it accepts, "+
+			"so a run in any repository calling that workflow would verify too: set sourceRepository, sourceRepositoryOwner, or sourceMatchesImage.", f.Signer.Identity, caller)
+	}
+	return "verified", ""
 }
 
 func sourceName(f Found) string {

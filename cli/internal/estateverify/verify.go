@@ -26,10 +26,23 @@ type Verifier struct {
 // be present, never verified.
 var ErrNoSigner = errors.New("no trusted signer configured")
 
-// Verify checks the evidence of kind (with predicateType, for
-// attestations) on ref (repository@digest). It returns the trusted signer
+// Subject is the evidence to verify and what is known about its image.
+type Subject struct {
+	// Ref is repository@digest.
+	Ref string
+	// Kind is the evidence kind, PredicateType its predicate (attestations).
+	Kind, PredicateType string
+	// ImageSource is the repository the image names as its source
+	// (org.opencontainers.image.source), for signers with
+	// sourceMatchesImage.
+	ImageSource string
+	// Signer is who signed the evidence found, as its certificate says.
+	Signer *report.Signer
+}
+
+// Verify checks the evidence with cosign and returns the trusted signer
 // that verified it.
-func (v *Verifier) Verify(ctx context.Context, ref, kind, predicateType string) (report.Signer, error) {
+func (v *Verifier) Verify(ctx context.Context, subj Subject) (report.Signer, error) {
 	if len(v.Signers) == 0 {
 		return report.Signer{}, ErrNoSigner
 	}
@@ -39,11 +52,16 @@ func (v *Verifier) Verify(ctx context.Context, ref, kind, predicateType string) 
 		if err != nil {
 			return report.Signer{}, err
 		}
-		args := []string{"verify-attestation", "--type", predicateType}
-		if kind == KindSignature {
+		caller, err := callerFlags(s, subj)
+		if err != nil {
+			errs = append(errs, err.Error())
+			continue
+		}
+		args := []string{"verify-attestation", "--type", subj.PredicateType}
+		if subj.Kind == KindSignature {
 			args = []string{"verify"}
 		}
-		args = append(append(append(args, "--output", "json"), flags...), ref)
+		args = append(append(append(append(args, "--output", "json"), flags...), caller...), subj.Ref)
 		if _, err := v.run(ctx, args...); err != nil {
 			errs = append(errs, err.Error())
 			continue
@@ -51,6 +69,60 @@ func (v *Verifier) Verify(ctx context.Context, ref, kind, predicateType string) 
 		return s, nil
 	}
 	return report.Signer{}, fmt.Errorf("not signed by a trusted signer: %s", strings.Join(errs, "; "))
+}
+
+// callerFlags turns a signer's constraints on the run that signed into
+// cosign flags. cosign checks one exact repository, so an owner or the
+// image's source is first resolved to the repository it must be: the
+// image's source, or the repository on the certificate found, when it is
+// one of the owner's.
+func callerFlags(s report.Signer, subj Subject) ([]string, error) {
+	repo := s.SourceRepository
+	if s.SourceMatchesImage {
+		src := strings.TrimSuffix(strings.TrimSuffix(subj.ImageSource, "/"), ".git")
+		switch {
+		case src == "":
+			return nil, errors.New("the image names no source repository (org.opencontainers.image.source), and the signer requires the run to be in it")
+		case repo != "" && repo != src:
+			return nil, fmt.Errorf("the image names %s as its source, not %s", src, repo)
+		}
+		repo = src
+	}
+	if s.SourceRepositoryOwner != "" {
+		if repo == "" && subj.Signer != nil {
+			repo = subj.Signer.SourceRepository
+		}
+		if !strings.HasPrefix(repo, strings.TrimSuffix(s.SourceRepositoryOwner, "/")+"/") {
+			return nil, fmt.Errorf("signed in %q, not a repository of %s", repo, s.SourceRepositoryOwner)
+		}
+	}
+	var flags []string
+	if repo != "" {
+		name, ok := strings.CutPrefix(repo, "https://github.com/")
+		if !ok || strings.Count(name, "/") != 1 {
+			return nil, fmt.Errorf("source repository %q is not https://github.com/OWNER/REPO", repo)
+		}
+		flags = append(flags, "--certificate-github-workflow-repository", name)
+	}
+	if s.SourceRef != "" {
+		flags = append(flags, "--certificate-github-workflow-ref", s.SourceRef)
+	}
+	return flags, nil
+}
+
+// constrainsCaller reports whether the signer says which runs may sign.
+func constrainsCaller(s report.Signer) bool {
+	return s.SourceRepository != "" || s.SourceRepositoryOwner != "" || s.SourceMatchesImage
+}
+
+// calledFromElsewhere reports whether the certificate's run was in another
+// repository than the workflow that signed: a reusable workflow, which any
+// repository can call. It returns that repository.
+func calledFromElsewhere(cert *report.Signer) (string, bool) {
+	if cert == nil || cert.SourceRepository == "" {
+		return "", false
+	}
+	return cert.SourceRepository, !strings.HasPrefix(cert.Identity, cert.SourceRepository+"/")
 }
 
 func (v *Verifier) run(ctx context.Context, args ...string) ([]byte, error) {
@@ -87,6 +159,9 @@ func signerFlags(s report.Signer) ([]string, error) {
 	}
 	if strings.TrimSpace(s.Issuer) == "" {
 		return nil, fmt.Errorf("trusted signer %q has no OIDC issuer (e.g. https://token.actions.githubusercontent.com)", id)
+	}
+	if (constrainsCaller(s) || s.SourceRef != "") && s.Issuer != githubIssuer {
+		return nil, fmt.Errorf("trusted signer %q: source constraints need the GitHub Actions issuer (%s)", id, githubIssuer)
 	}
 	if s.IdentityRegexp != "" {
 		return []string{"--certificate-identity-regexp", s.IdentityRegexp, "--certificate-oidc-issuer", s.Issuer}, nil

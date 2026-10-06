@@ -39,6 +39,8 @@ var verifyEstateOpts struct {
 	// Policy without a file.
 	require        []string
 	identityRegexp string
+	sourceOwner    string
+	sourceMatches  bool
 	issuer         string
 	severity       string
 	onlyFixed      bool
@@ -91,6 +93,8 @@ references (--refs), which are imported and observed first.`,
 	f.StringSliceVar(&o.require, "require", nil, "Required evidence when there is no --policy (e.g. signature,sbom,vulnerabilityScan,provenance)")
 	f.StringVar(&o.identityRegexp, "trusted-identity-regexp", "", "Trusted signer certificate identity (regular expression) when there is no --policy")
 	f.StringVar(&o.issuer, "trusted-issuer", "", "Trusted signer OIDC issuer when there is no --policy")
+	f.StringVar(&o.sourceOwner, "trusted-source-owner", "", "Accept the trusted signer only from runs in this owner's repositories (e.g. https://github.com/acme); for reusable workflows")
+	f.BoolVar(&o.sourceMatches, "trusted-source-matches-image", false, "Accept the trusted signer only from runs in the repository each image names as its source")
 	f.StringVar(&o.severity, "vulnerabilities-fail-on", "", "Fail images with vulnerabilities at or above this severity when there is no --policy")
 	f.BoolVar(&o.onlyFixed, "only-fixed", false, "Count only fixable vulnerabilities toward --vulnerabilities-fail-on")
 	return cmd
@@ -189,14 +193,14 @@ func runVerifyEstate(ctx context.Context, stdout, stderr io.Writer) error {
 func estatePolicy() (report.Policy, error) {
 	o := verifyEstateOpts
 	if o.policy != "" {
-		if len(o.require) > 0 || o.identityRegexp != "" || o.issuer != "" || o.severity != "" {
+		if len(o.require) > 0 || o.identityRegexp != "" || o.issuer != "" || o.sourceOwner != "" || o.sourceMatches || o.severity != "" {
 			return report.Policy{}, errors.New("--policy and the policy flags (--require, --trusted-*, --vulnerabilities-fail-on) are exclusive")
 		}
 		return estateverify.ReadPolicy(o.policy)
 	}
 	p := report.Policy{Required: o.require, FailOn: o.severity, OnlyFixed: o.onlyFixed}
-	if o.identityRegexp != "" || o.issuer != "" {
-		p.TrustedSigners = []report.Signer{{IdentityRegexp: o.identityRegexp, Issuer: o.issuer}}
+	if o.identityRegexp != "" || o.issuer != "" || o.sourceOwner != "" || o.sourceMatches {
+		p.TrustedSigners = []report.Signer{{IdentityRegexp: o.identityRegexp, Issuer: o.issuer, SourceRepositoryOwner: o.sourceOwner, SourceMatchesImage: o.sourceMatches}}
 	}
 	return p, estateverify.ValidatePolicy(p)
 }

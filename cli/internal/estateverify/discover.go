@@ -298,14 +298,19 @@ func decodeBundle(raw []byte) (Found, error) {
 	return f, nil
 }
 
-// Fulcio certificate extensions naming the OIDC issuer.
+// Fulcio certificate extensions. The v1 ones hold raw strings, the v2 ones
+// DER-encoded UTF8Strings.
 var (
-	oidIssuerV1 = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 57264, 1, 1}
-	oidIssuerV2 = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 57264, 1, 8}
+	oidIssuerV1           = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 57264, 1, 1}
+	oidWorkflowRepository = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 57264, 1, 5} // v1: owner/repo
+	oidWorkflowRef        = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 57264, 1, 6} // v1
+	oidIssuerV2           = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 57264, 1, 8}
+	oidSourceRepository   = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 57264, 1, 12}
+	oidSourceRef          = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 57264, 1, 14}
 )
 
-// signerOf reads the identity (the URI or email SAN) and OIDC issuer from a
-// Fulcio certificate.
+// signerOf reads the identity (the URI or email SAN), the OIDC issuer, and
+// the repository and ref of the run that signed from a Fulcio certificate.
 func signerOf(cert *x509.Certificate) *report.Signer {
 	s := &report.Signer{}
 	switch {
@@ -314,22 +319,27 @@ func signerOf(cert *x509.Certificate) *report.Signer {
 	case len(cert.EmailAddresses) > 0:
 		s.Identity = cert.EmailAddresses[0]
 	}
+	v1, v2 := map[string]string{}, map[string]string{}
 	for _, ext := range cert.Extensions {
-		switch {
-		case ext.Id.Equal(oidIssuerV2):
-			var v string
-			if _, err := asn1.Unmarshal(ext.Value, &v); err == nil {
-				s.Issuer = v
-			}
-		case ext.Id.Equal(oidIssuerV1) && s.Issuer == "":
-			s.Issuer = string(ext.Value)
+		v1[ext.Id.String()] = string(ext.Value)
+		var v string
+		if _, err := asn1.Unmarshal(ext.Value, &v); err == nil {
+			v2[ext.Id.String()] = v
 		}
 	}
+	s.Issuer = firstNonEmpty(v2[oidIssuerV2.String()], v1[oidIssuerV1.String()])
+	s.SourceRepository = v2[oidSourceRepository.String()]
+	if r := v1[oidWorkflowRepository.String()]; s.SourceRepository == "" && r != "" && s.Issuer == githubIssuer {
+		s.SourceRepository = "https://github.com/" + r
+	}
+	s.SourceRef = firstNonEmpty(v2[oidSourceRef.String()], v1[oidWorkflowRef.String()])
 	if s.Identity == "" && s.Issuer == "" {
 		return nil
 	}
 	return s
 }
+
+const githubIssuer = "https://token.actions.githubusercontent.com"
 
 // cosignTags reads cosign v2's sha256-<digest>.sig and .att tags.
 func (d *Discoverer) cosignTags(ctx context.Context, subject name.Digest, opts []remote.Option) ([]Found, error) {

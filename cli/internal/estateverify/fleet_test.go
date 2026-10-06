@@ -239,11 +239,12 @@ func TestVerifierRunsCosign(t *testing.T) {
 		t.Fatal(err)
 	}
 	v := &Verifier{Cosign: cosign, Signers: []report.Signer{{IdentityRegexp: `^https://github\.com/acme/`, Issuer: ghIssuer}}}
-	if _, err := v.Verify(context.Background(), "r@sha256:x", KindSignature, ""); err != nil {
+	subj := Subject{Ref: "r@sha256:x", Kind: KindSignature}
+	if _, err := v.Verify(context.Background(), subj); err != nil {
 		t.Errorf("verify: %v", err)
 	}
 	v.Signers[0].IdentityRegexp = `^https://github\.com/other/`
-	if _, err := v.Verify(context.Background(), "r@sha256:x", KindSignature, ""); err == nil || !strings.Contains(err.Error(), "no matching signatures") {
+	if _, err := v.Verify(context.Background(), subj); err == nil || !strings.Contains(err.Error(), "no matching signatures") {
 		t.Errorf("untrusted: %v", err)
 	}
 }
