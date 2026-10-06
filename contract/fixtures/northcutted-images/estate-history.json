@@ -1,0 +1,115 @@
+{
+  "apiVersion": "clearcutt.dev/v1",
+  "kind": "EstateHistory",
+  "name": "northcutted-images",
+  "entries": [
+    {
+      "generatedAt": "2026-10-06T23:14:41Z",
+      "ref": "estate-report.json",
+      "summary": {
+        "images": 8,
+        "verdicts": {
+          "verified": 4,
+          "failed": 2,
+          "unverified": 2
+        },
+        "evidence": {
+          "provenance": {
+            "verified": 6,
+            "present": 0,
+            "failed": 0,
+            "missing": 2,
+            "unknown": 0,
+            "notApplicable": 0
+          },
+          "rebase": {
+            "verified": 0,
+            "present": 0,
+            "failed": 0,
+            "missing": 0,
+            "unknown": 0,
+            "notApplicable": 8
+          },
+          "recipe": {
+            "verified": 4,
+            "present": 0,
+            "failed": 0,
+            "missing": 4,
+            "unknown": 0,
+            "notApplicable": 0
+          },
+          "sbom": {
+            "verified": 6,
+            "present": 0,
+            "failed": 0,
+            "missing": 2,
+            "unknown": 0,
+            "notApplicable": 0
+          },
+          "signature": {
+            "verified": 6,
+            "present": 0,
+            "failed": 0,
+            "missing": 2,
+            "unknown": 0,
+            "notApplicable": 0
+          },
+          "tests": {
+            "verified": 0,
+            "present": 0,
+            "failed": 0,
+            "missing": 8,
+            "unknown": 0,
+            "notApplicable": 0
+          },
+          "vulnerabilityScan": {
+            "verified": 4,
+            "present": 0,
+            "failed": 0,
+            "missing": 4,
+            "unknown": 0,
+            "notApplicable": 0
+          }
+        },
+        "bases": {
+          "proven": 4,
+          "claimed": 0,
+          "unresolved": 0,
+          "roots": 4,
+          "current": 2,
+          "stale": 2
+        },
+        "vulnerabilities": {
+          "counts": {
+            "critical": 24,
+            "high": 113,
+            "medium": 69,
+            "low": 15,
+            "negligible": 97,
+            "unknown": 5
+          },
+          "fixable": {
+            "critical": 0,
+            "high": 19,
+            "medium": 4,
+            "low": 0,
+            "negligible": 0,
+            "unknown": 1
+          },
+          "scanned": 4,
+          "notScanned": 4
+        },
+        "packages": {
+          "known": 6,
+          "unknown": 2
+        },
+        "reproducibility": {
+          "reproduced": 4,
+          "notReproduced": 0,
+          "notChecked": 0,
+          "noRecipe": 4
+        }
+      }
+    }
+  ]
+}

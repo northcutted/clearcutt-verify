@@ -1,0 +1,8 @@
+ghcr.io/northcutted/images/platform-tools:latest
+ghcr.io/northcutted/images/debian-tools:latest
+ghcr.io/northcutted/images/amazonlinux-tools:latest
+ghcr.io/northcutted/images/hello-app:latest
+cgr.dev/chainguard/static:latest
+cgr.dev/chainguard/wolfi-base:latest
+docker.io/library/debian:trixie-slim
+docker.io/library/amazonlinux:2023

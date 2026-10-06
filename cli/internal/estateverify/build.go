@@ -120,12 +120,16 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 
 	r.Bases = basesOf(r.Images)
 	markRoots(r.Images, r.Bases)
+	// Verdicts last: whether an image is a root is known only now.
+	for i := range r.Images {
+		r.Images[i].Verdict = verdict(r.Images[i], opts.Policy)
+	}
 	r.Packages = packageIndex(observations, packagesByImage)
 	r.Summary = summarize(r)
 	return r, nil
 }
 
-// buildImage verifies one image.
+// buildImage verifies one image; Build decides its verdict.
 func buildImage(ctx context.Context, obs estategraph.Observation, graph estategraph.Graph, ids map[string]string, opts Options) (report.Image, []pkg) {
 	repo, digest := splitDigestRef(normalizeRepo(obs.DigestRef))
 	img := report.Image{
@@ -146,7 +150,6 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 		img.Builder = report.Builder{Kind: "unknown", Basis: "the image couldn't be read"}
 		img.Reproducibility = report.Reproducibility{Status: "not-checked", Detail: "The image couldn't be read."}
 		img.Unresolved = []string{"the image couldn't be read"}
-		img.Verdict = verdict(img, opts.Policy)
 		return img, nil
 	}
 
@@ -180,7 +183,6 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 		img.Packages = &n
 	}
 	img.Reproducibility = reproduce(ctx, &img, data, opts)
-	img.Verdict = verdict(img, opts.Policy)
 	return img, pkgs
 }
 

@@ -96,6 +96,14 @@ func TestBuildFactoryFleet(t *testing.T) {
 	attach(t, host+"/rebased", rebasedDesc, bundleJSON(t, legacyPredicateRebase, rebasedDesc.Digest.String(),
 		map[string]any{"factory": map[string]string{"version": "v0.1.0"}, "image": host + "/tools@" + toolsDesc.Digest.String()}, ours))
 
+	// svc is on an older runtime than the one observed: runtime is a root.
+	oldRuntime := pushIndex(t, host+"/runtime:previous", nil, built.Add(-2*24*time.Hour), nil)
+	oldRuntimeDigest, _ := oldRuntime.Digest()
+	pushIndex(t, host+"/runtime:latest", nil, built, nil)
+	svc := pushIndex(t, host+"/svc:1", oldRuntime, built, nil)
+	svcDesc := descriptorOf(t, svc)
+	attach(t, host+"/svc", svcDesc, bundleJSON(t, PredicateRecipe, svcDesc.Digest.String(), imageRecipePredicate(host+"/runtime:latest", oldRuntimeDigest.String()), ours))
+
 	legacy := pushIndex(t, host+"/legacy:1", nil, built, nil)
 	legacyDigest, _ := legacy.Digest()
 	pushCosignTags(t, host+"/legacy", legacyDigest.String(), ours, "https://slsa.dev/provenance/v1", map[string]any{"buildDefinition": map[string]any{
@@ -104,7 +112,7 @@ func TestBuildFactoryFleet(t *testing.T) {
 	}})
 
 	verifier := acmeVerifier()
-	r, err := Build(context.Background(), observe(t, host, "base:latest", "tools:1", "rebased:1", "legacy:1"), Options{
+	r, err := Build(context.Background(), observe(t, host, "base:latest", "tools:1", "rebased:1", "legacy:1", "runtime:latest", "svc:1"), Options{
 		Name: "fleet", Version: "test", GeneratedAt: "2026-10-06T00:00:00Z", Verifier: verifier, Platforms: []string{"linux/amd64"},
 		Reproducer: fakeReproducer{host + "/tools@" + toolsDesc.Digest.String(): toolsDesc.Digest.String()},
 		Policy:     report.Policy{Required: []string{"signature", "recipe"}, TrustedSigners: verifier.Signers, MaxDaysBehind: 30, Reproduce: true},
@@ -152,7 +160,14 @@ func TestBuildFactoryFleet(t *testing.T) {
 		t.Errorf("legacy provenance %+v source %+v", lg.Evidence.Provenance, lg.Source)
 	}
 
-	if img["base"].Root == "" || len(r.Bases) != 1 || r.Bases[0].Consumers != 2 || r.Bases[0].StaleConsumers != 1 || r.Bases[0].Versions != 2 {
+	// A root found only through older versions has no drift to measure.
+	if rt := img["runtime"]; rt.Root == "" || strings.Contains(strings.Join(rt.Verdict.Reasons, ";"), "couldn't be measured") {
+		t.Errorf("runtime: root %q, verdict %+v", rt.Root, rt.Verdict)
+	}
+	if img["svc"].Base == nil || img["svc"].Base.DaysBehind != 2 {
+		t.Errorf("svc base: %+v", img["svc"].Base)
+	}
+	if img["base"].Root == "" || len(r.Bases) != 2 || r.Bases[0].Consumers != 2 || r.Bases[0].StaleConsumers != 1 || r.Bases[0].Versions != 2 || r.Bases[1].Repository != host+"/runtime" {
 		t.Errorf("bases %+v (base root %q)", r.Bases, img["base"].Root)
 	}
 	validateReport(t, r)
