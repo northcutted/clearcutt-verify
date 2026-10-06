@@ -795,12 +795,14 @@ func reproduce(ctx context.Context, img *report.Image, data imageData, opts Opti
 	got, err := opts.Reproducer.Reproduce(ctx, img.Repository+"@"+img.Digest, trusted)
 	r := report.Reproducibility{Method: method, CheckedAt: time.Now().UTC().Format(time.RFC3339), Digest: got}
 	switch {
-	case err == nil && got == img.Digest:
+	case got == img.Digest:
 		r.Status = "reproduced"
-	case err == nil:
+	case got != "":
 		r.Status, r.Detail = "not-reproduced", "Rebuilt "+got+", not "+img.Digest+"."
 	default:
-		r.Status, r.Detail = "not-reproduced", err.Error()
+		// No digest: the rebuild didn't finish, so whether the image
+		// reproduces is still undecided.
+		r.Status, r.Detail = "not-checked", "The rebuild couldn't finish: "+err.Error()
 	}
 	return r
 }

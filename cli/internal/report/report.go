@@ -365,8 +365,10 @@ type Finding struct {
 
 // Reproducibility is whether rebuilding the image gives the same digest.
 type Reproducibility struct {
-	// Status is reproduced, not-reproduced, not-checked (a recipe exists but
-	// this run didn't rebuild), or no-recipe (nothing to rebuild from).
+	// Status is reproduced, not-reproduced (the rebuild gave a different
+	// digest), not-checked (a recipe exists but this run didn't rebuild, or
+	// the rebuild couldn't finish; see detail), or no-recipe (nothing to
+	// rebuild from).
 	Status string `json:"status" enum:"reproduced,not-reproduced,not-checked,no-recipe"`
 	// Method is recipe-rebuild (rebuilt from the signed recipe) or
 	// rebase-repeat (repeated the recorded rebase).

@@ -138,7 +138,9 @@ func TestBuildFactoryFleet(t *testing.T) {
 	if rb.Builder.Basis != "clearcutt-factory rebase record" || rb.Base == nil || rb.Base.Drift != "current" {
 		t.Errorf("rebased builder %+v base %+v", rb.Builder, rb.Base)
 	}
-	if rb.Reproducibility.Method != "rebase-repeat" || rb.Reproducibility.Status != "not-reproduced" || rb.Verdict.Status != "failed" {
+	// Its rebase couldn't be repeated: undecided, not a mismatch.
+	if rb.Reproducibility.Method != "rebase-repeat" || rb.Reproducibility.Status != "not-checked" || rb.Verdict.Status != "unverified" ||
+		!strings.Contains(rb.Reproducibility.Detail, "couldn't finish") {
 		t.Errorf("rebased reproducibility %+v verdict %+v", rb.Reproducibility, rb.Verdict)
 	}
 
@@ -190,7 +192,7 @@ func TestFactoryReproducer(t *testing.T) {
 	signer := report.Signer{IdentityRegexp: `^https://github\.com/acme/`, Issuer: ghIssuer}
 	digest := "sha256:" + strings.Repeat("d", 64)
 	var args []string
-	f := FactoryReproducer{Run: func(_ context.Context, bin string, a ...string) ([]byte, error) {
+	f := FactoryReproducer{Dir: t.TempDir(), Run: func(_ context.Context, _, bin string, a ...string) ([]byte, error) {
 		args = append([]string{bin}, a...)
 		return []byte("building...\nrebuilt " + digest + ", matching the published image\n"), nil
 	}}
@@ -198,13 +200,13 @@ func TestFactoryReproducer(t *testing.T) {
 	if err != nil || got != digest || strings.Join(args[:4], " ") != "clearcutt-factory verify --image r@"+digest {
 		t.Fatalf("reproduce: %q %v (args %q)", got, err, args)
 	}
-	f.Run = func(context.Context, string, ...string) ([]byte, error) {
+	f.Run = func(context.Context, string, string, ...string) ([]byte, error) {
 		return []byte("pulling base\nerror: base image unavailable\n"), errors.New("exit status 1")
 	}
 	if _, err := f.Reproduce(context.Background(), "r@"+digest, signer); err == nil || !strings.Contains(err.Error(), "base image unavailable") {
 		t.Errorf("failed rebuild: %v", err)
 	}
-	f.Run = func(context.Context, string, ...string) ([]byte, error) { return []byte("done\n"), nil }
+	f.Run = func(context.Context, string, string, ...string) ([]byte, error) { return []byte("done\n"), nil }
 	if _, err := f.Reproduce(context.Background(), "r@"+digest, signer); err == nil || !strings.Contains(err.Error(), "gave no digest") {
 		t.Errorf("no digest: %v", err)
 	}
@@ -228,5 +230,23 @@ func TestVerifierRunsCosign(t *testing.T) {
 	v.Signers[0].IdentityRegexp = `^https://github\.com/other/`
 	if _, err := v.Verify(context.Background(), "r@sha256:x", KindSignature, ""); err == nil || !strings.Contains(err.Error(), "no matching signatures") {
 		t.Errorf("untrusted: %v", err)
+	}
+}
+
+func TestReproduceOutcomes(t *testing.T) {
+	digest := "sha256:" + strings.Repeat("a", 64)
+	signer := &report.Signer{Identity: ourSigner, Issuer: ghIssuer}
+	img := &report.Image{Repository: "r", Digest: digest, Evidence: report.Evidence{Recipe: report.EvidenceItem{Status: "verified"}, Rebase: report.EvidenceItem{Status: "not-applicable"}}}
+	opts := Options{Policy: report.Policy{Reproduce: true, TrustedSigners: []report.Signer{{IdentityRegexp: `^https://github\.com/acme/`, Issuer: ghIssuer}}}}
+	data := imageData{recipeVerified: true, recipeSigner: signer}
+	for rebuilt, want := range map[string]string{digest: "reproduced", "sha256:" + strings.Repeat("b", 64): "not-reproduced", "": "not-checked"} {
+		opts.Reproducer = fakeReproducer{"r@" + digest: rebuilt}
+		if got := reproduce(context.Background(), img, data, opts); got.Status != want || got.Method != "recipe-rebuild" {
+			t.Errorf("rebuilt %q: %+v, want %s", rebuilt, got, want)
+		}
+	}
+	// Unverified recipes aren't rebuilt.
+	if got := reproduce(context.Background(), img, imageData{recipeSigner: signer}, opts); got.Status != "not-checked" || !strings.Contains(got.Detail, "Only verified") {
+		t.Errorf("unverified recipe: %+v", got)
 	}
 }

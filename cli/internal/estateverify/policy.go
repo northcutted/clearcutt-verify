@@ -97,8 +97,13 @@ func verdict(img report.Image, p report.Policy) report.Verdict {
 	if p.MaxDaysBehind > 0 && img.Base != nil && img.Base.DaysBehind > p.MaxDaysBehind {
 		failed = append(failed, fmt.Sprintf("base is %d days behind its newest version (limit %d)", img.Base.DaysBehind, p.MaxDaysBehind))
 	}
-	if p.Reproduce && img.Reproducibility.Status == "not-reproduced" {
-		failed = append(failed, "rebuilding gave a different digest")
+	if p.Reproduce {
+		switch r := img.Reproducibility; {
+		case r.Status == "not-reproduced":
+			failed = append(failed, "rebuilding gave a different digest")
+		case r.Status == "not-checked" && r.Method != "":
+			unverified = append(unverified, "reproducibility couldn't be checked")
+		}
 	}
 	switch {
 	case len(failed) > 0:

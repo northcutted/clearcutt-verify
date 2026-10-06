@@ -99,7 +99,15 @@ tell the report came from your job.
 (or repeats its verified rebase) with `clearcutt-factory verify --image`, and
 records whether the digest matched. It needs `clearcutt-factory` on `PATH` (or
 `--factory-path`) and a container runtime, and takes as long as the builds do.
-Without it, images with recipes are `not-checked`.
+Each rebuild works in its own directory under the user cache directory (on
+macOS, `~/Library/Caches/clearcutt-verify/reproduce/`), which is kept with its
+build log when the image doesn't reproduce.
+
+A different digest is `not-reproduced` and fails the image. A rebuild that
+couldn't finish (a registry or the container runtime failing) is
+`not-checked`, with the reason, and leaves the image `unverified`: whether it
+reproduces is still undecided. Without `--reproduce`, images with recipes are
+`not-checked`.
 
 ## Limits
 
