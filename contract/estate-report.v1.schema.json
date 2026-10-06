@@ -1,0 +1,1170 @@
+{
+  "$defs": {
+    "Base": {
+      "additionalProperties": false,
+      "description": "Base is a base-image repository and its newest observed version.",
+      "properties": {
+        "consumers": {
+          "description": "Consumers is how many images are built on it; StaleConsumers how many of those aren't on the newest version.",
+          "type": "integer"
+        },
+        "currentCreated": {
+          "type": "string"
+        },
+        "currentDigest": {
+          "type": "string"
+        },
+        "currentRef": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "staleConsumers": {
+          "type": "integer"
+        },
+        "versions": {
+          "description": "Versions is how many versions of it images are built on.",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "consumers",
+        "currentRef",
+        "repository",
+        "staleConsumers",
+        "versions"
+      ],
+      "type": "object"
+    },
+    "BaseLink": {
+      "additionalProperties": false,
+      "description": "BaseLink is an image's base and how current it is.",
+      "properties": {
+        "currentDigest": {
+          "type": "string"
+        },
+        "currentRef": {
+          "description": "CurrentRef and CurrentDigest are the newest observed version of the base.",
+          "type": "string"
+        },
+        "daysBehind": {
+          "type": "integer"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "drift": {
+          "description": "Drift is current, stale, or unknown.",
+          "enum": [
+            "current",
+            "stale",
+            "unknown"
+          ]
+        },
+        "imageId": {
+          "description": "ImageID is the base's ID when the base is itself in the report.",
+          "type": "string"
+        },
+        "method": {
+          "description": "Method is how the relationship was established: layer-prefix (the image starts with the base's exact layers), oci-base-digest, buildpacks-metadata, oci-base-name, or history.",
+          "enum": [
+            "layer-prefix",
+            "oci-base-digest",
+            "buildpacks-metadata",
+            "oci-base-name",
+            "history"
+          ]
+        },
+        "ref": {
+          "description": "Ref is the base as the image is built on it (repository:tag or repository@digest).",
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "strength": {
+          "description": "Strength is proof (layer-prefix), declared (an exact claim by the image's author), assisted (a partial claim), or weak.",
+          "enum": [
+            "proof",
+            "declared",
+            "assisted",
+            "weak"
+          ]
+        },
+        "versionsBehind": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "daysBehind",
+        "drift",
+        "method",
+        "ref",
+        "repository",
+        "strength",
+        "versionsBehind"
+      ],
+      "type": "object"
+    },
+    "BaseSummary": {
+      "additionalProperties": false,
+      "description": "BaseSummary counts images by how their base is known and how current it is.",
+      "properties": {
+        "claimed": {
+          "description": "Claimed bases rest on something the image's author wrote (labels, annotations, build history).",
+          "type": "integer"
+        },
+        "current": {
+          "type": "integer"
+        },
+        "proven": {
+          "description": "Proven bases were established by layer digests.",
+          "type": "integer"
+        },
+        "roots": {
+          "description": "Roots have no parent: base images, or images built from scratch or by composing layers (Nix, apko).",
+          "type": "integer"
+        },
+        "stale": {
+          "type": "integer"
+        },
+        "unresolved": {
+          "description": "Unresolved images have no base that could be determined (see each image's unresolved reasons).",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "claimed",
+        "current",
+        "proven",
+        "roots",
+        "stale",
+        "unresolved"
+      ],
+      "type": "object"
+    },
+    "Builder": {
+      "additionalProperties": false,
+      "description": "Builder is how the image was built, as far as its metadata tells.",
+      "properties": {
+        "basis": {
+          "description": "Basis says what the classification rests on.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind is clearcutt-factory, dockerfile, buildpacks, nix, apko, ko, or unknown.",
+          "enum": [
+            "clearcutt-factory",
+            "dockerfile",
+            "buildpacks",
+            "nix",
+            "apko",
+            "ko",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "basis",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "description": "Evidence is what is known about each kind of supply-chain evidence.",
+      "properties": {
+        "provenance": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/EvidenceItem"
+            }
+          ],
+          "description": "Provenance is SLSA build provenance."
+        },
+        "rebase": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/EvidenceItem"
+            }
+          ],
+          "description": "Rebase is a clearcutt-factory rebase record, for images whose layers were moved onto a newer base without a rebuild."
+        },
+        "recipe": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/EvidenceItem"
+            }
+          ],
+          "description": "Recipe is a clearcutt-factory recipe: what anyone needs to rebuild the image bit for bit."
+        },
+        "sbom": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/EvidenceItem"
+            }
+          ],
+          "description": "SBOM is a software bill of materials (CycloneDX or SPDX)."
+        },
+        "signature": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/EvidenceItem"
+            }
+          ],
+          "description": "Signature is a signature over the image itself."
+        },
+        "tests": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/EvidenceItem"
+            }
+          ],
+          "description": "Tests is evidence that the image was tested (a smoke test or test attestation)."
+        },
+        "vulnerabilityScan": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/EvidenceItem"
+            }
+          ],
+          "description": "VulnerabilityScan is a vulnerability report about the image."
+        }
+      },
+      "required": [
+        "provenance",
+        "rebase",
+        "recipe",
+        "sbom",
+        "signature",
+        "tests",
+        "vulnerabilityScan"
+      ],
+      "type": "object"
+    },
+    "EvidenceItem": {
+      "additionalProperties": false,
+      "description": "EvidenceItem is one kind of evidence for one image.",
+      "properties": {
+        "detail": {
+          "description": "Detail explains the status in a sentence.",
+          "type": "string"
+        },
+        "platforms": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Platforms gives the status per platform image, for evidence attached per platform (SBOMs and vulnerability reports); Status is the worst.",
+          "type": "object"
+        },
+        "predicateType": {
+          "description": "PredicateType is the in-toto predicate type, for attestations.",
+          "type": "string"
+        },
+        "ref": {
+          "description": "Ref is where it is stored (e.g. an attestation's repository@digest).",
+          "type": "string"
+        },
+        "signer": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Signer"
+            }
+          ],
+          "description": "Signer is who signed it, as read from the signing certificate or key."
+        },
+        "source": {
+          "description": "Source is where it was found: cosign-attestation, cosign-signature, github-attestation, oci-referrer, label, or catalog.",
+          "enum": [
+            "cosign-attestation",
+            "cosign-signature",
+            "github-attestation",
+            "oci-referrer",
+            "label",
+            "catalog"
+          ]
+        },
+        "status": {
+          "description": "Status is verified (found and checked against a trusted signer), present (found but not checked: no trusted signer applies, or it can't be checked), failed (found, and the check failed), missing (looked for, none), unknown (couldn't be looked for), or not-applicable (e.g. a rebase record for an image never rebased).",
+          "enum": [
+            "verified",
+            "present",
+            "failed",
+            "missing",
+            "unknown",
+            "not-applicable"
+          ]
+        },
+        "timestamp": {
+          "description": "Timestamp is when it was signed or produced (RFC 3339), if known.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    "Factory": {
+      "additionalProperties": false,
+      "description": "Factory describes an image built or rebased by clearcutt-factory, from its verified recipe or rebase record.",
+      "properties": {
+        "inputs": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FactoryInputs"
+            }
+          ],
+          "description": "Inputs counts what the lock pins."
+        },
+        "kind": {
+          "description": "Kind is Image or App.",
+          "enum": [
+            "Image",
+            "App"
+          ]
+        },
+        "name": {
+          "description": "Name is the manifest's metadata.name.",
+          "type": "string"
+        },
+        "rebasedFrom": {
+          "description": "RebasedFrom is the image whose layers were rebased (repository@digest).",
+          "type": "string"
+        },
+        "sourceDateEpoch": {
+          "description": "SourceDateEpoch is the build timestamp all files were clamped to.",
+          "type": "integer"
+        },
+        "stack": {
+          "description": "Stack is the stack an app was built on.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Version is the clearcutt-factory version that built or rebased it.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    "FactoryInputs": {
+      "additionalProperties": false,
+      "description": "FactoryInputs counts a factory lock's pins.",
+      "properties": {
+        "images": {
+          "type": "integer"
+        },
+        "packages": {
+          "type": "integer"
+        },
+        "tools": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "images",
+        "packages",
+        "tools"
+      ],
+      "type": "object"
+    },
+    "Finding": {
+      "additionalProperties": false,
+      "description": "Finding is one vulnerability in one package version.",
+      "properties": {
+        "fixedIn": {
+          "description": "FixedIn lists versions with a fix; empty when none is known.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "package": {
+          "type": "string"
+        },
+        "platforms": {
+          "description": "Platforms are the platform images it was found in.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "severity": {
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "negligible",
+            "unknown"
+          ]
+        },
+        "suppressed": {
+          "description": "Suppressed says a VEX statement covers it (it is not counted).",
+          "type": "boolean"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "package",
+        "platforms",
+        "severity",
+        "version"
+      ],
+      "type": "object"
+    },
+    "Generator": {
+      "additionalProperties": false,
+      "description": "Generator is the tool that wrote the report.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "Image": {
+      "additionalProperties": false,
+      "description": "Image is one image: a repository at the digest its tags point at.",
+      "properties": {
+        "base": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/BaseLink"
+            }
+          ],
+          "description": "Base is the image this one is built on; absent for roots and for images whose base couldn't be determined."
+        },
+        "builder": {
+          "$ref": "#/$defs/Builder"
+        },
+        "created": {
+          "description": "Created is the image's creation time from its config (RFC 3339), if set.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Description is the image's org.opencontainers.image.description.",
+          "type": "string"
+        },
+        "digest": {
+          "description": "Digest is what the tags point at: a multi-platform index or a single image manifest.",
+          "type": "string"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Evidence"
+        },
+        "factory": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Factory"
+            }
+          ],
+          "description": "Factory is present for images built or rebased by clearcutt-factory."
+        },
+        "id": {
+          "description": "ID is unique within the report and stable across runs for the same repository, e.g. ghcr-io-acme-images-billing.",
+          "type": "string"
+        },
+        "packages": {
+          "description": "Packages is how many package versions the image ships, when known.",
+          "type": "integer"
+        },
+        "platforms": {
+          "items": {
+            "$ref": "#/$defs/Platform"
+          },
+          "type": "array"
+        },
+        "repository": {
+          "description": "Repository is registry/path without tag or digest.",
+          "type": "string"
+        },
+        "reproducibility": {
+          "$ref": "#/$defs/Reproducibility"
+        },
+        "root": {
+          "description": "Root says why the image has no parent, when it is a root.",
+          "type": "string"
+        },
+        "source": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SourceRef"
+            }
+          ],
+          "description": "Source is the code the image was built from, when it says."
+        },
+        "tags": {
+          "description": "Tags point at Digest.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "unresolved": {
+          "description": "Unresolved gives the reasons no base was found, when it wasn't.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        },
+        "vulnerabilities": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Vulnerabilities"
+            }
+          ],
+          "description": "Vulnerabilities is absent when the image has no vulnerability data; that means unknown, not clean."
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "builder",
+        "digest",
+        "evidence",
+        "id",
+        "platforms",
+        "repository",
+        "reproducibility",
+        "tags",
+        "verdict",
+        "warnings"
+      ],
+      "type": "object"
+    },
+    "Metadata": {
+      "additionalProperties": false,
+      "description": "Metadata identifies the estate and the run.",
+      "properties": {
+        "generatedAt": {
+          "description": "GeneratedAt is when the run finished (RFC 3339).",
+          "type": "string"
+        },
+        "generator": {
+          "$ref": "#/$defs/Generator"
+        },
+        "name": {
+          "description": "Name identifies the estate, e.g. acme-production.",
+          "type": "string"
+        },
+        "sources": {
+          "description": "Sources are the registries and repositories that were read.",
+          "items": {
+            "$ref": "#/$defs/Source"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "generatedAt",
+        "generator",
+        "name",
+        "sources"
+      ],
+      "type": "object"
+    },
+    "PackageSummary": {
+      "additionalProperties": false,
+      "description": "PackageSummary counts images by whether their package set is known.",
+      "properties": {
+        "known": {
+          "type": "integer"
+        },
+        "unknown": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "known",
+        "unknown"
+      ],
+      "type": "object"
+    },
+    "PackageUse": {
+      "additionalProperties": false,
+      "description": "PackageUse is one package version and the images that ship it.",
+      "properties": {
+        "images": {
+          "description": "Images are image IDs.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "purl": {
+          "type": "string"
+        },
+        "type": {
+          "description": "Type is the ecosystem: apk, deb, rpm, golang, npm, pypi, maven, nix, …",
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "images",
+        "name",
+        "type",
+        "version"
+      ],
+      "type": "object"
+    },
+    "Platform": {
+      "additionalProperties": false,
+      "description": "Platform is one platform image of a multi-platform image.",
+      "properties": {
+        "digest": {
+          "type": "string"
+        },
+        "layers": {
+          "type": "integer"
+        },
+        "platform": {
+          "description": "Platform is os/arch[/variant], e.g. linux/arm64.",
+          "type": "string"
+        },
+        "size": {
+          "description": "Size is the total compressed size of the layers, in bytes.",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "digest",
+        "layers",
+        "platform",
+        "size"
+      ],
+      "type": "object"
+    },
+    "Policy": {
+      "additionalProperties": false,
+      "description": "Policy is what images were held to.",
+      "properties": {
+        "failOn": {
+          "description": "FailOn fails images with vulnerabilities at or above this severity (negligible, low, medium, high, critical); empty never fails.",
+          "enum": [
+            "negligible",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+        "maxDaysBehind": {
+          "description": "MaxDaysBehind fails images whose base is more than this many days behind its newest version; 0 never fails.",
+          "type": "integer"
+        },
+        "onlyFixed": {
+          "description": "OnlyFixed counts only vulnerabilities that have a fix toward FailOn.",
+          "type": "boolean"
+        },
+        "reproduce": {
+          "description": "Reproduce reports whether this run rebuilt images to check them.",
+          "type": "boolean"
+        },
+        "required": {
+          "description": "Required lists the evidence kinds an image needs, verified, to pass: any of signature, sbom, vulnerabilityScan, provenance, recipe, tests.",
+          "items": {
+            "enum": [
+              "signature",
+              "sbom",
+              "vulnerabilityScan",
+              "provenance",
+              "recipe",
+              "tests"
+            ]
+          },
+          "type": "array"
+        },
+        "trustedSigners": {
+          "description": "TrustedSigners are the identities whose signatures and attestations count as verified. Empty means nothing can be verified, only present.",
+          "items": {
+            "$ref": "#/$defs/Signer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "reproduce",
+        "required",
+        "trustedSigners"
+      ],
+      "type": "object"
+    },
+    "Reproducibility": {
+      "additionalProperties": false,
+      "description": "Reproducibility is whether rebuilding the image gives the same digest.",
+      "properties": {
+        "checkedAt": {
+          "description": "CheckedAt is when it was checked (RFC 3339).",
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "digest": {
+          "description": "Digest is what the rebuild produced.",
+          "type": "string"
+        },
+        "method": {
+          "description": "Method is recipe-rebuild (rebuilt from the signed recipe) or rebase-repeat (repeated the recorded rebase).",
+          "enum": [
+            "recipe-rebuild",
+            "rebase-repeat"
+          ]
+        },
+        "status": {
+          "description": "Status is reproduced, not-reproduced, not-checked (a recipe exists but this run didn't rebuild), or no-recipe (nothing to rebuild from).",
+          "enum": [
+            "reproduced",
+            "not-reproduced",
+            "not-checked",
+            "no-recipe"
+          ]
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    "ReproducibilityCounts": {
+      "additionalProperties": false,
+      "description": "ReproducibilityCounts counts images by reproducibility.status.",
+      "properties": {
+        "noRecipe": {
+          "type": "integer"
+        },
+        "notChecked": {
+          "type": "integer"
+        },
+        "notReproduced": {
+          "type": "integer"
+        },
+        "reproduced": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "noRecipe",
+        "notChecked",
+        "notReproduced",
+        "reproduced"
+      ],
+      "type": "object"
+    },
+    "SeverityCounts": {
+      "additionalProperties": false,
+      "description": "SeverityCounts counts findings by severity.",
+      "properties": {
+        "critical": {
+          "type": "integer"
+        },
+        "high": {
+          "type": "integer"
+        },
+        "low": {
+          "type": "integer"
+        },
+        "medium": {
+          "type": "integer"
+        },
+        "negligible": {
+          "type": "integer"
+        },
+        "unknown": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "critical",
+        "high",
+        "low",
+        "medium",
+        "negligible",
+        "unknown"
+      ],
+      "type": "object"
+    },
+    "Signer": {
+      "additionalProperties": false,
+      "description": "Signer is a trusted signing identity: a keyless certificate identity (exact or as a regular expression) with its OIDC issuer, or a public key.",
+      "properties": {
+        "identity": {
+          "type": "string"
+        },
+        "identityRegexp": {
+          "type": "string"
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "key": {
+          "description": "Key names a public key (a file name or KMS URI), never key material.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "description": "Source is a registry namespace that was read.",
+      "properties": {
+        "namespace": {
+          "description": "Namespace is a repository path prefix, e.g. acme/images.",
+          "type": "string"
+        },
+        "registry": {
+          "description": "Registry is a host, e.g. ghcr.io.",
+          "type": "string"
+        },
+        "repositories": {
+          "description": "Repositories are the repositories read, when they were named rather than enumerated.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "registry"
+      ],
+      "type": "object"
+    },
+    "SourceRef": {
+      "additionalProperties": false,
+      "description": "SourceRef is the code an image was built from.",
+      "properties": {
+        "basis": {
+          "description": "Basis is where this came from: provenance (verified), label, or annotation.",
+          "enum": [
+            "provenance",
+            "label",
+            "annotation"
+          ]
+        },
+        "revision": {
+          "description": "Revision is a commit or tag, when known.",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL is a repository URL.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "basis",
+        "url"
+      ],
+      "type": "object"
+    },
+    "StatusCounts": {
+      "additionalProperties": false,
+      "description": "StatusCounts counts images by evidence status.",
+      "properties": {
+        "failed": {
+          "type": "integer"
+        },
+        "missing": {
+          "type": "integer"
+        },
+        "notApplicable": {
+          "type": "integer"
+        },
+        "present": {
+          "type": "integer"
+        },
+        "unknown": {
+          "type": "integer"
+        },
+        "verified": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "failed",
+        "missing",
+        "notApplicable",
+        "present",
+        "unknown",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "Summary": {
+      "additionalProperties": false,
+      "description": "Summary holds the estate's headline numbers.",
+      "properties": {
+        "bases": {
+          "$ref": "#/$defs/BaseSummary"
+        },
+        "evidence": {
+          "additionalProperties": {
+            "$ref": "#/$defs/StatusCounts"
+          },
+          "description": "Evidence counts images by status for each evidence kind (keys: signature, sbom, vulnerabilityScan, provenance, recipe, rebase, tests).",
+          "type": "object"
+        },
+        "images": {
+          "description": "Images is the number of images in the report.",
+          "type": "integer"
+        },
+        "packages": {
+          "$ref": "#/$defs/PackageSummary"
+        },
+        "reproducibility": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ReproducibilityCounts"
+            }
+          ],
+          "description": "Reproducibility counts images by reproducibility.status."
+        },
+        "verdicts": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/VerdictCounts"
+            }
+          ],
+          "description": "Verdicts counts images by verdict.status."
+        },
+        "vulnerabilities": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/VulnerabilitySummary"
+            }
+          ],
+          "description": "Vulnerabilities totals findings over scanned images."
+        }
+      },
+      "required": [
+        "bases",
+        "evidence",
+        "images",
+        "packages",
+        "reproducibility",
+        "verdicts",
+        "vulnerabilities"
+      ],
+      "type": "object"
+    },
+    "Verdict": {
+      "additionalProperties": false,
+      "description": "Verdict is whether the image meets the policy.",
+      "properties": {
+        "reasons": {
+          "description": "Reasons explain a failed or unverified verdict, one requirement each.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "status": {
+          "description": "Status is verified (meets every requirement), failed (violates one), or unverified (some requirement couldn't be decided).",
+          "enum": [
+            "verified",
+            "failed",
+            "unverified"
+          ]
+        }
+      },
+      "required": [
+        "reasons",
+        "status"
+      ],
+      "type": "object"
+    },
+    "VerdictCounts": {
+      "additionalProperties": false,
+      "description": "VerdictCounts counts images by verdict.",
+      "properties": {
+        "failed": {
+          "type": "integer"
+        },
+        "unverified": {
+          "type": "integer"
+        },
+        "verified": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "failed",
+        "unverified",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "Vulnerabilities": {
+      "additionalProperties": false,
+      "description": "Vulnerabilities is an image's vulnerability findings.",
+      "properties": {
+        "counts": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "findings": {
+          "description": "Findings are deduplicated across platforms.",
+          "items": {
+            "$ref": "#/$defs/Finding"
+          },
+          "type": "array"
+        },
+        "fixable": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "scannedAt": {
+          "description": "ScannedAt is when the scan ran (RFC 3339); findings describe that day.",
+          "type": "string"
+        },
+        "scanner": {
+          "description": "Scanner is the scanner and version, e.g. grype 0.118.0.",
+          "type": "string"
+        },
+        "source": {
+          "description": "Source is attestation (the publisher's signed report) or scan (this run scanned the image or its SBOM).",
+          "enum": [
+            "attestation",
+            "scan"
+          ]
+        }
+      },
+      "required": [
+        "counts",
+        "findings",
+        "fixable",
+        "source"
+      ],
+      "type": "object"
+    },
+    "VulnerabilitySummary": {
+      "additionalProperties": false,
+      "description": "VulnerabilitySummary totals findings over the images that were scanned.",
+      "properties": {
+        "counts": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "fixable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SeverityCounts"
+            }
+          ],
+          "description": "Fixable counts the findings that have a fix."
+        },
+        "notScanned": {
+          "type": "integer"
+        },
+        "scanned": {
+          "description": "Scanned is how many images have vulnerability data; NotScanned how many don't (their vulnerabilities are unknown, not zero).",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "counts",
+        "fixable",
+        "notScanned",
+        "scanned"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/northcutted/clearcutt-verify/main/contract/estate-report.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Report is one verification run over an image estate.",
+  "properties": {
+    "apiVersion": {
+      "const": "clearcutt.dev/v1",
+      "description": "Always clearcutt.dev/v1."
+    },
+    "bases": {
+      "description": "Bases are the base-image repositories that images were found to be built on, with their newest observed version.",
+      "items": {
+        "$ref": "#/$defs/Base"
+      },
+      "type": "array"
+    },
+    "images": {
+      "description": "Images are the observed images, one per repository and digest.",
+      "items": {
+        "$ref": "#/$defs/Image"
+      },
+      "type": "array"
+    },
+    "kind": {
+      "const": "EstateReport",
+      "description": "Always EstateReport."
+    },
+    "metadata": {
+      "$ref": "#/$defs/Metadata"
+    },
+    "packages": {
+      "description": "Packages index which images ship which package versions. Only images whose package set could be read appear here; the rest are counted in summary.packages.unknown, so a package's absence is not proof that no image ships it.",
+      "items": {
+        "$ref": "#/$defs/PackageUse"
+      },
+      "type": "array"
+    },
+    "policy": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Policy"
+        }
+      ],
+      "description": "Policy is what images were held to in this run."
+    },
+    "summary": {
+      "$ref": "#/$defs/Summary"
+    },
+    "warnings": {
+      "description": "Warnings are estate-wide problems the run hit.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "apiVersion",
+    "bases",
+    "images",
+    "kind",
+    "metadata",
+    "packages",
+    "policy",
+    "summary",
+    "warnings"
+  ],
+  "title": "ClearCutt estate report",
+  "type": "object"
+}

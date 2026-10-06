@@ -17,6 +17,11 @@ Add an entry here in the same PR as any user-visible behavior change
 workflow archives this section into the release notes.
 -->
 
+- New estate report contract (`apiVersion: clearcutt.dev/v1`, `kind:
+  EstateReport` and `EstateHistory`) in `contract/`: JSON Schemas generated
+  from the Go types in `cli/internal/report`, a README defining every status,
+  and a synthetic example bundle. It is the interface clearcutt-portal reads;
+  generating it from a real estate comes next.
 - New `clearcutt platform new [dir]` scaffolds a complete fleet repo without a
   monorepo checkout, resolving its source from `--source` (dir/zip/URL), a
   local checkout, the source archive embedded in the released binary, or a
