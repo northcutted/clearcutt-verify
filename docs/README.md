@@ -24,6 +24,9 @@ document, one first command, and then deeper links.
   release workflow, image digest, SBOM, provenance, catalog record, and policy.
 - [Catalog evidence walkthrough](trust/catalog-evidence.md): understand evidence
   badges, missing data, raw evidence, and generic OCI mode.
+- [Verifying an estate](verify-estate.md): verify every image's signatures and
+  attestations against trusted signers, and write the estate report
+  ([contract](../contract/README.md)) a portal reads.
 - [Registry scan and the base image graph](registry-graph.md): point ClearCutt at a
   registry, discover which images are built on which, and produce an auditable
   inventory with drift.

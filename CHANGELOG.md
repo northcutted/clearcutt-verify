@@ -17,6 +17,18 @@ Add an entry here in the same PR as any user-visible behavior change
 workflow archives this section into the release notes.
 -->
 
+- New `clearcutt verify estate` verifies every image in an estate and writes the
+  estate report bundle (`estate-report.json`, `estate-history.json`). It finds
+  evidence in the registry (cosign v3 Sigstore bundles, cosign v2 tags, unsigned
+  SBOM referrers), verifies it with cosign against a policy's trusted signers,
+  reads vulnerabilities, packages, SLSA source, and clearcutt-factory recipes
+  and rebase records, proves bases by layer digest (including bases an image
+  names whose tag has since moved), and decides a verdict per image.
+  `--reproduce` rebuilds clearcutt-factory images to compare digests. See
+  `docs/verify-estate.md`.
+- `import observe` now reads registry credentials from the Docker keychain
+  (`docker login`), so private images and Docker Hub's higher authenticated
+  rate limit work.
 - New estate report contract (`apiVersion: clearcutt.dev/v1`, `kind:
   EstateReport` and `EstateHistory`) in `contract/`: JSON Schemas generated
   from the Go types in `cli/internal/report`, a README defining every status,

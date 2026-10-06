@@ -65,7 +65,8 @@ func NewVerifyCmd() *cobra.Command {
   runtime-cve      gate the shipped closure: no stock (below-floor) build of a CVE-remediated dep
   boundaries       run all image-security boundary gates (closure-purity + runtime-cve) at once
   rebuild          verify rebuild digest and runtime/grafted closure equivalence predicates
-  release-evidence verify a published image ref's Sigstore signature + SLSA provenance`,
+  release-evidence verify a published image ref's Sigstore signature + SLSA provenance
+  estate           verify every image in an estate and write the estate report (contract/)`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runVerify(args[0])
@@ -80,6 +81,7 @@ func NewVerifyCmd() *cobra.Command {
 	cmd.AddCommand(NewVerifyReleaseEvidenceCmd())
 	cmd.AddCommand(newVerifyClosurePurityCmd())
 	cmd.AddCommand(newVerifyBoundariesCmd())
+	cmd.AddCommand(newVerifyEstateCmd())
 	return cmd
 }
 

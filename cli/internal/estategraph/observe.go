@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -215,29 +216,38 @@ func (f *FixtureObserver) Observe(_ context.Context, ref string) (Observation, e
 	return Observation{}, fmt.Errorf("no offline fixture for %s", ref)
 }
 
-type RegistryObserver struct{}
+// RegistryObserver reads images from their registries, with credentials from
+// the Docker keychain. Options are added to every request (a shared
+// transport, for instance).
+type RegistryObserver struct {
+	Options []remote.Option
+}
+
+func (r RegistryObserver) options(ctx context.Context) []remote.Option {
+	return append([]remote.Option{remote.WithContext(ctx), remote.WithAuthFromKeychain(authn.DefaultKeychain)}, r.Options...)
+}
 
 // Digest reports the manifest digest with a single HEAD request, fetching no
 // config and no per-platform manifests. It is the cheap half of incremental
 // observation: unchanged images cost one round trip instead of three to five.
-func (RegistryObserver) Digest(ctx context.Context, ref string) (string, error) {
+func (r RegistryObserver) Digest(ctx context.Context, ref string) (string, error) {
 	parsed, err := name.ParseReference(ref, name.WeakValidation)
 	if err != nil {
 		return "", err
 	}
-	desc, err := remote.Head(parsed, remote.WithContext(ctx))
+	desc, err := remote.Head(parsed, r.options(ctx)...)
 	if err != nil {
 		return "", err
 	}
 	return desc.Digest.String(), nil
 }
 
-func (RegistryObserver) Observe(ctx context.Context, ref string) (Observation, error) {
+func (r RegistryObserver) Observe(ctx context.Context, ref string) (Observation, error) {
 	parsed, err := name.ParseReference(ref, name.WeakValidation)
 	if err != nil {
 		return Observation{}, err
 	}
-	desc, err := remote.Get(parsed, remote.WithContext(ctx))
+	desc, err := remote.Get(parsed, r.options(ctx)...)
 	if err != nil {
 		return Observation{}, err
 	}
