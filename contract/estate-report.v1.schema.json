@@ -153,16 +153,8 @@
           "type": "string"
         },
         "kind": {
-          "description": "Kind is clearcutt-factory, dockerfile, buildpacks, nix, apko, ko, or unknown.",
-          "enum": [
-            "clearcutt-factory",
-            "dockerfile",
-            "buildpacks",
-            "nix",
-            "apko",
-            "ko",
-            "unknown"
-          ]
+          "description": "Kind names the builder: clearcutt-factory, buildkit, docker, buildpacks, nix, apko, debuerreotype, or unknown. Open: new builders may appear, so show unknown values as they are.",
+          "type": "string"
         }
       },
       "required": [
@@ -275,15 +267,8 @@
           "description": "Signer is who signed it, as read from the signing certificate or key."
         },
         "source": {
-          "description": "Source is where it was found: cosign-attestation, cosign-signature, github-attestation, oci-referrer, label, or catalog.",
-          "enum": [
-            "cosign-attestation",
-            "cosign-signature",
-            "github-attestation",
-            "oci-referrer",
-            "label",
-            "catalog"
-          ]
+          "description": "Source is where it was found: cosign-signature, cosign-attestation, github-attestation, or oci-referrer (an unsigned document). Open: new sources may appear.",
+          "type": "string"
         },
         "status": {
           "description": "Status is verified (found and checked against a trusted signer), present (found but not checked: no trusted signer applies, or it can't be checked), failed (found, and the check failed), missing (looked for, none), unknown (couldn't be looked for), or not-applicable (e.g. a rebase record for an image never rebased).",
@@ -319,14 +304,14 @@
           "description": "Inputs counts what the lock pins."
         },
         "kind": {
-          "description": "Kind is Image or App.",
+          "description": "Kind is Image or App. A rebased image's comes from the recipe of the image it was rebased from; it is absent when that couldn't be read.",
           "enum": [
             "Image",
             "App"
           ]
         },
         "name": {
-          "description": "Name is the manifest's metadata.name.",
+          "description": "Name is the manifest's metadata.name (absent like kind).",
           "type": "string"
         },
         "rebasedFrom": {
@@ -346,10 +331,6 @@
           "type": "string"
         }
       },
-      "required": [
-        "kind",
-        "name"
-      ],
       "type": "object"
     },
     "FactoryInputs": {
@@ -744,7 +725,7 @@
           ]
         },
         "status": {
-          "description": "Status is reproduced, not-reproduced, not-checked (a recipe exists but this run didn't rebuild), or no-recipe (nothing to rebuild from).",
+          "description": "Status is reproduced, not-reproduced (the rebuild gave a different digest), not-checked (a recipe exists but this run didn't rebuild, or the rebuild couldn't finish; see detail), or no-recipe (nothing to rebuild from).",
           "enum": [
             "reproduced",
             "not-reproduced",

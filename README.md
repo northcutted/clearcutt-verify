@@ -37,6 +37,7 @@ shows the same question answered for free where the builder does record one.
 | **Map** | `graph build` | Which images are built on which, and how stale is each one? |
 | **Compare** | `graph layers` | What does the fleet have in common, and what would a fix reach? |
 | **Assess** | `import observe` → `import assess` | What evidence exists per image, and what is missing? |
+| **Verify** | `verify estate` | Is every image signed, attested, and current, by whom, and can it be rebuilt? Writes the estate report clearcutt-portal reads. |
 | **Gate** | `verify`, `certify`, `policy` | Does this image meet policy, at CI and at admission? |
 | **Publish** | `catalog build`, `catalog site build` | A static evidence portal anyone can read. |
 

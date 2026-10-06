@@ -196,6 +196,22 @@ equally old.
 every edge with the confidence that method earns. See
 [Registry scan and the base image graph](registry-graph.md).
 
+## Estate Verification
+
+```bash
+# Verify every image against a policy and write the estate report bundle
+./clearcutt verify estate --refs refs.txt --policy policy.yaml --name acme --out dist/estate
+
+# Reuse a scan, verify with flags instead of a policy file, gate CI
+./clearcutt verify estate --observations dist/scan/observations.json \
+  --require signature,sbom,provenance \
+  --trusted-identity-regexp '^https://github\.com/acme/' \
+  --trusted-issuer https://token.actions.githubusercontent.com \
+  --out dist/estate --fail-on failed
+```
+
+See [Verifying an estate](verify-estate.md) and the [report contract](../contract/README.md).
+
 ## Scan Commands
 
 ```bash

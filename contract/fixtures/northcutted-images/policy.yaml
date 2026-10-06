@@ -1,0 +1,11 @@
+apiVersion: clearcutt.dev/v1
+kind: VerificationPolicy
+required: [signature, sbom, provenance]
+trustedSigners:
+  - identityRegexp: ^https://github\.com/northcutted/clearcutt-factory/
+    issuer: https://token.actions.githubusercontent.com
+  - identityRegexp: ^https://github\.com/chainguard-images/images/
+    issuer: https://token.actions.githubusercontent.com
+failOn: critical
+onlyFixed: true
+maxDaysBehind: 30

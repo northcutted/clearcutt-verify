@@ -243,8 +243,10 @@ type Platform struct {
 
 // Builder is how the image was built, as far as its metadata tells.
 type Builder struct {
-	// Kind is clearcutt-factory, dockerfile, buildpacks, nix, apko, ko, or unknown.
-	Kind string `json:"kind" enum:"clearcutt-factory,dockerfile,buildpacks,nix,apko,ko,unknown"`
+	// Kind names the builder: clearcutt-factory, buildkit, docker,
+	// buildpacks, nix, apko, debuerreotype, or unknown. Open: new builders
+	// may appear, so show unknown values as they are.
+	Kind string `json:"kind"`
 	// Basis says what the classification rests on.
 	Basis string `json:"basis"`
 }
@@ -313,9 +315,10 @@ type EvidenceItem struct {
 	// (looked for, none), unknown (couldn't be looked for), or
 	// not-applicable (e.g. a rebase record for an image never rebased).
 	Status string `json:"status" enum:"verified,present,failed,missing,unknown,not-applicable"`
-	// Source is where it was found: cosign-attestation, cosign-signature,
-	// github-attestation, oci-referrer, label, or catalog.
-	Source string `json:"source,omitempty" enum:"cosign-attestation,cosign-signature,github-attestation,oci-referrer,label,catalog"`
+	// Source is where it was found: cosign-signature, cosign-attestation,
+	// github-attestation, or oci-referrer (an unsigned document). Open: new
+	// sources may appear.
+	Source string `json:"source,omitempty"`
 	// PredicateType is the in-toto predicate type, for attestations.
 	PredicateType string `json:"predicateType,omitempty"`
 	// Signer is who signed it, as read from the signing certificate or key.
@@ -362,8 +365,10 @@ type Finding struct {
 
 // Reproducibility is whether rebuilding the image gives the same digest.
 type Reproducibility struct {
-	// Status is reproduced, not-reproduced, not-checked (a recipe exists but
-	// this run didn't rebuild), or no-recipe (nothing to rebuild from).
+	// Status is reproduced, not-reproduced (the rebuild gave a different
+	// digest), not-checked (a recipe exists but this run didn't rebuild, or
+	// the rebuild couldn't finish; see detail), or no-recipe (nothing to
+	// rebuild from).
 	Status string `json:"status" enum:"reproduced,not-reproduced,not-checked,no-recipe"`
 	// Method is recipe-rebuild (rebuilt from the signed recipe) or
 	// rebase-repeat (repeated the recorded rebase).
@@ -378,10 +383,11 @@ type Reproducibility struct {
 // Factory describes an image built or rebased by clearcutt-factory, from its
 // verified recipe or rebase record.
 type Factory struct {
-	// Kind is Image or App.
-	Kind string `json:"kind" enum:"Image,App"`
-	// Name is the manifest's metadata.name.
-	Name string `json:"name"`
+	// Kind is Image or App. A rebased image's comes from the recipe of the
+	// image it was rebased from; it is absent when that couldn't be read.
+	Kind string `json:"kind,omitempty" enum:"Image,App"`
+	// Name is the manifest's metadata.name (absent like kind).
+	Name string `json:"name,omitempty"`
 	// Stack is the stack an app was built on.
 	Stack string `json:"stack,omitempty"`
 	// Version is the clearcutt-factory version that built or rebased it.
