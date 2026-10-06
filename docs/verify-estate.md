@@ -64,6 +64,10 @@ onlyFixed: true       # ...counting only those with a fix
 maxDaysBehind: 30     # a base more than 30 days behind its newest version fails
 ```
 
+With `maxDaysBehind`, an image whose base couldn't be placed is `unverified`:
+it might be behind. Roots (images others are built on, with no base of their
+own) are exempt.
+
 Without a file, the same policy can be given with `--require`,
 `--trusted-identity-regexp`, `--trusted-issuer`, `--vulnerabilities-fail-on`,
 and `--only-fixed`.

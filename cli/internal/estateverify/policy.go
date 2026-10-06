@@ -94,8 +94,14 @@ func verdict(img report.Image, p report.Policy) report.Verdict {
 			failed = append(failed, fmt.Sprintf("%d%s vulnerabilities at %s or above", n, fixable, p.FailOn))
 		}
 	}
-	if p.MaxDaysBehind > 0 && img.Base != nil && img.Base.DaysBehind > p.MaxDaysBehind {
-		failed = append(failed, fmt.Sprintf("base is %d days behind its newest version (limit %d)", img.Base.DaysBehind, p.MaxDaysBehind))
+	if p.MaxDaysBehind > 0 {
+		switch b := img.Base; {
+		case b != nil && b.DaysBehind > p.MaxDaysBehind:
+			failed = append(failed, fmt.Sprintf("base is %d days behind its newest version (limit %d)", b.DaysBehind, p.MaxDaysBehind))
+		case b != nil && b.Drift == "unknown", b == nil && img.Root == "":
+			// A root has no base to fall behind; anything else might.
+			unverified = append(unverified, "how far its base is behind couldn't be measured")
+		}
 	}
 	if p.Reproduce {
 		switch r := img.Reproducibility; {

@@ -267,9 +267,17 @@ func TestVerdict(t *testing.T) {
 		t.Errorf("failed signature: %+v", v)
 	}
 	p = report.Policy{MaxDaysBehind: 7}
-	img.Base = &report.BaseLink{DaysBehind: 9}
+	img.Base = &report.BaseLink{DaysBehind: 9, Drift: "stale"}
 	if v := verdict(img, p); v.Status != "failed" {
 		t.Errorf("stale base: %+v", v)
+	}
+	img.Base = nil
+	if v := verdict(img, p); v.Status != "unverified" || !strings.Contains(v.Reasons[0], "couldn't be measured") {
+		t.Errorf("unresolved base: %+v", v)
+	}
+	img.Root = "other images are built on it"
+	if v := verdict(img, p); v.Status != "verified" {
+		t.Errorf("root: %+v", v)
 	}
 }
 
