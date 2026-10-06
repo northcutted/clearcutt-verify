@@ -1,0 +1,666 @@
+{
+  "apiVersion": "clearcutt.dev/v1",
+  "kind": "EstateReport",
+  "metadata": {
+    "name": "example-estate",
+    "generatedAt": "2026-10-06T06:00:00Z",
+    "generator": {
+      "name": "clearcutt-verify",
+      "version": "example"
+    },
+    "sources": [
+      {
+        "registry": "ghcr.io",
+        "namespace": "acme/images",
+        "repositories": [
+          "hello-app",
+          "billing"
+        ]
+      },
+      {
+        "registry": "cgr.dev",
+        "repositories": [
+          "chainguard/static"
+        ]
+      },
+      {
+        "registry": "docker.io",
+        "repositories": [
+          "library/redis"
+        ]
+      }
+    ]
+  },
+  "policy": {
+    "required": [
+      "signature",
+      "sbom",
+      "vulnerabilityScan",
+      "provenance"
+    ],
+    "trustedSigners": [
+      {
+        "identityRegexp": "^https://github\\.com/acme/",
+        "issuer": "https://token.actions.githubusercontent.com"
+      }
+    ],
+    "failOn": "critical",
+    "onlyFixed": true,
+    "maxDaysBehind": 30,
+    "reproduce": true
+  },
+  "summary": {
+    "images": 4,
+    "verdicts": {
+      "verified": 1,
+      "failed": 1,
+      "unverified": 2
+    },
+    "evidence": {
+      "signature": {
+        "verified": 2,
+        "present": 1,
+        "failed": 0,
+        "missing": 1,
+        "unknown": 0,
+        "notApplicable": 0
+      },
+      "sbom": {
+        "verified": 2,
+        "present": 1,
+        "failed": 0,
+        "missing": 0,
+        "unknown": 1,
+        "notApplicable": 0
+      },
+      "vulnerabilityScan": {
+        "verified": 2,
+        "present": 0,
+        "failed": 0,
+        "missing": 2,
+        "unknown": 0,
+        "notApplicable": 0
+      },
+      "provenance": {
+        "verified": 1,
+        "present": 1,
+        "failed": 0,
+        "missing": 2,
+        "unknown": 0,
+        "notApplicable": 0
+      },
+      "recipe": {
+        "verified": 1,
+        "present": 0,
+        "failed": 0,
+        "missing": 2,
+        "unknown": 0,
+        "notApplicable": 1
+      },
+      "rebase": {
+        "verified": 1,
+        "present": 0,
+        "failed": 0,
+        "missing": 0,
+        "unknown": 0,
+        "notApplicable": 3
+      },
+      "tests": {
+        "verified": 0,
+        "present": 2,
+        "failed": 0,
+        "missing": 2,
+        "unknown": 0,
+        "notApplicable": 0
+      }
+    },
+    "bases": {
+      "proven": 2,
+      "claimed": 0,
+      "unresolved": 1,
+      "roots": 1,
+      "current": 2,
+      "stale": 0
+    },
+    "vulnerabilities": {
+      "counts": {
+        "critical": 0,
+        "high": 1,
+        "medium": 2,
+        "low": 0,
+        "negligible": 0,
+        "unknown": 0
+      },
+      "fixable": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "negligible": 0,
+        "unknown": 0
+      },
+      "scanned": 2,
+      "notScanned": 2
+    },
+    "packages": {
+      "known": 3,
+      "unknown": 1
+    },
+    "reproducibility": {
+      "reproduced": 2,
+      "notReproduced": 0,
+      "notChecked": 0,
+      "noRecipe": 2
+    }
+  },
+  "images": [
+    {
+      "id": "cgr-dev-chainguard-static",
+      "repository": "cgr.dev/chainguard/static",
+      "tags": [
+        "latest"
+      ],
+      "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "created": "2026-10-04T09:12:00Z",
+      "platforms": [
+        {
+          "platform": "linux/amd64",
+          "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "size": 698241,
+          "layers": 1
+        },
+        {
+          "platform": "linux/arm64",
+          "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+          "size": 690112,
+          "layers": 1
+        }
+      ],
+      "builder": {
+        "kind": "apko",
+        "basis": "single composed layer, apko annotations"
+      },
+      "description": "Base image with ca-certificates and tzdata",
+      "root": "other images are proven to be built on it",
+      "evidence": {
+        "signature": {
+          "status": "present",
+          "source": "cosign-signature",
+          "detail": "Signed, but not by a trusted signer in this policy."
+        },
+        "sbom": {
+          "status": "present",
+          "source": "cosign-attestation",
+          "predicateType": "https://spdx.dev/Document",
+          "platforms": {
+            "linux/amd64": "present",
+            "linux/arm64": "present"
+          }
+        },
+        "vulnerabilityScan": {
+          "status": "missing",
+          "detail": "No vulnerability attestation."
+        },
+        "provenance": {
+          "status": "present",
+          "source": "cosign-attestation",
+          "predicateType": "https://slsa.dev/provenance/v1"
+        },
+        "recipe": {
+          "status": "missing",
+          "detail": "Not built by clearcutt-factory."
+        },
+        "rebase": {
+          "status": "not-applicable"
+        },
+        "tests": {
+          "status": "missing"
+        }
+      },
+      "reproducibility": {
+        "status": "no-recipe"
+      },
+      "packages": 3,
+      "verdict": {
+        "status": "unverified",
+        "reasons": [
+          "signature is present but not from a trusted signer",
+          "vulnerabilityScan is missing"
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "id": "ghcr-io-acme-images-hello-app",
+      "repository": "ghcr.io/acme/images/hello-app",
+      "tags": [
+        "latest"
+      ],
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "created": "2026-10-04T00:00:00Z",
+      "platforms": [
+        {
+          "platform": "linux/amd64",
+          "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "size": 4389120,
+          "layers": 2
+        },
+        {
+          "platform": "linux/arm64",
+          "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "size": 4112345,
+          "layers": 2
+        }
+      ],
+      "builder": {
+        "kind": "clearcutt-factory",
+        "basis": "verified clearcutt-factory recipe"
+      },
+      "source": {
+        "url": "https://github.com/acme/images",
+        "revision": "5a95adf",
+        "basis": "provenance"
+      },
+      "description": "A tiny HTTP service built on the go stack",
+      "base": {
+        "imageId": "cgr-dev-chainguard-static",
+        "repository": "cgr.dev/chainguard/static",
+        "ref": "cgr.dev/chainguard/static:latest",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "method": "layer-prefix",
+        "strength": "proof",
+        "drift": "current",
+        "versionsBehind": 0,
+        "daysBehind": 0,
+        "currentRef": "cgr.dev/chainguard/static:latest",
+        "currentDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "evidence": {
+        "signature": {
+          "status": "verified",
+          "source": "cosign-signature",
+          "signer": {
+            "identity": "https://github.com/acme/images/.github/workflows/images.yml@refs/heads/main",
+            "issuer": "https://token.actions.githubusercontent.com"
+          },
+          "ref": "ghcr.io/acme/images/hello-app@sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "timestamp": "2026-10-05T21:40:02Z"
+        },
+        "sbom": {
+          "status": "verified",
+          "source": "cosign-attestation",
+          "predicateType": "https://cyclonedx.org/bom",
+          "signer": {
+            "identity": "https://github.com/acme/images/.github/workflows/images.yml@refs/heads/main",
+            "issuer": "https://token.actions.githubusercontent.com"
+          },
+          "ref": "ghcr.io/acme/images/hello-app@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "timestamp": "2026-10-05T21:40:11Z",
+          "platforms": {
+            "linux/amd64": "verified",
+            "linux/arm64": "verified"
+          }
+        },
+        "vulnerabilityScan": {
+          "status": "verified",
+          "source": "cosign-attestation",
+          "predicateType": "https://cosign.sigstore.dev/attestation/vuln/v1",
+          "signer": {
+            "identity": "https://github.com/acme/images/.github/workflows/images.yml@refs/heads/main",
+            "issuer": "https://token.actions.githubusercontent.com"
+          },
+          "ref": "ghcr.io/acme/images/hello-app@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "timestamp": "2026-10-05T21:40:11Z",
+          "platforms": {
+            "linux/amd64": "verified",
+            "linux/arm64": "verified"
+          }
+        },
+        "provenance": {
+          "status": "verified",
+          "source": "github-attestation",
+          "predicateType": "https://slsa.dev/provenance/v1",
+          "signer": {
+            "identity": "https://github.com/acme/images/.github/workflows/images.yml@refs/heads/main",
+            "issuer": "https://token.actions.githubusercontent.com"
+          }
+        },
+        "recipe": {
+          "status": "verified",
+          "source": "cosign-attestation",
+          "predicateType": "https://github.com/northcutted/clearcutt-factory/recipe/v1",
+          "signer": {
+            "identity": "https://github.com/acme/images/.github/workflows/images.yml@refs/heads/main",
+            "issuer": "https://token.actions.githubusercontent.com"
+          },
+          "ref": "ghcr.io/acme/images/hello-app@sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "timestamp": "2026-10-05T21:40:11Z"
+        },
+        "rebase": {
+          "status": "not-applicable",
+          "detail": "The image was built, not rebased."
+        },
+        "tests": {
+          "status": "present",
+          "source": "catalog",
+          "detail": "The recipe records a smoke test (GET :8080/) that passed at build time; the result is not separately signed."
+        }
+      },
+      "vulnerabilities": {
+        "source": "attestation",
+        "scanner": "grype 0.118.0",
+        "scannedAt": "2026-10-05T21:39:15Z",
+        "counts": {
+          "critical": 0,
+          "high": 0,
+          "medium": 0,
+          "low": 0,
+          "negligible": 0,
+          "unknown": 0
+        },
+        "fixable": {
+          "critical": 0,
+          "high": 0,
+          "medium": 0,
+          "low": 0,
+          "negligible": 0,
+          "unknown": 0
+        },
+        "findings": []
+      },
+      "reproducibility": {
+        "status": "reproduced",
+        "method": "recipe-rebuild",
+        "checkedAt": "2026-10-05T21:52:40Z",
+        "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "factory": {
+        "kind": "App",
+        "name": "hello-app",
+        "stack": "go",
+        "version": "v0.1.0",
+        "sourceDateEpoch": 1790985600,
+        "inputs": {
+          "packages": 0,
+          "tools": 0,
+          "images": 5
+        }
+      },
+      "packages": 18,
+      "verdict": {
+        "status": "verified",
+        "reasons": []
+      },
+      "warnings": []
+    },
+    {
+      "id": "ghcr-io-acme-images-billing",
+      "repository": "ghcr.io/acme/images/billing",
+      "tags": [
+        "1.4.2"
+      ],
+      "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "created": "2026-10-06T05:41:00Z",
+      "platforms": [
+        {
+          "platform": "linux/amd64",
+          "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+          "size": 9922110,
+          "layers": 2
+        }
+      ],
+      "builder": {
+        "kind": "clearcutt-factory",
+        "basis": "verified clearcutt-factory rebase record"
+      },
+      "base": {
+        "imageId": "cgr-dev-chainguard-static",
+        "repository": "cgr.dev/chainguard/static",
+        "ref": "cgr.dev/chainguard/static:latest",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "method": "layer-prefix",
+        "strength": "proof",
+        "drift": "current",
+        "versionsBehind": 0,
+        "daysBehind": 0,
+        "currentRef": "cgr.dev/chainguard/static:latest",
+        "currentDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "evidence": {
+        "signature": {
+          "status": "verified",
+          "source": "cosign-signature",
+          "signer": {
+            "identity": "https://github.com/acme/images/.github/workflows/images.yml@refs/heads/main",
+            "issuer": "https://token.actions.githubusercontent.com"
+          }
+        },
+        "sbom": {
+          "status": "verified",
+          "source": "cosign-attestation",
+          "predicateType": "https://cyclonedx.org/bom",
+          "signer": {
+            "identity": "https://github.com/acme/images/.github/workflows/images.yml@refs/heads/main",
+            "issuer": "https://token.actions.githubusercontent.com"
+          },
+          "ref": "ghcr.io/acme/images/billing@sha256:7777777777777777777777777777777777777777777777777777777777777777",
+          "timestamp": "2026-10-05T21:40:11Z",
+          "platforms": {
+            "linux/amd64": "verified"
+          }
+        },
+        "vulnerabilityScan": {
+          "status": "verified",
+          "source": "cosign-attestation",
+          "predicateType": "https://cosign.sigstore.dev/attestation/vuln/v1",
+          "signer": {
+            "identity": "https://github.com/acme/images/.github/workflows/images.yml@refs/heads/main",
+            "issuer": "https://token.actions.githubusercontent.com"
+          },
+          "ref": "ghcr.io/acme/images/billing@sha256:8888888888888888888888888888888888888888888888888888888888888888",
+          "timestamp": "2026-10-05T21:40:11Z",
+          "platforms": {
+            "linux/amd64": "verified"
+          }
+        },
+        "provenance": {
+          "status": "missing",
+          "detail": "Rebased images carry a rebase record instead of build provenance."
+        },
+        "recipe": {
+          "status": "not-applicable",
+          "detail": "Rebased: the rebase record names the image that was built from a recipe."
+        },
+        "rebase": {
+          "status": "verified",
+          "source": "cosign-attestation",
+          "predicateType": "https://github.com/northcutted/clearcutt-factory/rebase/v1",
+          "signer": {
+            "identity": "https://github.com/acme/images/.github/workflows/images.yml@refs/heads/main",
+            "issuer": "https://token.actions.githubusercontent.com"
+          },
+          "ref": "ghcr.io/acme/images/billing@sha256:9999999999999999999999999999999999999999999999999999999999999999",
+          "timestamp": "2026-10-05T21:40:11Z"
+        },
+        "tests": {
+          "status": "present",
+          "source": "catalog"
+        }
+      },
+      "vulnerabilities": {
+        "source": "attestation",
+        "scanner": "grype 0.118.0",
+        "scannedAt": "2026-10-06T05:41:30Z",
+        "counts": {
+          "critical": 0,
+          "high": 1,
+          "medium": 2,
+          "low": 0,
+          "negligible": 0,
+          "unknown": 0
+        },
+        "fixable": {
+          "critical": 0,
+          "high": 0,
+          "medium": 1,
+          "low": 0,
+          "negligible": 0,
+          "unknown": 0
+        },
+        "findings": [
+          {
+            "id": "CVE-2026-1234",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.38.0",
+            "platforms": [
+              "linux/amd64"
+            ]
+          },
+          {
+            "id": "GHSA-xxxx-yyyy-zzzz",
+            "severity": "medium",
+            "package": "stdlib",
+            "version": "go1.27.0",
+            "fixedIn": [
+              "go1.27.1"
+            ],
+            "platforms": [
+              "linux/amd64"
+            ]
+          },
+          {
+            "id": "CVE-2026-9999",
+            "severity": "medium",
+            "package": "github.com/acme/lib",
+            "version": "v1.2.0",
+            "platforms": [
+              "linux/amd64"
+            ],
+            "suppressed": true
+          }
+        ]
+      },
+      "reproducibility": {
+        "status": "reproduced",
+        "method": "rebase-repeat",
+        "checkedAt": "2026-10-06T05:44:10Z",
+        "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "factory": {
+        "kind": "App",
+        "name": "billing",
+        "stack": "go",
+        "version": "v0.1.0",
+        "rebasedFrom": "ghcr.io/acme/images/billing@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "packages": 42,
+      "verdict": {
+        "status": "failed",
+        "reasons": [
+          "provenance is missing (required by the policy)"
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "id": "docker-io-library-redis",
+      "repository": "docker.io/library/redis",
+      "tags": [
+        "7"
+      ],
+      "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "created": "2026-07-01T10:00:00Z",
+      "platforms": [
+        {
+          "platform": "linux/amd64",
+          "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "size": 41234567,
+          "layers": 6
+        }
+      ],
+      "builder": {
+        "kind": "dockerfile",
+        "basis": "history created_by entries"
+      },
+      "unresolved": [
+        "no observed image's layers are a prefix of this image",
+        "no base annotation or label"
+      ],
+      "evidence": {
+        "signature": {
+          "status": "missing"
+        },
+        "sbom": {
+          "status": "unknown",
+          "detail": "The registry rejected the referrers lookup (HTTP 429)."
+        },
+        "vulnerabilityScan": {
+          "status": "missing"
+        },
+        "provenance": {
+          "status": "missing"
+        },
+        "recipe": {
+          "status": "missing"
+        },
+        "rebase": {
+          "status": "not-applicable"
+        },
+        "tests": {
+          "status": "missing"
+        }
+      },
+      "reproducibility": {
+        "status": "no-recipe"
+      },
+      "verdict": {
+        "status": "unverified",
+        "reasons": [
+          "signature is missing",
+          "sbom is unknown",
+          "vulnerabilityScan is missing",
+          "provenance is missing"
+        ]
+      },
+      "warnings": [
+        "base could not be determined"
+      ]
+    }
+  ],
+  "bases": [
+    {
+      "repository": "cgr.dev/chainguard/static",
+      "currentRef": "cgr.dev/chainguard/static:latest",
+      "currentDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "currentCreated": "2026-10-04T09:12:00Z",
+      "versions": 1,
+      "consumers": 2,
+      "staleConsumers": 0
+    }
+  ],
+  "packages": [
+    {
+      "name": "ca-certificates-bundle",
+      "version": "20250911-r0",
+      "type": "apk",
+      "purl": "pkg:apk/wolfi/ca-certificates-bundle@20250911-r0",
+      "images": [
+        "cgr-dev-chainguard-static",
+        "ghcr-io-acme-images-billing",
+        "ghcr-io-acme-images-hello-app"
+      ]
+    },
+    {
+      "name": "stdlib",
+      "version": "go1.27.0",
+      "type": "golang",
+      "purl": "pkg:golang/stdlib@go1.27.0",
+      "images": [
+        "ghcr-io-acme-images-billing",
+        "ghcr-io-acme-images-hello-app"
+      ]
+    }
+  ],
+  "warnings": []
+}

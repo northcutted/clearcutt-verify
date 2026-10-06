@@ -1,0 +1,310 @@
+{
+  "$defs": {
+    "BaseSummary": {
+      "additionalProperties": false,
+      "description": "BaseSummary counts images by how their base is known and how current it is.",
+      "properties": {
+        "claimed": {
+          "description": "Claimed bases rest on something the image's author wrote (labels, annotations, build history).",
+          "type": "integer"
+        },
+        "current": {
+          "type": "integer"
+        },
+        "proven": {
+          "description": "Proven bases were established by layer digests.",
+          "type": "integer"
+        },
+        "roots": {
+          "description": "Roots have no parent: base images, or images built from scratch or by composing layers (Nix, apko).",
+          "type": "integer"
+        },
+        "stale": {
+          "type": "integer"
+        },
+        "unresolved": {
+          "description": "Unresolved images have no base that could be determined (see each image's unresolved reasons).",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "claimed",
+        "current",
+        "proven",
+        "roots",
+        "stale",
+        "unresolved"
+      ],
+      "type": "object"
+    },
+    "HistoryEntry": {
+      "additionalProperties": false,
+      "description": "HistoryEntry is one past report's headline numbers.",
+      "properties": {
+        "generatedAt": {
+          "type": "string"
+        },
+        "ref": {
+          "description": "Ref is where that report is stored (a registry reference or a path).",
+          "type": "string"
+        },
+        "summary": {
+          "$ref": "#/$defs/Summary"
+        }
+      },
+      "required": [
+        "generatedAt",
+        "summary"
+      ],
+      "type": "object"
+    },
+    "PackageSummary": {
+      "additionalProperties": false,
+      "description": "PackageSummary counts images by whether their package set is known.",
+      "properties": {
+        "known": {
+          "type": "integer"
+        },
+        "unknown": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "known",
+        "unknown"
+      ],
+      "type": "object"
+    },
+    "ReproducibilityCounts": {
+      "additionalProperties": false,
+      "description": "ReproducibilityCounts counts images by reproducibility.status.",
+      "properties": {
+        "noRecipe": {
+          "type": "integer"
+        },
+        "notChecked": {
+          "type": "integer"
+        },
+        "notReproduced": {
+          "type": "integer"
+        },
+        "reproduced": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "noRecipe",
+        "notChecked",
+        "notReproduced",
+        "reproduced"
+      ],
+      "type": "object"
+    },
+    "SeverityCounts": {
+      "additionalProperties": false,
+      "description": "SeverityCounts counts findings by severity.",
+      "properties": {
+        "critical": {
+          "type": "integer"
+        },
+        "high": {
+          "type": "integer"
+        },
+        "low": {
+          "type": "integer"
+        },
+        "medium": {
+          "type": "integer"
+        },
+        "negligible": {
+          "type": "integer"
+        },
+        "unknown": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "critical",
+        "high",
+        "low",
+        "medium",
+        "negligible",
+        "unknown"
+      ],
+      "type": "object"
+    },
+    "StatusCounts": {
+      "additionalProperties": false,
+      "description": "StatusCounts counts images by evidence status.",
+      "properties": {
+        "failed": {
+          "type": "integer"
+        },
+        "missing": {
+          "type": "integer"
+        },
+        "notApplicable": {
+          "type": "integer"
+        },
+        "present": {
+          "type": "integer"
+        },
+        "unknown": {
+          "type": "integer"
+        },
+        "verified": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "failed",
+        "missing",
+        "notApplicable",
+        "present",
+        "unknown",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "Summary": {
+      "additionalProperties": false,
+      "description": "Summary holds the estate's headline numbers.",
+      "properties": {
+        "bases": {
+          "$ref": "#/$defs/BaseSummary"
+        },
+        "evidence": {
+          "additionalProperties": {
+            "$ref": "#/$defs/StatusCounts"
+          },
+          "description": "Evidence counts images by status for each evidence kind (keys: signature, sbom, vulnerabilityScan, provenance, recipe, rebase, tests).",
+          "type": "object"
+        },
+        "images": {
+          "description": "Images is the number of images in the report.",
+          "type": "integer"
+        },
+        "packages": {
+          "$ref": "#/$defs/PackageSummary"
+        },
+        "reproducibility": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ReproducibilityCounts"
+            }
+          ],
+          "description": "Reproducibility counts images by reproducibility.status."
+        },
+        "verdicts": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/VerdictCounts"
+            }
+          ],
+          "description": "Verdicts counts images by verdict.status."
+        },
+        "vulnerabilities": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/VulnerabilitySummary"
+            }
+          ],
+          "description": "Vulnerabilities totals findings over scanned images."
+        }
+      },
+      "required": [
+        "bases",
+        "evidence",
+        "images",
+        "packages",
+        "reproducibility",
+        "verdicts",
+        "vulnerabilities"
+      ],
+      "type": "object"
+    },
+    "VerdictCounts": {
+      "additionalProperties": false,
+      "description": "VerdictCounts counts images by verdict.",
+      "properties": {
+        "failed": {
+          "type": "integer"
+        },
+        "unverified": {
+          "type": "integer"
+        },
+        "verified": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "failed",
+        "unverified",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "VulnerabilitySummary": {
+      "additionalProperties": false,
+      "description": "VulnerabilitySummary totals findings over the images that were scanned.",
+      "properties": {
+        "counts": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "fixable": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SeverityCounts"
+            }
+          ],
+          "description": "Fixable counts the findings that have a fix."
+        },
+        "notScanned": {
+          "type": "integer"
+        },
+        "scanned": {
+          "description": "Scanned is how many images have vulnerability data; NotScanned how many don't (their vulnerabilities are unknown, not zero).",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "counts",
+        "fixable",
+        "notScanned",
+        "scanned"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/northcutted/clearcutt-verify/main/contract/estate-history.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "History is the series of reports for an estate, newest first.",
+  "properties": {
+    "apiVersion": {
+      "const": "clearcutt.dev/v1",
+      "description": "Always clearcutt.dev/v1."
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/HistoryEntry"
+      },
+      "type": "array"
+    },
+    "kind": {
+      "const": "EstateHistory",
+      "description": "Always EstateHistory."
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "apiVersion",
+    "entries",
+    "kind",
+    "name"
+  ],
+  "title": "ClearCutt estate history",
+  "type": "object"
+}
