@@ -21,7 +21,7 @@ Every agent MUST respect and preserve the following design decisions, constraint
 
 ## 3. Supply Chain Security Gating
 
-* **Signature and Attestation:** `clearcutt verify` and `clearcutt app rebase` require cryptographic verification via Cosign and OIDC keyless signing.
+* **Signature and Attestation:** `clearcutt-verify verify` and `clearcutt-verify app rebase` require cryptographic verification via Cosign and OIDC keyless signing.
 * **Wildcard Prohibition:** **Never use wildcards in verification constraints**. In particular, `mirror verify` and `verify` command flows must never use `--certificate-identity-regexp '.*'` or equivalent wildcards. You must always require a pinned, verifiable developer or workflow signer identity.
 * **Rebase Attestation Schema:** The rebase attestation schema (`schemas/rebase-attestation.schema.json`) enforces that a rebase attestation requires a validated developer signature, source image digest, compressed app-layer digests, and a record of the added/removed layers.
 

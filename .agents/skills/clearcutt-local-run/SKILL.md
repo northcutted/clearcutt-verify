@@ -24,30 +24,30 @@ CLI:
 ```bash
 cd cli && go test ./...
 cd cli && go vet ./...
-cd cli && go build -o ../clearcutt ./cmd/clearcutt
+cd cli && go build -o ../clearcutt-verify ./cmd/clearcutt-verify
 ```
 
 Clean-clone fixture proof:
 
 ```bash
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog list
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog catalog validate
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog inspect java21-distroless
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog list
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog catalog validate
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog inspect java21-distroless
 ```
 
 Current generator proof without touching ignored site data:
 
 ```bash
-cd cli && go build -o ../clearcutt ./cmd/clearcutt
-./clearcutt catalog generate --config clearcutt.yaml --include-services --output /tmp/clearcutt-catalog
-./clearcutt --catalog /tmp/clearcutt-catalog catalog validate
+cd cli && go build -o ../clearcutt-verify ./cmd/clearcutt-verify
+./clearcutt-verify catalog generate --config clearcutt.yaml --include-services --output /tmp/clearcutt-catalog
+./clearcutt-verify --catalog /tmp/clearcutt-catalog catalog validate
 ```
 
 Fixture-backed site build:
 
 ```bash
-cd cli && go build -o ../clearcutt ./cmd/clearcutt
-./clearcutt catalog site build --catalog cli/internal/testdata/mixed-catalog --template site --output /tmp/clearcutt-site --install --clean
+cd cli && go build -o ../clearcutt-verify ./cmd/clearcutt-verify
+./clearcutt-verify catalog site build --catalog cli/internal/testdata/mixed-catalog --template site --output /tmp/clearcutt-site --install --clean
 ```
 
 Astro source checks:
@@ -71,7 +71,7 @@ cd core && python3 -m unittest tests/test_remediation_pipeline.py
 - Prefer fixture-backed commands for docs, tests, clean-clone claims, and quick local proof.
 - Prefer `/tmp` or `dist/` output for generated catalog experiments.
 - Only write to `site/src/data/catalog` when the task explicitly requires refreshing local site data.
-- Use `./clearcutt catalog build` only for live release-evidence parity or publish-path work.
+- Use `./clearcutt-verify catalog build` only for live release-evidence parity or publish-path work.
 
 ## Make caveat
 

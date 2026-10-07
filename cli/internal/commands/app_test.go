@@ -17,7 +17,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
-	"github.com/northcutted/clearcutt/internal/oci"
+	"github.com/northcutted/clearcutt-verify/internal/oci"
 )
 
 func TestAppBuildCommandBuildsRebasableImage(t *testing.T) {

@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
-	"github.com/northcutted/clearcutt/internal/catalogbuild"
-	"github.com/northcutted/clearcutt/internal/config"
-	"github.com/northcutted/clearcutt/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalogbuild"
+	"github.com/northcutted/clearcutt-verify/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
 )
 
 func TestGenericImageBundleDefaultsToImportedGovernance(t *testing.T) {
@@ -970,7 +970,7 @@ func TestEvidenceManifestHelperAndErrorBranches(t *testing.T) {
 	}
 
 	vexStatus := vexChannelStatus("java21-distroless", "v1.2.3", catalog.ExceptionSummary{Total: 1})
-	if vexStatus.Status != "on_demand" || vexStatus.Expected || vexStatus.Observed || !strings.Contains(vexStatus.Detail, "clearcutt vex java21-distroless --tag v1.2.3") {
+	if vexStatus.Status != "on_demand" || vexStatus.Expected || vexStatus.Observed || !strings.Contains(vexStatus.Detail, "clearcutt-verify vex java21-distroless --tag v1.2.3") {
 		t.Fatalf("expected on-demand VEX channel, got %#v", vexStatus)
 	}
 

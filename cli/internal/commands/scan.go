@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/northcutted/clearcutt/internal/scan"
+	"github.com/northcutted/clearcutt-verify/internal/scan"
 	"github.com/spf13/cobra"
 )
 

@@ -1,6 +1,6 @@
 # Verifying an estate
 
-`clearcutt verify estate` checks every image in an estate and writes the
+`clearcutt-verify estate verify` checks every image in an estate and writes the
 **estate report**: what was found, what was proven, and what couldn't be
 decided, per image and in total. It is the document
 [clearcutt-portal](https://github.com/northcutted/clearcutt-portal) turns into
@@ -11,11 +11,11 @@ It works on images ClearCutt didn't build. Images built by
 their recipes and rebase records are verified and read too.
 
 ```bash
-clearcutt verify estate --refs refs.txt --policy policy.yaml --name acme --out dist/estate
+clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme --out dist/estate
 ```
 
 `refs.txt` lists image references, one per line. To reuse a scan, pass
-`--observations dist/scan/observations.json` from `clearcutt import observe`
+`--observations dist/scan/observations.json` from `clearcutt-verify import observe`
 instead.
 
 ## What it checks, per image
@@ -106,13 +106,13 @@ elsewhere. The command prints a summary table, and `--fail-on failed` (or
 ### Keeping reports in the registry
 
 The registry that holds the images can hold their reports too, as an OCI
-artifact (`clearcutt estate push`). A scheduled job pulls the last bundle, so
+artifact (`clearcutt-verify estate push`). A scheduled job pulls the last bundle, so
 the new run extends its history, verifies, and pushes the result:
 
 ```bash
-clearcutt estate pull ghcr.io/acme/estate:latest --output dist/estate || true  # nothing yet on the first run
-clearcutt verify estate --refs refs.txt --policy policy.yaml --name acme --out dist/estate
-clearcutt estate push ghcr.io/acme/estate:latest --dir dist/estate \
+clearcutt-verify estate pull ghcr.io/acme/estate:latest --output dist/estate || true  # nothing yet on the first run
+clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme --out dist/estate
+clearcutt-verify estate push ghcr.io/acme/estate:latest --dir dist/estate \
   --file estate-report.json --file estate-history.json \
   --generated-at "$(jq -r .metadata.generatedAt dist/estate/estate-report.json)"
 ```
@@ -144,7 +144,7 @@ reproduces is still undecided. Without `--reproduce`, images with recipes are
   architectures cost a read per platform image; `--platforms
   linux/amd64,linux/arm64` reads only those. Lookups the registry refuses are
   reported as `unknown`, not `missing`. Logging in (`docker login`) raises the
-  limit; `clearcutt` reads the same credentials.
+  limit; `clearcutt-verify` reads the same credentials.
 - **Tests.** Test evidence counts only as a test-result attestation
   (`https://in-toto.io/attestation/test-result/…`).
 - **Speed.** Each piece of evidence is one cosign verification; `--concurrency`

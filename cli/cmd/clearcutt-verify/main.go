@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/northcutted/clearcutt/internal/commands"
+	"github.com/northcutted/clearcutt-verify/internal/commands"
 )
 
 // Exit code contract (documented in docs/cli-reference.md):

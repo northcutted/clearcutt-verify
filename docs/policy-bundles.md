@@ -7,11 +7,11 @@ controller version and registry trust model your cluster actually runs.
 ---
 
 ## 1. Canonical Kyverno Policy Generation
-Kyverno policies are generated dynamically using `clearcutt policy`. They can
+Kyverno policies are generated dynamically using `clearcutt-verify policy`. They can
 express digest mutation/verification and keyless signature/provenance checks for
 the selected catalog image pattern:
 ```bash
-clearcutt --catalog cli/internal/testdata/catalog policy java21-distroless \
+clearcutt-verify --catalog cli/internal/testdata/catalog policy java21-distroless \
   --engine kyverno \
   --environment production \
   --namespace apps
@@ -48,7 +48,7 @@ does not currently emit an SPDX SBOM predicate gate.
 For OPA Gatekeeper environments, generate ConstraintTemplate and Constraint
 scaffolds:
 ```bash
-clearcutt --catalog cli/internal/testdata/catalog policy java21-distroless \
+clearcutt-verify --catalog cli/internal/testdata/catalog policy java21-distroless \
   --engine gatekeeper \
   --namespace apps
 ```

@@ -6,7 +6,7 @@ import (
 
 	"sigs.k8s.io/yaml"
 
-	"github.com/northcutted/clearcutt/internal/report"
+	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
 // PolicyFile is a verification policy on disk:

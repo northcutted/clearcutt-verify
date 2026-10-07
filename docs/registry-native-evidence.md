@@ -31,12 +31,12 @@ are needed: reading a plane nothing writes to finds nothing.
 
 ```bash
 # Write. Off by default; opt in.
-clearcutt evidence attach ghcr.io/acme/app:v1.4.0 --dir ./evidence \
+clearcutt-verify evidence attach ghcr.io/acme/app:v1.4.0 --dir ./evidence \
   --release v1.4.0
   --system x86_64-linux --attach-evidence
 
 # Read. Defaults to github; opt in.
-clearcutt catalog gather --evidence-source=registry
+clearcutt-verify catalog gather --evidence-source=registry
 ```
 
 Both sides are opt-in, and in that order. Defaulting the write on would make
@@ -81,7 +81,7 @@ that *do* implement the Referrers API there may be no tag at all.
 registry's policy:
 
 ```bash
-clearcutt evidence export ghcr.io/acme/app:v1.4.0 --output ./evidence-export
+clearcutt-verify evidence export ghcr.io/acme/app:v1.4.0 --output ./evidence-export
 ```
 
 The export contains two representations of the same evidence, because two
@@ -100,7 +100,7 @@ Put the export wherever your retention guarantees actually live — object stora
 with a lifecycle hold, a compliance archive, a backup system. Restore with:
 
 ```bash
-clearcutt evidence import ./evidence-export ghcr.io/acme/app
+clearcutt-verify evidence import ./evidence-export ghcr.io/acme/app
 ```
 
 Restoration preserves the original digests, which is what keeps any signature
@@ -138,7 +138,7 @@ history index in a **separate repository** from the images, so an immutability
 policy on the image repository does not reach it:
 
 ```bash
-clearcutt estate push ghcr.io/acme/app:2026-09-01 \
+clearcutt-verify estate push ghcr.io/acme/app:2026-09-01 \
   --history ghcr.io/acme/estate-history:history
 ```
 

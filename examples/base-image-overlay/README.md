@@ -41,7 +41,7 @@ nix build .#packages.x86_64-linux.overlayImage
 Generate the offline closure-equivalence predicate before promotion:
 
 ```bash
-clearcutt overlay verify \
+clearcutt-verify overlay verify \
   --runtime-archive clearcutt-runtime.tar \
   --grafted-archive result \
   --runtime-ref ghcr.io/northcutted/clearcutt/clearcutt-java21:distroless@sha256:<runtime-digest> \

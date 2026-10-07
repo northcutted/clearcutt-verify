@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
-	"github.com/northcutted/clearcutt/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/config"
 )
 
 // policyAcceptance is one finding the risk policy auto-accepted, carrying the

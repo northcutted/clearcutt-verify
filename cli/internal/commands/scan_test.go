@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	scanengine "github.com/northcutted/clearcutt/internal/scan"
+	scanengine "github.com/northcutted/clearcutt-verify/internal/scan"
 )
 
 func TestSelectScanTagsUsesDepthWindowAndExplicitPrecedence(t *testing.T) {

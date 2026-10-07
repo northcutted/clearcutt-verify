@@ -11,7 +11,7 @@ build:
 	nix build .#packages.$(SYSTEM).overlayImage
 
 predicate:
-	clearcutt overlay verify \
+	clearcutt-verify overlay verify \
 	  --runtime-archive $(RUNTIME_ARCHIVE) \
 	  --grafted-archive $(GRAFTED_ARCHIVE) \
 	  --runtime-ref $(RUNTIME_REF) \

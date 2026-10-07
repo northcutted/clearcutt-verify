@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +26,7 @@ type graphBuildFlags struct {
 
 var graphBuildOpts graphBuildFlags
 
-// NewGraphCmd builds the `clearcutt graph` command group.
+// NewGraphCmd builds the `clearcutt-verify graph` command group.
 func NewGraphCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "graph",
@@ -77,18 +77,18 @@ Reports the estate core, the most widely carried layers, content-identical image
 similarity clusters, per-image unique content, and how much storage layer reuse
 saves. Shared content means shared exposure, never a base relationship.`,
 		Args: cobra.NoArgs,
-		Example: `  clearcutt graph layers --observations observations.json \
+		Example: `  clearcutt-verify graph layers --observations observations.json \
     --output layers.json --report commonality.md
 
   # Only layers present in every image, and only near-identical pairs
-  clearcutt graph layers --observations observations.json --output layers.json \
+  clearcutt-verify graph layers --observations observations.json --output layers.json \
     --coverage 1.0 --min-similarity 0.9`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGraphLayers()
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&graphLayersOpts.observations, "observations", "observations.json", "Observations JSON from `clearcutt import observe`")
+	f.StringVar(&graphLayersOpts.observations, "observations", "observations.json", "Observations JSON from `clearcutt-verify import observe`")
 	f.StringVar(&graphLayersOpts.output, "output", "", "Output layer graph JSON path")
 	f.StringVar(&graphLayersOpts.report, "report", "", "Also write a Markdown commonality report to this path")
 	f.StringVar(&graphLayersOpts.mermaid, "mermaid", "", "Also write the clustered commonality diagram to this path")
@@ -227,21 +227,21 @@ func newGraphBuildCmd() *cobra.Command {
 		Short: "Build the base-image dependency graph from observations",
 		Args:  cobra.NoArgs,
 		Example: `  # Full path from a registry to an auditable inventory
-  clearcutt registry scan --registry ghcr.io --namespace acme/platform \
+  clearcutt-verify registry scan --registry ghcr.io --namespace acme/platform \
     --repository base-java21 --repository payments --output images.yaml
-  clearcutt import observe --images images.yaml --output observations.json
-  clearcutt graph build --observations observations.json \
+  clearcutt-verify import observe --images images.yaml --output observations.json
+  clearcutt-verify graph build --observations observations.json \
     --output graph.json --report inventory.md
 
   # Gate CI on proof, and fail when anything is on a stale base
-  clearcutt graph build --observations observations.json --output graph.json \
+  clearcutt-verify graph build --observations observations.json --output graph.json \
     --min-confidence verified --fail-on-stale`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGraphBuild()
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&graphBuildOpts.observations, "observations", "observations.json", "Observations JSON from `clearcutt import observe`")
+	f.StringVar(&graphBuildOpts.observations, "observations", "observations.json", "Observations JSON from `clearcutt-verify import observe`")
 	f.StringVar(&graphBuildOpts.output, "output", "", "Output graph JSON path")
 	f.StringVar(&graphBuildOpts.report, "report", "", "Also write a Markdown governance inventory to this path")
 	f.StringArrayVar(&graphBuildOpts.basePatterns, "base-repository", nil, "Only this repository glob may act as a base (repeatable; default: infer from layering)")

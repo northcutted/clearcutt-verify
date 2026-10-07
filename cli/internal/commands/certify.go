@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
-	"github.com/northcutted/clearcutt/internal/certify"
-	"github.com/northcutted/clearcutt/internal/output"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/certify"
+	"github.com/northcutted/clearcutt-verify/internal/output"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 )

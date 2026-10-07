@@ -7,7 +7,7 @@ const graph = loadLayerGraph();
 const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '') + '/';
 const shortDigest = (d: string) => (d.length > 26 ? d.slice(0, 26) : d);
 
-const command = `clearcutt graph layers \\
+const command = `clearcutt-verify graph layers \\
   --observations dist/scan/observations.json \\
   --output dist/scan/layers.json \\
   --report dist/scan/commonality.md`;

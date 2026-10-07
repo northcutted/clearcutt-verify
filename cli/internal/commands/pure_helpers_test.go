@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/config"
 )
 
 // These cover small pure functions that shape what an operator reads. They are

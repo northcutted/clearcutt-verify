@@ -32,10 +32,10 @@ const missingChannels = [
 const runtimeId = image.language.id === 'c' ? 'cc15' : `${image.language.id}${image.language.version}`;
 
 const clearcuttInspect = `CATALOG_DIR=${catalogPath}
-clearcutt --catalog "$CATALOG_DIR" inspect ${image.id} --tag ${release.tag}`;
+clearcutt-verify --catalog "$CATALOG_DIR" inspect ${image.id} --tag ${release.tag}`;
 
 const clearcuttVerify = `CATALOG_DIR=${catalogPath}
-clearcutt --catalog "$CATALOG_DIR" verify image ${image.id} \\
+clearcutt-verify --catalog "$CATALOG_DIR" verify image ${image.id} \\
   --tag ${release.tag} \\
   --require-production \\
   --require-signature \\
@@ -49,10 +49,10 @@ jq --arg image "${image.id}" --arg tag "${release.tag}" \\
   '.releases[] | select(.imageId == $image and .tag == $tag) | {imageRef, immutableRef, channels, missing}' \\
   "$CATALOG_DIR/evidence-manifest.json"`;
 
-const clearcuttConformance = `clearcutt conformance run \\
+const clearcuttConformance = `clearcutt-verify conformance run \\
   --expect-runtime ${image.language.id}`;
 
-const clearcuttOverlay = `clearcutt overlay generate \\
+const clearcuttOverlay = `clearcutt-verify overlay generate \\
   --runtime ${runtimeId} \\
   --tier ${image.tier.id} \\
   --base registry.access.redhat.com/ubi9/ubi-minimal \\
@@ -79,7 +79,7 @@ const ghAttest = `gh attestation verify oci://${digestRef} \\
   --source-ref refs/heads/main`;
 
 const policyGenerate = `CATALOG_DIR=${catalogPath}
-clearcutt --catalog "$CATALOG_DIR" policy ${image.id} \\
+clearcutt-verify --catalog "$CATALOG_DIR" policy ${image.id} \\
   --tag ${release.tag} \\
   --engine kyverno \\
   --environment production \\
@@ -187,7 +187,7 @@ spec:
       {hasRegistryEvidence ? (
         <>
           <p class="text-xs text-ink-300">Run the native compiled Go CLI command locally to verify the registry digest, Sigstore signature, SBOM and test attestations, and SLSA provenance:</p>
-          <CopyBlock language="shell" code={`clearcutt verify release-evidence \\
+          <CopyBlock language="shell" code={`clearcutt-verify verify release-evidence \\
   --ref ${digestRef} \\
   --repo ${ownerRepo} \\
   --workflow-identity '${subject}'`} />
@@ -289,7 +289,7 @@ spec:
         <div data-kyverno-panel-root data-subject={subject} data-issuer={issuer} data-image-name={image.imageName} data-image-fullname={image.fullName}>
           <h3 class="mb-2 text-xs uppercase tracking-wider text-ink-300">Admission Control (Kyverno Policy)</h3>
           <p class="mb-3 text-xs text-ink-200">
-            Use <code class="font-mono text-ink-100">clearcutt policy</code> as the canonical generator for keyless signature and SLSA provenance checks; validate the generated YAML against your Kyverno version.
+            Use <code class="font-mono text-ink-100">clearcutt-verify policy</code> as the canonical generator for keyless signature and SLSA provenance checks; validate the generated YAML against your Kyverno version.
           </p>
           <CopyBlock language="shell" code={policyGenerate} />
 

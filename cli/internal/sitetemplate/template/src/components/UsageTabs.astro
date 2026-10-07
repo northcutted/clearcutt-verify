@@ -52,7 +52,7 @@ const metadata = isService
         'Publishing reusable infrastructure images without requiring app teams to learn Nix',
       ],
       dockerfileExample: `FROM ${versioned}`,
-      ubiExample: `# Service images are intended to run directly.\n# For custom applications, use clearcutt app build/rebase instead.`,
+      ubiExample: `# Service images are intended to run directly.\n# For custom applications, use clearcutt-verify app build/rebase instead.`,
       nixExample: `nix build github:${image.registry.replace('ghcr.io/', '')}/${release.tag}#${image.id}`,
       layeringExample: `# ${image.id} is exposed as a service package attr:\n# .#packages.x86_64-linux.${image.id}`,
     }
@@ -60,14 +60,14 @@ const metadata = isService
 
 const servicePortArgs = (service?.ports ?? []).map((p) => `  -p ${p.port}:${p.port} \\`).join('\n');
 const serviceVolumeArgs = (service?.dataDirs ?? []).map((dir, idx) => `  -v ${image.id}-data-${idx + 1}:${dir} \\`).join('\n');
-const serviceCli = `clearcutt service explain ${image.id}
-clearcutt service validate ${image.id}
-clearcutt service smoke ${image.id} --engine docker --image ${versioned}`;
+const serviceCli = `clearcutt-verify service explain ${image.id}
+clearcutt-verify service validate ${image.id}
+clearcutt-verify service smoke ${image.id} --engine docker --image ${versioned}`;
 const serviceAdvanced = `# Service package attr exposed by the ClearCutt flake.
 nix build github:${image.registry.replace('ghcr.io/', '')}/${release.tag}#${image.id}
 
 # Catalog service records are emitted when generation includes services.
-clearcutt catalog generate --config clearcutt.fleet.yaml --include-services --output dist/catalog`;
+clearcutt-verify catalog generate --config clearcutt.fleet.yaml --include-services --output dist/catalog`;
 
 const dockerRun = isService ? `docker run --rm \\
   --user 10001:10001 \\

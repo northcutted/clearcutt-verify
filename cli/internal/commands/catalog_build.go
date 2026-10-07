@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/northcutted/clearcutt/internal/catalogbuild"
-	"github.com/northcutted/clearcutt/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/catalogbuild"
+	"github.com/northcutted/clearcutt-verify/internal/config"
 	"github.com/spf13/cobra"
 )
 

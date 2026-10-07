@@ -36,8 +36,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
-	"github.com/northcutted/clearcutt/internal/estategraph"
-	"github.com/northcutted/clearcutt/internal/report"
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
 const (

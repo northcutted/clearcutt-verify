@@ -1,12 +1,12 @@
 # ClearCutt CLI Workspace
 
-This workspace owns the Go `clearcutt` governance CLI.
+This workspace owns the Go `clearcutt-verify` governance CLI.
 
 ```bash
 cd cli
 go test ./...
 go vet ./...
-go build -o ../clearcutt ./cmd/clearcutt
+go build -o ../clearcutt-verify ./cmd/clearcutt-verify
 ```
 
 From the repository root, the same operations are available through:

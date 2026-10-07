@@ -6,7 +6,7 @@
 # required production posture is an immutable digest pin. Resolve the digest
 # recorded in the catalog (latestManifestDigest):
 #
-#   clearcutt inspect python3.14-distroless   # copy the "Digest Reference:" line
+#   clearcutt-verify inspect python3.14-distroless   # copy the "Digest Reference:" line
 #
 # then replace the runtime FROM with the digest-pinned form:
 #

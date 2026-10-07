@@ -3,8 +3,8 @@ package catalogbuild
 import (
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
-	"github.com/northcutted/clearcutt/internal/versionpolicy"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/versionpolicy"
 )
 
 // Lifecycle mirrors the lifecycle object the Node producer emits.

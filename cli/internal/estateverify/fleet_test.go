@@ -23,7 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 
-	"github.com/northcutted/clearcutt/internal/report"
+	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
 func imageRecipePredicate(baseRef, baseDigest string) map[string]any {

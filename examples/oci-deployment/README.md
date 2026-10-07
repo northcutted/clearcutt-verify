@@ -16,7 +16,7 @@ docker compose build
 docker push "$APP_IMAGE"
 APP_DIGEST=$(docker buildx imagetools inspect "$APP_IMAGE" --format '{{json .Manifest.Digest}}' | tr -d '"')
 docker save "$APP_IMAGE" -o payments-api.tar
-clearcutt certify payments-api.tar \
+clearcutt-verify certify payments-api.tar \
   --base java21-distroless \
   --policy ../clearcutt-template-java/certification-policy.yaml \
   --image-ref "${APP_IMAGE%:*}@${APP_DIGEST}"
@@ -41,7 +41,7 @@ not behaving like a writable general-purpose container.
 
 - App teams can build an application image from a ClearCutt base without
   learning Nix.
-- The resulting image can be checked with `clearcutt certify` before deployment.
+- The resulting image can be checked with `clearcutt-verify certify` before deployment.
 - Compose hardening is separate from catalog trust. Runtime settings reduce
   process privileges, while signatures, SBOMs, provenance, scans, and
   certification policy are inspected through ClearCutt evidence paths.

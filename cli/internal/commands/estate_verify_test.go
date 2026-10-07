@@ -16,10 +16,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 
-	"github.com/northcutted/clearcutt/internal/report"
+	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
-func TestVerifyEstate(t *testing.T) {
+func TestEstateVerify(t *testing.T) {
 	srv := httptest.NewServer(registry.New(registry.Logger(log.New(io.Discard, "", 0)), registry.WithReferrersSupport(true)))
 	defer srv.Close()
 	host := strings.TrimPrefix(srv.URL, "http://")
@@ -39,7 +39,7 @@ func TestVerifyEstate(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := filepath.Join(dir, "estate")
-	args := []string{"verify", "estate", "--refs", refs, "--name", "acme", "--out", out, "--require", "signature",
+	args := []string{"estate", "verify", "--refs", refs, "--name", "acme", "--out", out, "--require", "signature",
 		"--trusted-identity-regexp", `^https://github\.com/acme/`, "--trusted-issuer", "https://token.actions.githubusercontent.com"}
 
 	// Unsigned images fail the policy, and --fail-on failed says so.
@@ -67,12 +67,12 @@ func TestVerifyEstate(t *testing.T) {
 	}
 
 	for _, bad := range [][]string{
-		{"verify", "estate", "--refs", refs},
-		{"verify", "estate", "--out", out},
-		{"verify", "estate", "--refs", refs, "--observations", refs, "--out", out},
-		{"verify", "estate", "--refs", refs, "--out", out, "--fail-on", "sometimes"},
-		{"verify", "estate", "--refs", refs, "--out", out, "--policy", refs, "--require", "sbom"},
-		{"verify", "estate", "--refs", refs, "--out", out, "--trusted-identity-regexp", ".*", "--trusted-issuer", "x"},
+		{"estate", "verify", "--refs", refs},
+		{"estate", "verify", "--out", out},
+		{"estate", "verify", "--refs", refs, "--observations", refs, "--out", out},
+		{"estate", "verify", "--refs", refs, "--out", out, "--fail-on", "sometimes"},
+		{"estate", "verify", "--refs", refs, "--out", out, "--policy", refs, "--require", "sbom"},
+		{"estate", "verify", "--refs", refs, "--out", out, "--trusted-identity-regexp", ".*", "--trusted-issuer", "x"},
 	} {
 		if _, err := runCLI(t, bad...); err == nil || errors.Is(err, ErrCheckFailed) {
 			t.Errorf("%v: got %v, want a usage error", bad[2:], err)

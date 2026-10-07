@@ -15,7 +15,7 @@ branding:
 site:
   title: ClearCutt Hardened Image Fleet
   pages: true
-  basePath: /clearcutt
+  basePath: /clearcutt-verify
   description: Fork this kit to publish your own trusted base-image fleet, catalog, policies, and app-team templates under your GitHub OIDC identities.
 matrix:
   systems:

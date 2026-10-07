@@ -260,7 +260,7 @@ export const defaultSiteConfig: SiteConfig = {
             {
               title: 'Publish refreshed catalog data',
               description: 'Generate catalog data and build the static site artifact for your own registry.',
-              command: 'clearcutt catalog site build --catalog ./dist/catalog --output ./dist/site --install',
+              command: 'clearcutt-verify catalog site build --catalog ./dist/catalog --output ./dist/site --install',
             },
           ],
         },

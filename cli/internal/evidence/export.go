@@ -40,7 +40,7 @@ const exportNote = "Evidence exported from an OCI registry. Registry lifecycle p
 	"attached evidence — a rule that prunes untagged manifests, or everything older than N days, will " +
 	"take it. This copy exists so the evidence survives that independently of the registry's retention " +
 	"settings. The oci/ directory is a standard OCI image layout and can be pushed back to any registry " +
-	"with `crane push`, `oras cp`, or `clearcutt evidence import`."
+	"with `crane push`, `oras cp`, or `clearcutt-verify evidence import`."
 
 // Export writes every evidence attachment on a subject to a directory, as BOTH
 // a standard OCI image layout and plain files.

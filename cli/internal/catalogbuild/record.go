@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
 )
 
 type parsedCatalogAssetName struct {

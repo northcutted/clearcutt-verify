@@ -35,7 +35,7 @@ Pick the smallest relevant set:
 ```bash
 cd cli && go test ./...
 cd cli && go vet ./...
-cd cli && go build ./cmd/clearcutt
+cd cli && go build ./cmd/clearcutt-verify
 cd cli && ./scripts/go-coverage.sh
 git diff --check
 ```
@@ -43,5 +43,5 @@ git diff --check
 For command presentation changes, also run:
 
 ```bash
-cd cli && go run ./cmd/clearcutt --help
+cd cli && go run ./cmd/clearcutt-verify --help
 ```

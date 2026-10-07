@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
-	"github.com/northcutted/clearcutt/internal/output"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -91,7 +91,7 @@ func runAppDiffBase() error {
 		result.Rebasable = meta.Rebasable
 		result.Boundary = meta.BaseLastLayer
 		if currentBaseID == "" {
-			return fmt.Errorf("image %q has no recorded base id (%s); was it built with `clearcutt app build`?", appDiffBaseOpts.image, "dev.clearcutt.app.base.id")
+			return fmt.Errorf("image %q has no recorded base id (%s); was it built with `clearcutt-verify app build`?", appDiffBaseOpts.image, "dev.clearcutt.app.base.id")
 		}
 	}
 	result.CurrentBase = currentBaseID

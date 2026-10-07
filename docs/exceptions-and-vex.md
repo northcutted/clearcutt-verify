@@ -19,7 +19,7 @@ ClearCutt implements an explicit, schema-validated exception model:
 - All exceptions are declared inside an `exceptions.yaml` file conforming to `schemas/exceptions.schema.json`.
 - Initialize a boilerplate exceptions configuration template file using the CLI:
   ```bash
-  clearcutt exceptions init [output-file]
+  clearcutt-verify exceptions init [output-file]
   ```
 - Every exception **must** specify:
   - The target `CVE` ID and package name.
@@ -27,12 +27,12 @@ ClearCutt implements an explicit, schema-validated exception model:
   - An owner and detailed remediation reasoning (`reason`).
   - Cryptographic references if status is `accepted_risk`.
 
-`exceptions.yaml` is the **consumer-side** control: a scoped, expiring waiver against `verify image` thresholds for your own application image. It is now the only exception mechanism ClearCutt ships. The platform-side CVE route decisions that used to sit alongside it — overlay and ignore evidence under `core/overlays/cve/`, produced by `clearcutt remediation triage` — were removed with the remediation subsystem ([decision 6](decisions.md)).
+`exceptions.yaml` is the **consumer-side** control: a scoped, expiring waiver against `verify image` thresholds for your own application image. It is now the only exception mechanism ClearCutt ships. The platform-side CVE route decisions that used to sit alongside it — overlay and ignore evidence under `core/overlays/cve/`, produced by `clearcutt-verify remediation triage` — were removed with the remediation subsystem ([decision 6](decisions.md)).
 
 ---
 
 ## 2. Dynamic OpenVEX Generation
-The `clearcutt vex` command queries exceptions and dynamically outputs OpenVEX (`https://openvex.dev/ns/v0.2.0`) documents:
+The `clearcutt-verify vex` command queries exceptions and dynamically outputs OpenVEX (`https://openvex.dev/ns/v0.2.0`) documents:
 - Only **active** exceptions are honored; expired ones are ignored so the document never carries a stale `not_affected` claim.
 - Maps exceptions onto **valid** OpenVEX statements:
   - `status` is always one of the four spec values: `not_affected`, `affected`, `fixed`, `under_investigation`.
@@ -45,7 +45,7 @@ The `clearcutt vex` command queries exceptions and dynamically outputs OpenVEX (
 ## 3. Enforcement in CI Verification
 When executing policy gating:
 ```bash
-clearcutt --catalog cli/internal/testdata/catalog verify image java21-distroless \
+clearcutt-verify --catalog cli/internal/testdata/catalog verify image java21-distroless \
   --max-critical 0 --max-high 3 \
   --exceptions exceptions.yaml \
   --allow-preview

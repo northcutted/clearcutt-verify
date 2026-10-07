@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
 	"github.com/spf13/cobra"
 )
 
@@ -25,10 +25,12 @@ var GlobalOpts GlobalOptions
 // NewRootCmd initializes the Cobra root command hierarchy.
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "clearcutt",
-		Short: "ClearCutt base-image platform engineering governance CLI",
-		Long: `ClearCutt is a platform-engineering CLI to list, inspect, verify,
-and manage hardened multi-architecture platform-owned base images.`,
+		Use:   "clearcutt-verify",
+		Short: "ClearCutt Verify: govern and verify container image estates",
+		Long: `ClearCutt Verify maps an image estate (which images are built on which,
+proven by layer digest), verifies each image's signatures and attestations
+against trusted signers, and writes the estate report clearcutt-portal
+publishes. It is part of ClearCutt, with clearcutt-factory.`,
 		Version: Version,
 		// Returned errors are already actionable; don't dump usage text on every
 		// failure, and let main own error/exit-code presentation.

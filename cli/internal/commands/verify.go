@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
-	"github.com/northcutted/clearcutt/internal/config"
-	"github.com/northcutted/clearcutt/internal/output"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -66,7 +66,9 @@ func NewVerifyCmd() *cobra.Command {
   boundaries       run all image-security boundary gates (closure-purity + runtime-cve) at once
   rebuild          verify rebuild digest and runtime/grafted closure equivalence predicates
   release-evidence verify a published image ref's Sigstore signature + SLSA provenance
-  estate           verify every image in an estate and write the estate report (contract/)`,
+
+To verify every image in an estate and write the estate report, use
+estate verify.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runVerify(args[0])
@@ -81,7 +83,6 @@ func NewVerifyCmd() *cobra.Command {
 	cmd.AddCommand(NewVerifyReleaseEvidenceCmd())
 	cmd.AddCommand(newVerifyClosurePurityCmd())
 	cmd.AddCommand(newVerifyBoundariesCmd())
-	cmd.AddCommand(newVerifyEstateCmd())
 	return cmd
 }
 

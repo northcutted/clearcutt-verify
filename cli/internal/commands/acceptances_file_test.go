@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/northcutted/clearcutt/internal/acceptance"
+	"github.com/northcutted/clearcutt-verify/internal/acceptance"
 )
 
 // TestShippedAcceptancesAreLoadableAndUnexpired guards the fleet's real

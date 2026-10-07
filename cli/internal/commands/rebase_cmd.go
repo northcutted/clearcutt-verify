@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/estategraph"
-	"github.com/northcutted/clearcutt/internal/output"
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/output"
 	"github.com/spf13/cobra"
 )
 

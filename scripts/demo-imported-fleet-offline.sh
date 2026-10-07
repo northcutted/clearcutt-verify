@@ -29,9 +29,9 @@ run_clearcutt() {
   else
     go_bin="$(find_go)"
     if "$go_bin" -C "$ROOT/cli" version >/dev/null 2>&1; then
-      "$go_bin" -C "$ROOT/cli" run ./cmd/clearcutt "$@"
+      "$go_bin" -C "$ROOT/cli" run ./cmd/clearcutt-verify "$@"
     else
-      (cd "$ROOT/cli" && "$go_bin" run ./cmd/clearcutt "$@")
+      (cd "$ROOT/cli" && "$go_bin" run ./cmd/clearcutt-verify "$@")
     fi
   fi
 }
@@ -162,4 +162,4 @@ if [[ "$plan_generated" == "true" ]]; then
 fi
 echo
 echo "Optional site build:"
-echo "  clearcutt catalog site build --catalog \"$OUT/dist/catalog\" --output \"$OUT/dist/site\" --install"
+echo "  clearcutt-verify catalog site build --catalog \"$OUT/dist/catalog\" --output \"$OUT/dist/site\" --install"

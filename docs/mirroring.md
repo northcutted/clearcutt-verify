@@ -23,7 +23,7 @@ To preserve referrers and signatures during replication:
 ## 3. CLI Mirror Script Generation
 Generate operational mirror scripts dynamically:
 ```bash
-clearcutt mirror java25-distroless \
+clearcutt-verify mirror java25-distroless \
   --target artifactory.acme.internal/docker-mirror \
   --output mirror-script.sh
 ```
@@ -33,7 +33,7 @@ After mirroring, generate a verification script that compares the source and the
 mirrored target. `mirror verify` performs no network calls itself — it emits a
 script you run where you have registry access:
 ```bash
-clearcutt mirror verify \
+clearcutt-verify mirror verify \
   --source ghcr.io/northcutted/clearcutt/clearcutt-java25@sha256:... \
   --target artifactory.acme.internal/docker-mirror/clearcutt-java25@sha256:... \
   --output verify-mirror.sh

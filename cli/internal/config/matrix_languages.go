@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/northcutted/clearcutt/internal/versionpolicy"
+	"github.com/northcutted/clearcutt-verify/internal/versionpolicy"
 )
 
 // LanguageSelector is the language-level form of a matrix.languages entry: a
@@ -70,7 +70,7 @@ func (m *Matrix) UnmarshalJSON(data []byte) error {
 
 // MarshalJSON writes matrix.languages back in its original form: the selector
 // objects when the language-level form is in use, else the flat line list, so
-// `clearcutt matrix add/remove` and other config round-trips stay lossless.
+// `clearcutt-verify matrix add/remove` and other config round-trips stay lossless.
 func (m Matrix) MarshalJSON() ([]byte, error) {
 	type matrixOut struct {
 		Systems   []string        `json:"systems"`

@@ -6,8 +6,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/oci"
-	"github.com/northcutted/clearcutt/internal/output"
+	"github.com/northcutted/clearcutt-verify/internal/oci"
+	"github.com/northcutted/clearcutt-verify/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -50,7 +50,7 @@ The --base may be a catalog id (resolved to a digest-pinned reference through th
 catalog) or an explicit registry reference. The entrypoint must be JSON exec form.
 
 Example:
-  clearcutt app build \
+  clearcutt-verify app build \
     --base java25-distroless \
     --artifact target/app.jar \
     --entrypoint '["java","-jar","/workspace/app.jar"]' \
@@ -152,7 +152,7 @@ func emitAppBuildResult(r AppBuildResult) error {
 		}
 		fmt.Fprintf(out, "  base boundary  : %s\n", truncateDigest(r.BaseLastLayer))
 		fmt.Fprintf(out, "  app layer      : %s\n", truncateDigest(r.AppLayerDigest))
-		fmt.Fprintf(out, "\nThe image is marked rebasable; update its base later with `clearcutt app rebase`.\n")
+		fmt.Fprintf(out, "\nThe image is marked rebasable; update its base later with `clearcutt-verify app rebase`.\n")
 		return nil
 	}
 }

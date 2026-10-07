@@ -3,7 +3,7 @@ package catalogbuild
 import (
 	"encoding/json"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
 )
 
 func FirstNonEmptyStr(values ...string) string {

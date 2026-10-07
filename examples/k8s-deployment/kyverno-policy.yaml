@@ -29,7 +29,7 @@ spec:
             - entries:
                 - keyless:
                     issuer: "https://token.actions.githubusercontent.com"
-                    subjectRegExp: "^https://github.com/northcutted/clearcutt/\\.github/workflows/release\\.yml@refs/heads/main$"
+                    subjectRegExp: "^https://github.com/northcutted/clearcutt-verify/\\.github/workflows/release\\.yml@refs/heads/main$"
           mutateDigest: true
           verifyDigest: true
           required: true
@@ -50,7 +50,7 @@ spec:
                 - entries:
                     - keyless:
                         issuer: "https://token.actions.githubusercontent.com"
-                        subjectRegExp: "^https://github.com/northcutted/clearcutt/\\.github/workflows/release\\.yml@refs/heads/main$"
+                        subjectRegExp: "^https://github.com/northcutted/clearcutt-verify/\\.github/workflows/release\\.yml@refs/heads/main$"
           mutateDigest: true
           verifyDigest: true
           required: true

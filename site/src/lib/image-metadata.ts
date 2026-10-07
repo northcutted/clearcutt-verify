@@ -21,7 +21,7 @@ function githubRepoFromImageRef(fullName: string): string {
   if (parts.length >= 3 && parts[0] && parts[1]) {
     return `${parts[0]}/${parts[1]}`;
   }
-  return 'northcutted/clearcutt';
+  return 'northcutted/clearcutt-verify';
 }
 
 export function getImageMetadata(
@@ -793,7 +793,7 @@ pkgs.dockerTools.buildImage {
 
 # Build: nix build .#packages.x86_64-linux.overlayImage
 # Then prove the grafted runtime is byte-identical to the native runtime:
-# clearcutt overlay verify \\
+# clearcutt-verify overlay verify \\
 #   --runtime-archive clearcutt-${runtimeId}.tar \\
 #   --grafted-archive result \\
 #   --runtime-ref ${runtimeImage}@sha256:... \\

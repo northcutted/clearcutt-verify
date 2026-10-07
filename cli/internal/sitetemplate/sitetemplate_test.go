@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/sitetemplate/rules"
+	"github.com/northcutted/clearcutt-verify/internal/sitetemplate/rules"
 )
 
 // liveSiteDir returns the repository's site/ directory, or "" when it is not

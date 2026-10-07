@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
-	"github.com/northcutted/clearcutt/internal/config"
-	"github.com/northcutted/clearcutt/internal/sitetemplate"
-	"github.com/northcutted/clearcutt/internal/sitetemplate/rules"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/sitetemplate"
+	"github.com/northcutted/clearcutt-verify/internal/sitetemplate/rules"
 	"github.com/spf13/cobra"
 )
 
@@ -95,8 +95,8 @@ func newCatalogSiteBuildCmd() *cobra.Command {
 	cmd.Flags().StringVar(&catalogSiteOpts.generatedAt, "generated-at", "", "Override generatedAt timestamp for generated catalog data")
 	cmd.Flags().StringVar(&catalogSiteOpts.output, "output", "", "Static site output directory")
 	cmd.Flags().StringVar(&catalogSiteOpts.template, "template", "", "Astro template directory (defaults to templates/astro-catalog or site)")
-	cmd.Flags().StringVar(&catalogSiteOpts.graphFile, "graph", "", "Optional `clearcutt graph build` JSON to publish as the estate view")
-	cmd.Flags().StringVar(&catalogSiteOpts.layersFile, "layers", "", "Optional `clearcutt graph layers` JSON to publish as the layer commonality view")
+	cmd.Flags().StringVar(&catalogSiteOpts.graphFile, "graph", "", "Optional `clearcutt-verify graph build` JSON to publish as the estate view")
+	cmd.Flags().StringVar(&catalogSiteOpts.layersFile, "layers", "", "Optional `clearcutt-verify graph layers` JSON to publish as the layer commonality view")
 	cmd.Flags().StringVar(&catalogSiteOpts.siteConfig, "site-config", "", "Optional clearcutt.site.yaml to copy into the build workspace")
 	cmd.Flags().StringVar(&catalogSiteOpts.overrides, "overrides", "", "Optional site-overrides directory with components/, pages/, styles/, or public/")
 	cmd.Flags().BoolVar(&catalogSiteOpts.install, "install", false, "Install generated site dependencies with the detected package manager before building")
@@ -127,8 +127,8 @@ generation workflows.`,
 	cmd.Flags().StringVar(&catalogSiteOpts.template, "template", "", "Astro template directory (defaults to templates/astro-catalog or site)")
 	cmd.Flags().StringVar(&catalogSiteOpts.siteConfig, "site-config", "", "Optional clearcutt.site.yaml to copy into the preview workspace")
 	cmd.Flags().StringVar(&catalogSiteOpts.overrides, "overrides", "", "Optional site-overrides directory with components/, pages/, styles/, or public/")
-	cmd.Flags().StringVar(&catalogSiteOpts.graphFile, "graph", "", "Optional `clearcutt graph build` JSON to publish as the estate view")
-	cmd.Flags().StringVar(&catalogSiteOpts.layersFile, "layers", "", "Optional `clearcutt graph layers` JSON to publish as the layer commonality view")
+	cmd.Flags().StringVar(&catalogSiteOpts.graphFile, "graph", "", "Optional `clearcutt-verify graph build` JSON to publish as the estate view")
+	cmd.Flags().StringVar(&catalogSiteOpts.layersFile, "layers", "", "Optional `clearcutt-verify graph layers` JSON to publish as the layer commonality view")
 	cmd.Flags().BoolVar(&catalogSiteOpts.install, "install", false, "Install generated site dependencies with the detected package manager before previewing")
 	cmd.Flags().StringVar(&catalogSiteOpts.basePath, "base-path", "", "Astro base path to pass as BASE_PATH during preview")
 	cmd.Flags().StringVar(&catalogSiteOpts.workDir, "work-dir", "", "Reusable preview workspace; defaults to a temporary directory")
@@ -646,9 +646,9 @@ func printPreviewFallback(workDir, catalogPath string, cause error) {
 	fmt.Fprintf(out, "Catalog preview was not started: %v\n\n", cause)
 	fmt.Fprintln(out, "Next:")
 	if catalogSiteOpts.workDir == "" {
-		fmt.Fprintf(out, "  clearcutt catalog site preview --catalog %s --install\n", catalogPath)
+		fmt.Fprintf(out, "  clearcutt-verify catalog site preview --catalog %s --install\n", catalogPath)
 		fmt.Fprintln(out, "  # or scaffold a persistent project:")
-		fmt.Fprintf(out, "  clearcutt catalog site scaffold --catalog %s --output ./clearcutt-catalog-site\n", catalogPath)
+		fmt.Fprintf(out, "  clearcutt-verify catalog site scaffold --catalog %s --output ./clearcutt-catalog-site\n", catalogPath)
 		return
 	}
 	fmt.Fprintf(out, "  cd %s\n", workDir)
@@ -888,7 +888,7 @@ func renderSiteConfigYAML(title, description, sourceRepo, registry string) strin
             ctaLabel: "Open platform kit"
           - title: "Publish refreshed catalog data"
             description: "Generate catalog data and build the static site artifact for your own registry."
-            command: "clearcutt catalog site build --catalog ./dist/catalog --output ./dist/site --install"
+            command: "clearcutt-verify catalog site build --catalog ./dist/catalog --output ./dist/site --install"
       - id: "application"
         label: "Application engineers"
         summary: "Pick a runtime image, build an app container, and validate it before release."
@@ -1179,8 +1179,8 @@ or MDX routes with the same path.
 ## Regenerate
 
 ~~~bash
-clearcutt catalog generate --config clearcutt.fleet.yaml --output ./dist/catalog
-clearcutt catalog site scaffold --catalog ./dist/catalog --output ./clearcutt-catalog-site
-clearcutt catalog site build --catalog ./dist/catalog --output ./dist/site
+clearcutt-verify catalog generate --config clearcutt.fleet.yaml --output ./dist/catalog
+clearcutt-verify catalog site scaffold --catalog ./dist/catalog --output ./clearcutt-catalog-site
+clearcutt-verify catalog site build --catalog ./dist/catalog --output ./dist/site
 ~~~
 `

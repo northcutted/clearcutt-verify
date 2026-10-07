@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/northcutted/clearcutt/internal/certify"
+	"github.com/northcutted/clearcutt-verify/internal/certify"
 	"os"
 	"path/filepath"
 	"sort"

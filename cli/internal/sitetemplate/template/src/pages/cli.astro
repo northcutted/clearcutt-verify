@@ -6,7 +6,7 @@ import { loadImage, loadIndex } from '../lib/catalog';
 
 let index;
 try { index = loadIndex(); } catch { index = null; }
-const ownerRepo = index ? `${index.owner}/${index.repo}` : 'northcutted/clearcutt';
+const ownerRepo = index ? `${index.owner}/${index.repo}` : 'northcutted/clearcutt-verify';
 const registryBase = index?.registryBase ?? `ghcr.io/${ownerRepo.toLowerCase()}`;
 const imageRuntime = (id: string) => id.split('-')[0].toLowerCase();
 const fallbackImagePrefix = (() => {
@@ -83,7 +83,7 @@ const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '') + '/';
       ]}>
         <div data-panel-id="compile" data-panel-active="true" class="space-y-3">
           <p class="text-xs text-ink-300">Requires Go 1.26+ installed on your system. Run compilation in the repository directory root:</p>
-          <CopyBlock language="shell" code={`git clone https://github.com/${ownerRepo}.git\ncd ${repoDir}\ngo -C cli build -o ../clearcutt ./cmd/clearcutt\n./clearcutt --version`} />
+          <CopyBlock language="shell" code={`git clone https://github.com/${ownerRepo}.git\ncd ${repoDir}\ngo -C cli build -o ../clearcutt-verify ./cmd/clearcutt-verify\n./clearcutt --version`} />
         </div>
         <div data-panel-id="download" data-panel-active="false" class="space-y-3">
           <p class="text-xs text-ink-300">Use this only for releases that include platform-specific ClearCutt binary assets and matching Sigstore bundles.</p>

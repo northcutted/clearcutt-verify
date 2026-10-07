@@ -46,11 +46,11 @@ jobs:
           fetch-depth: 0
 
       - name: Install ClearCutt CLI
-        uses: ./.github/actions/install-clearcutt
+        uses: ./.github/actions/install-clearcutt-verify
         with:
           mode: ${{ vars.CLEARCUTT_CLI_MODE || 'release' }}
           version: ${{ vars.CLEARCUTT_CLI_VERSION || 'v0.17.0' }}
-          repo: ${{ vars.CLEARCUTT_CLI_REPO || 'northcutted/clearcutt' }}
+          repo: ${{ vars.CLEARCUTT_CLI_REPO || 'northcutted/clearcutt-verify' }}
 
       - name: Install Sigstore Cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
@@ -61,11 +61,11 @@ jobs:
 
       # Reads the registry host from the ClearCutt config rather than assuming
       # ghcr.io, so a fork pointing at ECR, Harbor or anything else still logs
-      # in to the right place. This used to be `clearcutt platform registry-env`,
+      # in to the right place. This used to be `clearcutt-verify platform registry-env`,
       # which is gone with the rest of the fork-scaffolding kit.
       # Reads the registry host from the ClearCutt config rather than assuming
       # ghcr.io, so a fork pointing elsewhere still logs in to the right place.
-      # This used to be `clearcutt platform registry-env`, which is gone with
+      # This used to be `clearcutt-verify platform registry-env`, which is gone with
       # the rest of the fork-scaffolding kit.
       - name: Resolve registry settings
         id: registry
@@ -117,7 +117,7 @@ jobs:
           # Hoisted out of the run script so the GitHub templater never
           # expands untrusted dispatch inputs into shell code.
           INPUT_LIMIT: ${{ github.event.inputs.release_limit || '' }}
-        run: ./clearcutt catalog workflow-params --release-limit "$INPUT_LIMIT" --github-output "$GITHUB_OUTPUT"
+        run: ./clearcutt-verify catalog workflow-params --release-limit "$INPUT_LIMIT" --github-output "$GITHUB_OUTPUT"
 
       - name: Build catalog data
         env:
@@ -128,12 +128,12 @@ jobs:
           FORCE_REFRESH_ALL: ${{ github.event.inputs.force_refresh_all == 'true' && '1' || '0' }}
           SCAN_TAG_DEPTH: ${{ steps.params.outputs.scan_depth }}
           SCAN_UPDATE_DB: "1"
-        run: ./clearcutt catalog build --limit "$RELEASE_LIMIT" --core-dir core --update-db --include-services
+        run: ./clearcutt-verify catalog build --limit "$RELEASE_LIMIT" --core-dir core --update-db --include-services
 
       # Schema-validate the generated catalog (structural checks plus the
       # embedded JSON Schemas) before it is uploaded for the site build.
       - name: Validate generated catalog
-        run: ./clearcutt --catalog site/src/data/catalog catalog validate
+        run: ./clearcutt-verify --catalog site/src/data/catalog catalog validate
 
       - name: Upload catalog artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -171,11 +171,11 @@ jobs:
           path: site/src/data
 
       - name: Install ClearCutt CLI
-        uses: ./.github/actions/install-clearcutt
+        uses: ./.github/actions/install-clearcutt-verify
         with:
           mode: ${{ vars.CLEARCUTT_CLI_MODE || 'release' }}
           version: ${{ vars.CLEARCUTT_CLI_VERSION || 'v0.17.0' }}
-          repo: ${{ vars.CLEARCUTT_CLI_REPO || 'northcutted/clearcutt' }}
+          repo: ${{ vars.CLEARCUTT_CLI_REPO || 'northcutted/clearcutt-verify' }}
 
       # The estate view renders `graph build` / `graph layers` output. It is
       # generated here against the live registry rather than committed, because
@@ -213,19 +213,19 @@ jobs:
           args=()
           for repo in "${repos[@]}"; do args+=(--repository "$repo"); done
           mkdir -p dist/estate
-          ./clearcutt registry scan \
+          ./clearcutt-verify registry scan \
             --registry "$host" \
             --namespace "$namespace" \
             "${args[@]}" \
             --username "$REGISTRY_USER" --password-env GHCR_TOKEN \
             --max-tags 12 \
             --output dist/estate/images.yaml --force
-          ./clearcutt import observe \
+          ./clearcutt-verify import observe \
             --images dist/estate/images.yaml --output dist/estate/observations.json
-          ./clearcutt graph build \
+          ./clearcutt-verify graph build \
             --observations dist/estate/observations.json \
             --output dist/estate/graph.json --force
-          ./clearcutt graph layers \
+          ./clearcutt-verify graph layers \
             --observations dist/estate/observations.json \
             --output dist/estate/layers.json --force
 
@@ -243,7 +243,7 @@ jobs:
           estate=()
           if [ -f dist/estate/graph.json ]; then estate+=(--graph dist/estate/graph.json); fi
           if [ -f dist/estate/layers.json ]; then estate+=(--layers dist/estate/layers.json); fi
-          ./clearcutt catalog site build \
+          ./clearcutt-verify catalog site build \
             --catalog site/src/data/catalog \
             --template site \
             --output site/dist \

@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/output"
+	"github.com/northcutted/clearcutt-verify/internal/output"
 )
 
 // ErrCheckFailed is the sentinel policy error returned by gating commands

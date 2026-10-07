@@ -40,11 +40,17 @@ runs:
         VERSION="${{ inputs.clearcutt-version }}"
         OS=$(uname -s | tr '[:upper:]' '[:lower:]')
         ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
-        ASSET="clearcutt-${OS}-${ARCH}"
+        ASSET="clearcutt-verify-${OS}-${ARCH}"
         BASE_URL="https://github.com/${{ github.action_repository }}/releases/download/${VERSION}"
-        SIGNING_IDENTITY="https://github.com/${{ github.action_repository }}/.github/workflows/release.yml@refs/heads/main"
-        echo "[clearcutt] Downloading ${ASSET} (${VERSION})..."
-        curl -fsSL -o "${RUNNER_TEMP}/${ASSET}" "${BASE_URL}/${ASSET}"
+        # Releases from before the rename to ClearCutt Verify name the binary
+        # clearcutt-<os>-<arch> and were signed under the repository's old name.
+        OWNER="$(echo "${{ github.action_repository }}" | cut -d/ -f1)"
+        SIGNING_IDENTITY_RE="^https://github\\.com/${OWNER}/(clearcutt|clearcutt-verify)/\\.github/workflows/release\\.yml@refs/heads/main$"
+        echo "[clearcutt-verify] Downloading ${ASSET} (${VERSION})..."
+        if ! curl -fsSL -o "${RUNNER_TEMP}/${ASSET}" "${BASE_URL}/${ASSET}" 2>/dev/null; then
+          ASSET="clearcutt-${OS}-${ARCH}"
+          curl -fsSL -o "${RUNNER_TEMP}/${ASSET}" "${BASE_URL}/${ASSET}"
+        fi
         curl -fsSL -o "${RUNNER_TEMP}/${ASSET}.sig" "${BASE_URL}/${ASSET}.sig"
         curl -fsSL -o "${RUNNER_TEMP}/SHA256SUMS.txt" "${BASE_URL}/SHA256SUMS.txt"
         (
@@ -53,11 +59,11 @@ runs:
         )
         cosign verify-blob "${RUNNER_TEMP}/${ASSET}" \
           --bundle "${RUNNER_TEMP}/${ASSET}.sig" \
-          --certificate-identity "${SIGNING_IDENTITY}" \
+          --certificate-identity-regexp "${SIGNING_IDENTITY_RE}" \
           --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
-        install -m 0755 "${RUNNER_TEMP}/${ASSET}" "${RUNNER_TEMP}/clearcutt"
+        install -m 0755 "${RUNNER_TEMP}/${ASSET}" "${RUNNER_TEMP}/clearcutt-verify"
         echo "${RUNNER_TEMP}" >> "$GITHUB_PATH"
-        "${RUNNER_TEMP}/clearcutt" --version
+        "${RUNNER_TEMP}/clearcutt-verify" --version
 
     - name: Pull Target Application Image
       shell: bash
@@ -75,7 +81,7 @@ runs:
       shell: bash
       run: |
         echo "[clearcutt] Running offline certification checks..."
-        clearcutt certify /tmp/clearcutt-app-image.tar \
+        clearcutt-verify certify /tmp/clearcutt-app-image.tar \
           --policy ${{ inputs.policy }} \
           --base ${{ inputs.base }} \
           --image-ref ${{ inputs.image }} \

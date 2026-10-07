@@ -1,16 +1,16 @@
-# ClearCutt Documentation
+# ClearCutt Verify Documentation
 
 Use this page as the documentation front door. Each role gets one first
 document, one first command, and then deeper links.
 
 | Role | First document | First command | Then read |
 | --- | --- | --- | --- |
-| App developer | [Getting started](getting-started.md) | `go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog inspect java21-distroless` | [App lifecycle](app-lifecycle.md), [Certification](certification.md) |
-| Imported fleet owner | [Imported fleets](imported-fleets.md) | `go -C cli run ./cmd/clearcutt import images --refs ../examples/imported-fleet/refs.txt --output /tmp/clearcutt-import/images.yaml --force` | [Generic OCI mode](generic-oci-mode.md), [Catalog generator](catalog-generator.md) |
-| Estate owner | [Registry scan and the base image graph](registry-graph.md) | `go -C cli run ./cmd/clearcutt registry scan --registry ghcr.io --namespace YOUR_ORG/YOUR_REPO --repository YOUR_IMAGE --output /tmp/images.yaml` | [Registry-native evidence](registry-native-evidence.md), [Imported fleets](imported-fleets.md) |
-| Security or auditor | [Trust evidence walkthrough](trust/evidence-walkthrough.md) | `go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog verify image java21-distroless --require-signature --require-sbom --require-provenance --allow-preview` | [Catalog evidence](trust/catalog-evidence.md), [Security model](security-model.md), [Policy bundles](policy-bundles.md) |
+| App developer | [Getting started](getting-started.md) | `go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog inspect java21-distroless` | [App lifecycle](app-lifecycle.md), [Certification](certification.md) |
+| Imported fleet owner | [Imported fleets](imported-fleets.md) | `go -C cli run ./cmd/clearcutt-verify import images --refs ../examples/imported-fleet/refs.txt --output /tmp/clearcutt-import/images.yaml --force` | [Generic OCI mode](generic-oci-mode.md), [Catalog generator](catalog-generator.md) |
+| Estate owner | [Registry scan and the base image graph](registry-graph.md) | `go -C cli run ./cmd/clearcutt-verify registry scan --registry ghcr.io --namespace YOUR_ORG/YOUR_REPO --repository YOUR_IMAGE --output /tmp/images.yaml` | [Registry-native evidence](registry-native-evidence.md), [Imported fleets](imported-fleets.md) |
+| Security or auditor | [Trust evidence walkthrough](trust/evidence-walkthrough.md) | `go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog verify image java21-distroless --require-signature --require-sbom --require-provenance --allow-preview` | [Catalog evidence](trust/catalog-evidence.md), [Security model](security-model.md), [Policy bundles](policy-bundles.md) |
 | Manager | [Alternatives and fit](alternatives.md) | `sed -n '1,120p' docs/alternatives.md` | [Enterprise adoption](enterprise-adoption.md) |
-| Open-source reviewer | [Demo path](demo.md) | `go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog list` | [Mental model](concepts/mental-model.md), [Glossary](concepts/glossary.md), [CLI reference](cli-reference.md) |
+| Open-source reviewer | [Demo path](demo.md) | `go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog list` | [Mental model](concepts/mental-model.md), [Glossary](concepts/glossary.md), [CLI reference](cli-reference.md) |
 
 ## Concept Docs
 

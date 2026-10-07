@@ -3,7 +3,7 @@ package commands
 import (
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/versionpolicy"
+	"github.com/northcutted/clearcutt-verify/internal/versionpolicy"
 )
 
 func TestVersionPolicyLoaded(t *testing.T) {

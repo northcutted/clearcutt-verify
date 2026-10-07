@@ -27,8 +27,8 @@ show:
 ## How To Inspect One Image
 
 ```bash
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog inspect java21-distroless
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog verify image java21-distroless \
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog inspect java21-distroless
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog verify image java21-distroless \
   --require-signature \
   --require-sbom \
   --require-provenance \
@@ -38,9 +38,9 @@ go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog verify image j
 For generated data:
 
 ```bash
-./clearcutt catalog generate --config clearcutt.yaml --include-services --output dist/catalog
-./clearcutt --catalog dist/catalog catalog validate
-./clearcutt --catalog dist/catalog catalog inspect java21-distroless
+./clearcutt-verify catalog generate --config clearcutt.yaml --include-services --output dist/catalog
+./clearcutt-verify --catalog dist/catalog catalog validate
+./clearcutt-verify --catalog dist/catalog catalog inspect java21-distroless
 jq '.releases[] | select(.imageId=="java21-distroless") | {imageRef, immutableRef, missing}' \
   dist/catalog/evidence-manifest.json
 ```

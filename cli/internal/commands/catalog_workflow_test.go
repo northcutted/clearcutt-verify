@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/evidence"
+	"github.com/northcutted/clearcutt-verify/internal/evidence"
 
-	"github.com/northcutted/clearcutt/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/config"
 )
 
 func TestCatalogWorkflowParamsWritesGitHubOutputs(t *testing.T) {

@@ -274,7 +274,7 @@ const oidcIssuer = 'https://token.actions.githubusercontent.com';
 
         <section class="space-y-3">
           <h3 class="heading text-base text-ink-50">1. Verify with the CLI</h3>
-          <CopyBlock language="shell" code={`clearcutt verify release-evidence \\\n  --ref ${sampleRefVersioned} \\\n  --repo ${ownerRepo} \\\n  --workflow-identity "${releaseWorkflowIdentity}" \\\n  --source-ref refs/heads/main \\\n  --source-branch main \\\n  --core-dir core`} />
+          <CopyBlock language="shell" code={`clearcutt-verify verify release-evidence \\\n  --ref ${sampleRefVersioned} \\\n  --repo ${ownerRepo} \\\n  --workflow-identity "${releaseWorkflowIdentity}" \\\n  --source-ref refs/heads/main \\\n  --source-branch main \\\n  --core-dir core`} />
           <p class="text-xs text-ink-300">
             From a scaffolded fleet repo, the CLI resolves the immutable digest and runs
             Cosign, SLSA verifier, and GitHub attestation checks through the pinned Nix

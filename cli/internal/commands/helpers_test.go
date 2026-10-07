@@ -2,7 +2,7 @@ package commands
 
 import (
 	"bytes"
-	"github.com/northcutted/clearcutt/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/config"
 	"os"
 	"path/filepath"
 	"testing"

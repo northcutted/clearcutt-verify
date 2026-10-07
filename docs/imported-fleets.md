@@ -10,9 +10,9 @@ claiming ClearCutt built the images.
 ## What Imported-Fleet Mode Can Do
 
 - Enumerate a registry namespace directly, without a hand-written ref list
-  (`clearcutt registry scan` — see [registry-graph.md](registry-graph.md)).
+  (`clearcutt-verify registry scan` — see [registry-graph.md](registry-graph.md)).
 - Discover which images are built on which by comparing layer digests, without any
-  declared `expectedBase` (`clearcutt graph build`).
+  declared `expectedBase` (`clearcutt-verify graph build`).
 - Inventory existing OCI image refs from a simple list.
 - Generate a ClearCutt-compatible `images.yaml`.
 - Generate catalog JSON and an evidence manifest.
@@ -35,7 +35,7 @@ claiming ClearCutt built the images.
 ## Golden Path
 
 ```bash
-clearcutt import images \
+clearcutt-verify import images \
   --refs examples/imported-fleet/refs.txt \
   --output /tmp/clearcutt-import/images.yaml \
   --owner acme \
@@ -44,32 +44,32 @@ clearcutt import images \
   --generated-at 2026-01-01T00:00:00Z \
   --force
 
-clearcutt catalog generate \
+clearcutt-verify catalog generate \
   --images /tmp/clearcutt-import/images.yaml \
   --output /tmp/clearcutt-import/catalog \
   --owner acme \
   --repo imported-fleet \
   --registry-base registry.acme.dev/platform
 
-clearcutt --catalog /tmp/clearcutt-import/catalog catalog validate
+clearcutt-verify --catalog /tmp/clearcutt-import/catalog catalog validate
 
-clearcutt import observe \
+clearcutt-verify import observe \
   --images /tmp/clearcutt-import/images.yaml \
   --offline-fixtures examples/imported-fleet/observations.fixture.json \
   --output /tmp/clearcutt-import/observations.json \
   --generated-at 2026-01-01T00:00:00Z
 
-clearcutt import assess \
+clearcutt-verify import assess \
   --images /tmp/clearcutt-import/images.yaml \
   --observations /tmp/clearcutt-import/observations.json \
   --catalog /tmp/clearcutt-import/catalog \
   --output /tmp/clearcutt-import/governance
 
-clearcutt import report \
+clearcutt-verify import report \
   --assessment /tmp/clearcutt-import/governance \
   --output /tmp/clearcutt-import/imported-fleet-report.md
 
-clearcutt rebase discover \
+clearcutt-verify rebase discover \
   --apps examples/imported-fleet/apps.yaml \
   --bases /tmp/clearcutt-import/images.yaml \
   --observations /tmp/clearcutt-import/observations.json \
@@ -102,7 +102,7 @@ To render the generated catalog as a site, use the printed output directory:
 
 ```bash
 ./scripts/demo-imported-fleet-offline.sh
-clearcutt catalog site build --catalog <OUT>/dist/catalog --output <OUT>/dist/site --install
+clearcutt-verify catalog site build --catalog <OUT>/dist/catalog --output <OUT>/dist/site --install
 ```
 
 ## Live Demo

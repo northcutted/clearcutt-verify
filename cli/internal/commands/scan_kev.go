@@ -45,7 +45,7 @@ func NewScanRefreshKEVCmd() *cobra.Command {
 		Use:   "refresh-kev",
 		Short: "Refresh the CISA KEV catalog cache used by vulnerability scans",
 		Long: `Refreshes the CISA Known Exploited Vulnerabilities catalog cache used by
-clearcutt scan --kev-file. By default refresh failures are recorded in the
+clearcutt-verify scan --kev-file. By default refresh failures are recorded in the
 status file and do not fail the command, matching the scheduled remediation
 workflow's fallback to the active local scanner database and no KEV enrichment.`,
 		Args: cobra.NoArgs,

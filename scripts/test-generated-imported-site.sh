@@ -29,9 +29,9 @@ run_clearcutt() {
     local go_bin
     go_bin="$(find_go)"
     if "$go_bin" -C "$ROOT/cli" version >/dev/null 2>&1; then
-      "$go_bin" -C "$ROOT/cli" run ./cmd/clearcutt "$@"
+      "$go_bin" -C "$ROOT/cli" run ./cmd/clearcutt-verify "$@"
     else
-      (cd "$ROOT/cli" && "$go_bin" run ./cmd/clearcutt "$@")
+      (cd "$ROOT/cli" && "$go_bin" run ./cmd/clearcutt-verify "$@")
     fi
   fi
 }

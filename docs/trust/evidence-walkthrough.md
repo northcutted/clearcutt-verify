@@ -7,7 +7,7 @@ published image from your fork when you want registry-side proof.
 ## 1. Catalog Gate From A Clean Clone
 
 ```bash
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog verify image java21-distroless \
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog verify image java21-distroless \
   --require-signature \
   --require-sbom \
   --require-provenance \
@@ -37,7 +37,7 @@ The workflow identity is a trust boundary. It must match the identity pinned in
 ## 3. Verify Registry-Side Release Evidence
 
 ```bash
-./clearcutt verify release-evidence \
+./clearcutt-verify verify release-evidence \
   --ref "$IMAGE_REF" \
   --digest "$IMAGE_DIGEST" \
   --repo YOUR_ORG/YOUR_REPO \
@@ -99,7 +99,7 @@ default. Use Cosign attestation commands for SBOM predicate verification.
 ## 5. Compare The Catalog Record
 
 ```bash
-./clearcutt --catalog dist/catalog catalog inspect java21-distroless
+./clearcutt-verify --catalog dist/catalog catalog inspect java21-distroless
 ```
 
 Check that the record reports the same tag, digest, workflow identity, signature
@@ -109,7 +109,7 @@ evidence URLs you verified above.
 ## 6. Connect To Policy
 
 ```bash
-./clearcutt policy java21-distroless \
+./clearcutt-verify policy java21-distroless \
   --catalog dist/catalog \
   --engine kyverno \
   --environment production \

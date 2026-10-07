@@ -122,7 +122,7 @@ func LayerGraphMarkdown(graph LayerGraph) string {
 	fmt.Fprintf(&b, "\n")
 
 	fmt.Fprintf(&b, "## What this does not prove\n\n")
-	fmt.Fprintf(&b, "- Shared layers are shared content, never a base-image relationship. Run `clearcutt graph build` for parentage.\n")
+	fmt.Fprintf(&b, "- Shared layers are shared content, never a base-image relationship. Run `clearcutt-verify graph build` for parentage.\n")
 	fmt.Fprintf(&b, "- Sizes are compressed layer sizes from the manifest, not installed footprint on disk.\n")
 	fmt.Fprintf(&b, "- Identical layer sets mean identical content, not identical configuration: two images can share every layer and still differ in entrypoint, user, or labels.\n")
 	fmt.Fprintf(&b, "- Commonality is measured only across the images observed in this scan. Widening the scan changes every coverage percentage here.\n\n")

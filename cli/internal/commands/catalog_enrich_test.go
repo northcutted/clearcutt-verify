@@ -22,9 +22,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"github.com/northcutted/clearcutt/internal/catalogbuild"
-	"github.com/northcutted/clearcutt/internal/oci"
-	"github.com/northcutted/clearcutt/internal/sign"
+	"github.com/northcutted/clearcutt-verify/internal/catalogbuild"
+	"github.com/northcutted/clearcutt-verify/internal/oci"
+	"github.com/northcutted/clearcutt-verify/internal/sign"
 )
 
 func TestCatalogEnrichTagSelection(t *testing.T) {

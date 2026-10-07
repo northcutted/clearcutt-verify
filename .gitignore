@@ -27,7 +27,9 @@ core/build-outputs/*
 .windsurfrules
 
 /clearcutt
+/clearcutt-verify
 /cli/clearcutt
+/cli/clearcutt-verify
 
 # Generated embedded platform source archive (see cli/internal/platformsource/archive/README.md).
 cli/internal/platformsource/archive/source.zip

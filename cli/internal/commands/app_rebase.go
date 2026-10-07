@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/attest"
-	"github.com/northcutted/clearcutt/internal/oci"
-	"github.com/northcutted/clearcutt/internal/output"
-	"github.com/northcutted/clearcutt/internal/sign"
+	"github.com/northcutted/clearcutt-verify/internal/attest"
+	"github.com/northcutted/clearcutt-verify/internal/oci"
+	"github.com/northcutted/clearcutt-verify/internal/output"
+	"github.com/northcutted/clearcutt-verify/internal/sign"
 	"github.com/spf13/cobra"
 )
 
@@ -67,7 +67,7 @@ developer leg was checked. A runtime-incompatible candidate base (major/minor ch
 is refused.
 
 Example:
-  clearcutt app rebase \
+  clearcutt-verify app rebase \
     --image ghcr.io/acme/payments-api:1.0.0 \
     --candidate-base ghcr.io/northcutted/clearcutt/clearcutt-java25:v0.17.0-distroless \
     --candidate-base-id java25-distroless \
@@ -109,7 +109,7 @@ func runAppRebase() error {
 		return fmt.Errorf("read app image: %w", err)
 	}
 	if !meta.Rebasable {
-		return fmt.Errorf("image %q is not marked rebasable; rebuild it with `clearcutt app build`", appRebaseOpts.image)
+		return fmt.Errorf("image %q is not marked rebasable; rebuild it with `clearcutt-verify app build`", appRebaseOpts.image)
 	}
 	currentBaseID := meta.BaseID
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-bin="${1:-./clearcutt}"
+bin="${1:-./clearcutt-verify}"
 
 if [[ ! -x "$bin" ]]; then
-  echo "usage: $0 ./clearcutt" >&2
-  echo "error: clearcutt binary is not executable at $bin" >&2
+  echo "usage: $0 ./clearcutt-verify" >&2
+  echo "error: clearcutt-verify binary is not executable at $bin" >&2
   exit 2
 fi
 
@@ -69,7 +69,7 @@ help_contains() {
   local token="${@: -1}"
   local cmd=("${@:1:$#-1}")
   if ! "$bin" "${cmd[@]}" --help | contains_fixed "$token"; then
-    echo "docs command drift: help for 'clearcutt ${cmd[*]}' does not contain '$token' ($description)" >&2
+    echo "docs command drift: help for 'clearcutt-verify ${cmd[*]}' does not contain '$token' ($description)" >&2
     fail=1
   fi
 }
@@ -97,10 +97,10 @@ else
   fi
 fi
 
-check_absent "clearcutt catalog gather" "use catalog generate or catalog build in docs"
+check_absent "clearcutt-verify catalog gather" "use catalog generate or catalog build in docs"
 check_absent "catalog site build --include-services" "--include-services belongs to catalog generate, not catalog site build"
 check_absent "catalog site preview --site" "catalog site preview has no --site flag"
-check_absent "clearcutt policy verify" "policy generates admission policy; it is not a policy verify subcommand"
+check_absent "clearcutt-verify policy verify" "policy generates admission policy; it is not a policy verify subcommand"
 check_absent "v0.11.1" "documented ClearCutt release pins must point at a published release"
 check_absent "imported images have provenance by default" "imported images must not claim provenance by default"
 for token in \

@@ -55,14 +55,14 @@ build mechanics without a governance layer on top.
 The fixture-backed demo path is the clean-clone proof:
 
 ```bash
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog list
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog inspect java21-distroless
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog verify image java21-distroless \
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog list
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog inspect java21-distroless
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog verify image java21-distroless \
   --require-signature \
   --require-sbom \
   --require-provenance \
   --allow-preview
-go -C cli run ./cmd/clearcutt catalog site build \
+go -C cli run ./cmd/clearcutt-verify catalog site build \
   --catalog internal/testdata/mixed-catalog \
   --template ../site \
   --output /tmp/clearcutt-demo-site \

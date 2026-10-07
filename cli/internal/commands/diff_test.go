@@ -3,7 +3,7 @@ package commands
 import (
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
 )
 
 func contains(arr []string, val string) bool {

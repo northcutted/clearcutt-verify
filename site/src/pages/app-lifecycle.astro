@@ -6,7 +6,7 @@ import { loadSiteConfig, tierLabel } from '../lib/site-config';
 
 let index;
 try { index = loadIndex(); } catch { index = null; }
-const ownerRepo = index ? `${index.owner}/${index.repo}` : 'northcutted/clearcutt';
+const ownerRepo = index ? `${index.owner}/${index.repo}` : 'northcutted/clearcutt-verify';
 const imageNamespace = ownerRepo.toLowerCase();
 const registryBase = index?.registryBase ?? `ghcr.io/${imageNamespace}`;
 const imageRuntime = (id: string) => id.split('-')[0].toLowerCase();
@@ -41,13 +41,13 @@ export ENGINE_SIGNER="https://github.com/acme/platform/.github/workflows/rebase.
 
 const commonRebase = `cosign sign --yes "$APP_IMAGE"
 
-clearcutt app diff-base \\
+clearcutt-verify app diff-base \\
   --image "$APP_IMAGE" \\
   --candidate-base "$PATCHED_BASE" \\
   --candidate-base-id "$BASE_ID" \\
   --fail-on-incompatible
 
-clearcutt app rebase \\
+clearcutt-verify app rebase \\
   --image "$APP_IMAGE" \\
   --candidate-base "$PATCHED_BASE" \\
   --candidate-base-id "$BASE_ID" \\
@@ -78,7 +78,7 @@ cp target/payments-api-*-all.jar target/app.jar
 export BASE_ID="java21-distroless"
 export PATCHED_BASE="${baseRef('java21-distroless')}"
 
-clearcutt app build \\
+clearcutt-verify app build \\
   --base "$BASE_ID" \\
   --artifact target/app.jar \\
   --dest /workspace/app.jar \\
@@ -102,7 +102,7 @@ npx esbuild src/server.ts \\
 export BASE_ID="node22-distroless"
 export PATCHED_BASE="${baseRef('node22-distroless')}"
 
-clearcutt app build \\
+clearcutt-verify app build \\
   --base "$BASE_ID" \\
   --artifact dist/server.mjs \\
   --dest /workspace/server.mjs \\
@@ -123,7 +123,7 @@ pex . \\
 export BASE_ID="python3.14-distroless"
 export PATCHED_BASE="${baseRef('python3.14-distroless')}"
 
-clearcutt app build \\
+clearcutt-verify app build \\
   --base "$BASE_ID" \\
   --artifact dist/payments-api.pyz \\
   --dest /workspace/payments-api.pyz \\
@@ -143,7 +143,7 @@ clearcutt app build \\
 export BASE_ID="go1.26-distroless"
 export PATCHED_BASE="${baseRef('go1.26-distroless')}"
 
-clearcutt app build \\
+clearcutt-verify app build \\
   --base "$BASE_ID" \\
   --artifact dist/payments-api \\
   --dest /workspace/payments-api \\
@@ -174,7 +174,7 @@ clearcutt app build \\
           <li><code>app rebase --sign --attest</code> emits signed evidence only after developer signature verification succeeds.</li>
         </ul>
         <p class="mt-4 text-xs text-ink-400">
-          If a service needs a publish directory or sidecar runtime files, use a normal Containerfile and run <code>clearcutt certify</code> on the finished image.
+          If a service needs a publish directory or sidecar runtime files, use a normal Containerfile and run <code>clearcutt-verify certify</code> on the finished image.
         </p>
       </div>
 

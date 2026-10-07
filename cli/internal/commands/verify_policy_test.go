@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
-	"github.com/northcutted/clearcutt/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/config"
 )
 
 func TestFindingMateriality(t *testing.T) {

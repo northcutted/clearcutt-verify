@@ -6,7 +6,7 @@ delivery.
 
 - build stage: ghcr.io/northcutted/clearcutt/clearcutt-node22:dev
 - runtime stage: ghcr.io/northcutted/clearcutt/clearcutt-node22:distroless
-- ClearCutt CLI release: northcutted/clearcutt@v0.17.0 (checksum and Sigstore bundle verified in CI)
+- ClearCutt CLI release: northcutted/clearcutt-verify@v0.17.0 (checksum and Sigstore bundle verified in CI)
 - base id for policy/rebase: node22-distroless
 
 ## Local path
@@ -20,7 +20,7 @@ docker build -t "$APP_IMAGE" .
 docker push "$APP_IMAGE"
 APP_DIGEST=$(docker buildx imagetools inspect "$APP_IMAGE" --format '{{json .Manifest.Digest}}' | tr -d '"')
 docker save "$APP_IMAGE" -o clearcutt-template-node.tar
-clearcutt certify clearcutt-template-node.tar --base node22-distroless --policy certification-policy.yaml --image-ref "${APP_IMAGE%:*}@${APP_DIGEST}"
+clearcutt-verify certify clearcutt-template-node.tar --base node22-distroless --policy certification-policy.yaml --image-ref "${APP_IMAGE%:*}@${APP_DIGEST}"
 ~~~
 
 Open this repository in a devcontainer to build with the matching ClearCutt dev

@@ -10,7 +10,7 @@ built ourselves would prove the weaker version of it.
 
 ## Why it is committed rather than fetched
 
-`clearcutt import observe` will happily re-observe these refs live. The snapshot
+`clearcutt-verify import observe` will happily re-observe these refs live. The snapshot
 is committed so the demo, the site build, and the regression test are hermetic
 and deterministic — a tag that moves upstream must not change what CI asserts.
 
@@ -20,14 +20,14 @@ snapshot, not a defect in it.
 ## Regenerating
 
 ```sh
-clearcutt import images   --refs refs.txt --output images.yaml \
+clearcutt-verify import images   --refs refs.txt --output images.yaml \
                           --owner public-estate --repo demo \
                           --generated-at 2026-08-31T00:00:00Z --force
-clearcutt import observe  --images images.yaml --output observations.json \
+clearcutt-verify import observe  --images images.yaml --output observations.json \
                           --generated-at 2026-08-31T00:00:00Z
-clearcutt graph build     --observations observations.json --output graph.json \
+clearcutt-verify graph build     --observations observations.json --output graph.json \
                           --generated-at 2026-08-31T00:00:00Z --force
-clearcutt graph layers    --observations observations.json --output layers.json \
+clearcutt-verify graph layers    --observations observations.json --output layers.json \
                           --generated-at 2026-08-31T00:00:00Z --force
 ```
 
@@ -38,7 +38,7 @@ Those two `graph` commands are written out in full because `graph.json` and
 and nothing is written:
 
 ```sh
-cd examples/public-estate && clearcutt graph build
+cd examples/public-estate && clearcutt-verify graph build
 ```
 
 Expect `TestPublicEstateFixtureDetectorCoverage` to need updating afterwards; it
@@ -82,7 +82,7 @@ content the tag no longer names.
 ## The history series
 
 `history.json` is a real two-snapshot series, exported from an estate history
-index with `clearcutt estate history --format json`.
+index with `clearcutt-verify estate history --format json`.
 
 Between 2026-08-31 and 2026-09-01, **6 of the 19 images moved** — new manifest
 digests for `python:3.11-slim`, `python:3.12-slim`, `python:3.12-slim-bookworm`,
@@ -115,8 +115,8 @@ slower cadence, and does nothing when everything moves.
 ## Regenerating the history
 
 ```sh
-clearcutt estate push ghcr.io/acme/estate:$(date +%F) \
+clearcutt-verify estate push ghcr.io/acme/estate:$(date +%F) \
   --dir . --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --history ghcr.io/acme/estate:history
-clearcutt --format json estate history ghcr.io/acme/estate:history > history.json
+clearcutt-verify --format json estate history ghcr.io/acme/estate:history > history.json
 ```

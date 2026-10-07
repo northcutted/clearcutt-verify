@@ -21,8 +21,8 @@ body:
     id: cli-version
     attributes:
       label: CLI version
-      description: Output of `clearcutt --version`. Write `n/a` if the bug does not involve the CLI.
-      placeholder: clearcutt version v0.9.8
+      description: Output of `clearcutt-verify --version`. Write `n/a` if the bug does not involve the CLI.
+      placeholder: clearcutt-verify version v0.9.8
     validations:
       required: true
 
@@ -40,8 +40,8 @@ body:
       label: Steps to reproduce
       description: Exact commands or workflow runs, ideally from a clean clone.
       placeholder: |
-        1. go -C cli build -o ../clearcutt ./cmd/clearcutt
-        2. ./clearcutt ...
+        1. go -C cli build -o ../clearcutt-verify ./cmd/clearcutt-verify
+        2. ./clearcutt-verify ...
     validations:
       required: true
 

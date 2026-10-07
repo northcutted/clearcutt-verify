@@ -26,9 +26,9 @@ With the ClearCutt CLI on your `PATH` (the Astro template is bundled in the
 binary, so this works from any directory):
 
 ```bash
-clearcutt catalog generate --config clearcutt.fleet.yaml --include-services --output ./dist/catalog
-clearcutt catalog site scaffold --catalog ./dist/catalog --output ./clearcutt-catalog-site
-clearcutt catalog site build --catalog ./dist/catalog --output ./dist/site
+clearcutt-verify catalog generate --config clearcutt.fleet.yaml --include-services --output ./dist/catalog
+clearcutt-verify catalog site scaffold --catalog ./dist/catalog --output ./clearcutt-catalog-site
+clearcutt-verify catalog site build --catalog ./dist/catalog --output ./dist/site
 ```
 
 The scaffold command copies the Astro site and the catalog data you pass with

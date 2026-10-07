@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/evidence"
+	"github.com/northcutted/clearcutt-verify/internal/evidence"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +26,7 @@ var evidenceOpts evidenceFlags
 // evidenceDefaultFiles are the artifacts a release bundle is made of.
 var evidenceDefaultFiles = []string{"sbom.json", "provenance.json", "scan.json", "test-results.json"}
 
-// NewEvidenceCmd builds the `clearcutt evidence` group: store release evidence
+// NewEvidenceCmd builds the `clearcutt-verify evidence` group: store release evidence
 // with the image it describes, on any OCI registry.
 func NewEvidenceCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -125,7 +125,7 @@ func runEvidenceAttach(ref string) error {
 		fmt.Fprintf(out, "[evidence]   %s (%d bytes)\n", fileName, len(bundle.Files[fileName]))
 	}
 	fmt.Fprintf(out, "[evidence] bundle %s\n", digest)
-	fmt.Fprintf(out, "[evidence] registry lifecycle rules can delete this; `clearcutt evidence export` keeps a copy that outlives them\n")
+	fmt.Fprintf(out, "[evidence] registry lifecycle rules can delete this; `clearcutt-verify evidence export` keeps a copy that outlives them\n")
 	return nil
 }
 
@@ -181,7 +181,7 @@ reach it.
 
 Two formats, because two audiences want different things:
 
-  oci/    digest-preserving. Push it back with ` + "`clearcutt evidence import`" + `,
+  oci/    digest-preserving. Push it back with ` + "`clearcutt-verify evidence import`" + `,
           crane, or oras, and signatures made over the evidence still verify.
   files/  the same evidence as plain readable files, for an auditor with a zip
           and no container tooling.`,
@@ -202,7 +202,7 @@ func runEvidenceExport(ref string) error {
 	for _, attachment := range manifest.Attachments {
 		fmt.Fprintf(out, "[evidence]   %s  %s\n", attachment.Digest, strings.Join(attachment.Files, ", "))
 	}
-	fmt.Fprintf(out, "[evidence] oci/    digest-preserving; restore with `clearcutt evidence import`\n")
+	fmt.Fprintf(out, "[evidence] oci/    digest-preserving; restore with `clearcutt-verify evidence import`\n")
 	fmt.Fprintf(out, "[evidence] files/  plain files, readable without container tooling\n")
 	return nil
 }

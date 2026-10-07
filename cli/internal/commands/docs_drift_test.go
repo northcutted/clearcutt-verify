@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/northcutted/clearcutt/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/config"
 )
 
 func TestCurrentDocsAndSiteAvoidStaleReleaseAndPrimaryForkTagline(t *testing.T) {

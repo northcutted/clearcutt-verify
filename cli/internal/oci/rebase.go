@@ -9,7 +9,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 )
 
-// RebaseOptions describes a `clearcutt app rebase`: swap the base layers underneath
+// RebaseOptions describes a `clearcutt-verify app rebase`: swap the base layers underneath
 // an application image for a new base, preserving every application layer
 // byte-for-byte. The old base is fetched precisely (digest-pinned) from the app's
 // own LabelBaseRef unless OldBaseRef overrides it.
@@ -218,14 +218,14 @@ func (c *Client) oldBaseForAppImage(appRef string, appImg v1.Image, override *Re
 		return nil, fmt.Errorf("image %q is not marked rebasable (missing %s=true)", appRef, LabelRebasable)
 	}
 	if labels[LabelBaseLastLayer] == "" {
-		return nil, fmt.Errorf("image %q has no recorded base boundary (%s); rebuild it with `clearcutt app build`", appRef, LabelBaseLastLayer)
+		return nil, fmt.Errorf("image %q has no recorded base boundary (%s); rebuild it with `clearcutt-verify app build`", appRef, LabelBaseLastLayer)
 	}
 	if override != nil {
 		return override, nil
 	}
 	baseRef := labels[LabelBaseRef]
 	if baseRef == "" {
-		return nil, fmt.Errorf("image %q has no recorded base reference (%s); rebuild it with `clearcutt app build`", appRef, LabelBaseRef)
+		return nil, fmt.Errorf("image %q has no recorded base reference (%s); rebuild it with `clearcutt-verify app build`", appRef, LabelBaseRef)
 	}
 	oldBase, err := c.Pull(baseRef)
 	if err != nil {
