@@ -1,4 +1,4 @@
-module github.com/northcutted/clearcutt
+module github.com/northcutted/clearcutt-verify
 
 go 1.26
 

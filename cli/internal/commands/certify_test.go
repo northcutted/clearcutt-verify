@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
-	"github.com/northcutted/clearcutt/internal/certify"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/certify"
 )
 
 func createMockLayerTar(t *testing.T, filenames []string) []byte {

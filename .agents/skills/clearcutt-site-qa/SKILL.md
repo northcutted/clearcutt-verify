@@ -42,8 +42,8 @@ For reproducible rendered validation, prefer a fixture-backed build that does
 not depend on stale local site data:
 
 ```bash
-cd cli && go build -o ../clearcutt ./cmd/clearcutt
-./clearcutt catalog site build --catalog cli/internal/testdata/mixed-catalog --template site --output /tmp/clearcutt-site --install --clean
+cd cli && go build -o ../clearcutt-verify ./cmd/clearcutt-verify
+./clearcutt-verify catalog site build --catalog cli/internal/testdata/mixed-catalog --template site --output /tmp/clearcutt-site --install --clean
 ```
 
 When the generated template changes, also validate the scaffold/build path or at least inspect the matching template files.

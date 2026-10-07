@@ -24,5 +24,5 @@ services:
       - ALL
     labels:
       org.clearcutt.base: java21-distroless
-      org.clearcutt.certify: "clearcutt certify payments-api.tar --base java21-distroless --policy certification-policy.yaml --image-ref ghcr.io/acme/payments-api@sha256:..."
+      org.clearcutt.certify: "clearcutt-verify certify payments-api.tar --base java21-distroless --policy certification-policy.yaml --image-ref ghcr.io/acme/payments-api@sha256:..."
     restart: unless-stopped

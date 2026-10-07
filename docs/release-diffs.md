@@ -5,7 +5,7 @@ ClearCutt provides detailed release diff reports mapping every change between im
 ---
 
 ## 1. Automated Release Audits
-Using `clearcutt release diff-report` during releases:
+Using `clearcutt-verify release diff-report` during releases:
 - Compiles a complete comparative review between two tags (e.g. `v0.4.0` ➔ `v0.4.1` or `latest-1` ➔ `latest`).
 - Emits reports in both **Markdown** (for human review) and **JSON** (for automated gating pipelines).
 
@@ -22,7 +22,7 @@ Every report includes a "Recommended Action" based on strict policy rules:
 
 ## 3. Example Markdown Report Generation
 ```bash
-clearcutt release diff-report \
+clearcutt-verify release diff-report \
   --image java25-distroless \
   --from latest-1 \
   --to latest \

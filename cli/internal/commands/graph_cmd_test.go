@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
 )
 
 // writeObservationsAt writes an observations file to an exact path, unlike

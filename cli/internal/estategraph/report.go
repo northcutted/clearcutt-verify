@@ -56,7 +56,7 @@ func ReportMarkdown(assessment Assessment) string {
 	fmt.Fprintf(&b, "\n## Suggested next actions\n\n")
 	fmt.Fprintf(&b, "- Pin imported images to digests where possible.\n- Attach or verify SBOM, signature, vulnerability scan, test, and provenance evidence explicitly.\n- Treat low-confidence classifications as review items.\n- Use rebase plans only as auditable preparation; require tests, certification, and human approval before publishing.\n\n")
 	fmt.Fprintf(&b, "## Rebase readiness\n\n")
-	fmt.Fprintf(&b, "Run `clearcutt rebase discover` with app and base inventories to produce candidate data. Plans never apply automatically.\n\n")
+	fmt.Fprintf(&b, "Run `clearcutt-verify rebase discover` with app and base inventories to produce candidate data. Plans never apply automatically.\n\n")
 	fmt.Fprintf(&b, "## Appendix: command reproduction\n\n")
 	fmt.Fprintf(&b, "```bash\nclearcutt import images --refs refs.txt --output images.yaml\nclearcutt catalog generate --images images.yaml --output dist/catalog\nclearcutt import observe --images images.yaml --output dist/imported/observations.json\nclearcutt import assess --images images.yaml --observations dist/imported/observations.json --catalog dist/catalog --output dist/governance\nclearcutt import report --assessment dist/governance --output imported-fleet-report.md\nclearcutt rebase discover --apps apps.yaml --bases images.yaml --observations dist/imported/observations.json --output dist/rebase/candidates.json\n```\n")
 	return b.String()

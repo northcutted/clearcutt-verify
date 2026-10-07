@@ -70,7 +70,7 @@ site:
 Pass it to scaffold, build, preview, or eject:
 
 ```bash
-clearcutt catalog site scaffold \
+clearcutt-verify catalog site scaffold \
   --catalog ./dist/catalog \
   --site-config ./clearcutt.site.yaml \
   --output ./clearcutt-catalog-site

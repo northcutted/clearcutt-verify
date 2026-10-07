@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/northcutted/clearcutt/internal/catalog"
-	"github.com/northcutted/clearcutt/internal/catalogbuild"
-	"github.com/northcutted/clearcutt/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalogbuild"
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
 	"sigs.k8s.io/yaml"
 )
 

@@ -66,7 +66,7 @@ func ResolveConfigPath(path string) string {
 
 // ReferenceOwner and ReferenceRepo identify the upstream ClearCutt project. They
 // are the default fleet identity and the source identity that
-// "clearcutt platform init" rewrites when localizing a fork's generated files
+// "clearcutt-verify platform init" rewrites when localizing a fork's generated files
 // and consumer example manifests.
 const (
 	ReferenceOwner = "northcutted"
@@ -418,7 +418,7 @@ func DefaultConfig(owner, repo string) Config {
 			},
 			// A scaffolded fleet starts with ONE runtime line. The recipes for
 			// node, python and go ship in core/lib/registry.nix; a fork enables
-			// one by adding it here (or with `clearcutt matrix add`), which
+			// one by adding it here (or with `clearcutt-verify matrix add`), which
 			// costs a line of YAML. Starting wide made every new fork inherit a
 			// build matrix — and a vulnerability surface — it had no reason to
 			// operate, and ClearCutt's product is governing image estates rather

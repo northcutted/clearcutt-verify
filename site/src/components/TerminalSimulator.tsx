@@ -16,8 +16,8 @@ function commandOptions(registryBase: string, java21ImageName: string): CommandO
 
   return [
     {
-      name: 'clearcutt inspect',
-      command: 'clearcutt --catalog cli/internal/testdata/catalog inspect java21-distroless',
+      name: 'clearcutt-verify inspect',
+      command: 'clearcutt-verify --catalog cli/internal/testdata/catalog inspect java21-distroless',
       output: [
         'Image Metadata Report for java21-distroless',
         '-----------------------------------------------------------------',
@@ -45,8 +45,8 @@ function commandOptions(registryBase: string, java21ImageName: string): CommandO
       ]
     },
     {
-      name: 'clearcutt verify',
-      command: 'clearcutt --catalog cli/internal/testdata/catalog verify image java21-distroless --max-critical 0 --max-high 3 --allow-preview',
+      name: 'clearcutt-verify verify',
+      command: 'clearcutt-verify --catalog cli/internal/testdata/catalog verify image java21-distroless --max-critical 0 --max-high 3 --allow-preview',
       output: [
         'Policy Gating Report for java21-distroless:vX.Y.Z',
         '-----------------------------------------------------------------',
@@ -65,8 +65,8 @@ function commandOptions(registryBase: string, java21ImageName: string): CommandO
       ]
     },
     {
-      name: 'clearcutt app rebase',
-      command: 'clearcutt app rebase --image ghcr.io/acme/my-app:1.0.0 --candidate-base java21-distroless --sign --attest',
+      name: 'clearcutt-verify app rebase',
+      command: 'clearcutt-verify app rebase --image ghcr.io/acme/my-app:1.0.0 --candidate-base java21-distroless --sign --attest',
       output: [
         '[rebase] pulling image metadata for ghcr.io/acme/my-app:1.0.0...',
         `[rebase] resolved base image reference: ${java21}@sha256:a78b...`,

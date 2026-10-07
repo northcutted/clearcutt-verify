@@ -8,7 +8,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 
-	"github.com/northcutted/clearcutt/internal/catalogbuild"
+	"github.com/northcutted/clearcutt-verify/internal/catalogbuild"
 )
 
 // ReleaseSource reads releases and their evidence from an OCI registry rather

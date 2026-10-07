@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
 	"github.com/spf13/cobra"
 )
 
@@ -49,10 +49,10 @@ Builders that leave no package trail in their config need an SBOM, which must be
 fetched. That is opt-in via --fetch-sboms, and the command reports how many
 requests it will make before making them.`,
 		Args: cobra.NoArgs,
-		Example: `  clearcutt graph packages --observations observations.json --output packages.json
+		Example: `  clearcutt-verify graph packages --observations observations.json --output packages.json
 
   # Which images carry a vulnerable package?
-  clearcutt graph packages --observations observations.json --package glibc`,
+  clearcutt-verify graph packages --observations observations.json --package glibc`,
 		RunE: func(_ *cobra.Command, _ []string) error { return runGraphPackages() },
 	}
 	f := cmd.Flags()

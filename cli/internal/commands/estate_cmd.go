@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/estate"
+	"github.com/northcutted/clearcutt-verify/internal/estate"
 	"github.com/spf13/cobra"
 )
 
@@ -27,14 +27,16 @@ var estateOpts estateFlags
 // are the outputs of `import observe`, `graph build` and `graph layers`.
 var estateDefaultFiles = []string{"observations.json", "graph.json", "layers.json"}
 
-// NewEstateCmd builds the `clearcutt estate` command group: persist a
-// governance snapshot to a registry, and read one back.
+// NewEstateCmd builds the `clearcutt-verify estate` command group: verify an
+// estate and write its report, persist a snapshot or report to a registry,
+// and read one back.
 func NewEstateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "estate",
-		Short: "Persist and retrieve estate snapshots as OCI artifacts",
-		Long: `Store a governance snapshot — observations, base graph, layer graph — in a
-registry as an OCI artifact.
+		Short: "Verify an estate, and keep its reports and snapshots in a registry",
+		Long: `Verify every image in an estate and write the estate report (estate verify),
+and store reports or governance snapshots (observations, base graph, layer
+graph) in a registry as OCI artifacts (estate push, pull, history).
 
 The registry is a deliberate backing store, not a convenient one. The evidence
 lives under the same auth boundary, replication and retention as the images it
@@ -45,7 +47,7 @@ air gap. Nothing new has to be operated.
 Snapshots are deterministic: identical inputs produce an identical digest, so a
 nightly push of an unchanged estate does not create a new version.`,
 	}
-	cmd.AddCommand(newEstatePushCmd(), newEstatePullCmd(), newEstateHistoryCmd())
+	cmd.AddCommand(newEstateVerifyCmd(), newEstatePushCmd(), newEstatePullCmd(), newEstateHistoryCmd())
 	return cmd
 }
 
@@ -124,7 +126,7 @@ func runEstatePush(ref string) error {
 		snapshot.Files[filepath.Base(fileName)] = body
 	}
 	if len(snapshot.Files) == 0 {
-		return fmt.Errorf("no estate files found in %s (looked for %s); run `clearcutt import observe` and `clearcutt graph build` first",
+		return fmt.Errorf("no estate files found in %s (looked for %s); run `clearcutt-verify import observe` and `clearcutt-verify graph build` first",
 			estateOpts.dir, strings.Join(wanted, ", "))
 	}
 	for _, fileName := range missing {

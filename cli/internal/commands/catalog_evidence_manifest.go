@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
 )
 
 const evidenceManifestFilename = "evidence-manifest.json"
@@ -272,7 +272,7 @@ func exceptionsChannelStatus(summary catalog.ExceptionSummary) evidenceManifestC
 }
 
 func vexChannelStatus(imageID, tag string, summary catalog.ExceptionSummary) evidenceManifestChannel {
-	detail := fmt.Sprintf("generate on demand with clearcutt vex %s --tag %s", imageID, tag)
+	detail := fmt.Sprintf("generate on demand with clearcutt-verify vex %s --tag %s", imageID, tag)
 	if summary.Total == 0 {
 		return evidenceManifestChannel{Expected: false, Observed: false, Status: "not_applicable", Detail: detail}
 	}

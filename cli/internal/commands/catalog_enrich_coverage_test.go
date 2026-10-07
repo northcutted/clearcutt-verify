@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/config"
 )
 
 func TestCatalogEnrichFleetConfigAndTagBranches(t *testing.T) {

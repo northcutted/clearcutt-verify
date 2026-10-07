@@ -25,17 +25,17 @@ func decodeJSON(data []byte, v interface{}) error {
 // catalogNotFoundError returns an actionable error when the catalog directory or
 // its index.json is missing, pointing the user at how to obtain a catalog rather
 // than surfacing a bare "no such file" from the OS. The catalog is a generated
-// artifact (see `clearcutt catalog generate`) and is not committed to the repo.
+// artifact (see `clearcutt-verify catalog generate`) and is not committed to the repo.
 func catalogNotFoundError(catalogPath, missingPath string, cause error) error {
 	return fmt.Errorf(`no ClearCutt catalog found at %q (looked for %s).
 
 The CLI reads a generated catalog of image records. To obtain one:
   - generate portable catalog data from a clone of this repo:
-        clearcutt catalog generate --output site/src/data/catalog
+        clearcutt-verify catalog generate --output site/src/data/catalog
   - or run the full release-evidence pipeline:
-        clearcutt catalog build
+        clearcutt-verify catalog build
   - or point --catalog at an existing catalog directory, e.g. the bundled fixture:
-        clearcutt list --catalog cli/internal/testdata/catalog
+        clearcutt-verify list --catalog cli/internal/testdata/catalog
 
 underlying error: %w`, catalogPath, missingPath, cause)
 }
@@ -71,7 +71,7 @@ func LoadImageRecord(catalogPath, imageID string) (*ImageRecord, error) {
 			if _, statErr := os.Stat(filepath.Join(catalogPath, "index.json")); errors.Is(statErr, os.ErrNotExist) {
 				return nil, catalogNotFoundError(catalogPath, recordPath, err)
 			}
-			return nil, fmt.Errorf("image %q not found in catalog %q (run `clearcutt list` to see available image ids)", imageID, catalogPath)
+			return nil, fmt.Errorf("image %q not found in catalog %q (run `clearcutt-verify list` to see available image ids)", imageID, catalogPath)
 		}
 		return nil, fmt.Errorf("failed to read image record for %q at %s: %w", imageID, recordPath, err)
 	}

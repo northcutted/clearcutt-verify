@@ -17,12 +17,12 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 
-	"github.com/northcutted/clearcutt/internal/estategraph"
-	"github.com/northcutted/clearcutt/internal/estateverify"
-	"github.com/northcutted/clearcutt/internal/report"
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/estateverify"
+	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
-var verifyEstateOpts struct {
+var estateVerifyOpts struct {
 	observations string
 	refs         string
 	policy       string
@@ -46,11 +46,11 @@ var verifyEstateOpts struct {
 	onlyFixed      bool
 }
 
-// newVerifyEstateCmd verifies every image in an estate and writes the estate
+// newEstateVerifyCmd verifies every image in an estate and writes the estate
 // report bundle (see contract/README.md).
-func newVerifyEstateCmd() *cobra.Command {
+func newEstateVerifyCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "estate",
+		Use:   "verify",
 		Short: "Verify every image in an estate and write the estate report",
 		Long: `Verifies every image in an estate and writes the estate report bundle
 (estate-report.json, estate-history.json) that clearcutt-portal reads; the
@@ -64,22 +64,22 @@ the attestations, places the image on its base (proven by layer digests where
 possible), and decides a verdict. With --reproduce it rebuilds
 clearcutt-factory images from their signed recipes (clearcutt-factory on PATH).
 
-Images come from an observations file (clearcutt import observe) or a list of
+Images come from an observations file (clearcutt-verify import observe) or a list of
 references (--refs), which are imported and observed first.`,
-		Example: `  clearcutt verify estate --refs refs.txt --policy policy.yaml --name acme --out dist/estate
-  clearcutt verify estate --observations dist/scan/observations.json \
+		Example: `  clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme --out dist/estate
+  clearcutt-verify estate verify --observations dist/scan/observations.json \
     --require signature,sbom,vulnerabilityScan \
     --trusted-identity-regexp '^https://github\.com/acme/' \
     --trusted-issuer https://token.actions.githubusercontent.com --out dist/estate`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runVerifyEstate(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr())
+			return runEstateVerify(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr())
 		},
 	}
 	f := cmd.Flags()
-	o := &verifyEstateOpts
-	f.StringVar(&o.observations, "observations", "", "observations.json from clearcutt import observe")
+	o := &estateVerifyOpts
+	f.StringVar(&o.observations, "observations", "", "observations.json from clearcutt-verify import observe")
 	f.StringVar(&o.refs, "refs", "", "File of image references, one per line (imported and observed first)")
-	f.StringVar(&o.policy, "policy", "", "VerificationPolicy file (see clearcutt verify estate --help)")
+	f.StringVar(&o.policy, "policy", "", "VerificationPolicy file (see clearcutt-verify estate verify --help)")
 	f.StringVar(&o.name, "name", "estate", "Estate name in the report")
 	f.StringVar(&o.out, "out", "", "Bundle directory to write (estate-report.json, estate-history.json)")
 	f.StringVar(&o.history, "history", "", "Previous estate-history.json to extend (default: the one in --out, if any)")
@@ -100,8 +100,8 @@ references (--refs), which are imported and observed first.`,
 	return cmd
 }
 
-func runVerifyEstate(ctx context.Context, stdout, stderr io.Writer) error {
-	o := verifyEstateOpts
+func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
+	o := estateVerifyOpts
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -191,7 +191,7 @@ func runVerifyEstate(ctx context.Context, stdout, stderr io.Writer) error {
 
 // estatePolicy reads --policy, or builds a policy from flags.
 func estatePolicy() (report.Policy, error) {
-	o := verifyEstateOpts
+	o := estateVerifyOpts
 	if o.policy != "" {
 		if len(o.require) > 0 || o.identityRegexp != "" || o.issuer != "" || o.sourceOwner != "" || o.sourceMatches || o.severity != "" {
 			return report.Policy{}, errors.New("--policy and the policy flags (--require, --trusted-*, --vulnerabilities-fail-on) are exclusive")

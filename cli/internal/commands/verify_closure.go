@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/northcutted/clearcutt/internal/certify"
+	"github.com/northcutted/clearcutt-verify/internal/certify"
 	"github.com/spf13/cobra"
 )
 

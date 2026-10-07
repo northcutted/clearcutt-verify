@@ -1,6 +1,6 @@
 # Enterprise Compliance Layering
 
-> **Status note.** The `clearcutt overlay generate` and `clearcutt overlay
+> **Status note.** The `clearcutt-verify overlay generate` and `clearcutt-verify overlay
 > verify` CLI commands were removed along with the CVE remediation subsystem.
 > The Nix mechanism this page describes is unchanged and still exported as
 > `clearcutt.lib.graftOntoBase` from `core/flake.nix`, so the grafting pattern
@@ -33,7 +33,7 @@ mandated source.
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    clearcutt.url = "github:northcutted/clearcutt?dir=core";
+    clearcutt.url = "github:northcutted/clearcutt-verify?dir=core";
   };
 
   outputs = { self, nixpkgs, clearcutt }:
@@ -75,7 +75,7 @@ an offline in-toto predicate proving the `/nix/store` closure bytes match:
 
 ```bash
 # REMOVED COMMAND - kept to document the closure-equivalence check it performed.
-clearcutt overlay verify \
+clearcutt-verify overlay verify \
   --runtime-archive clearcutt-java21-slim.tar \
   --grafted-archive result \
   --runtime-ref ghcr.io/acme/clearcutt/clearcutt-java21:v1-slim@sha256:... \

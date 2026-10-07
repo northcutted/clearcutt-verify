@@ -80,7 +80,7 @@ func discoverAppCandidate(app AppSpec, baseByID map[string]ImageSpec, obsByID, o
 		Confidence:         "unsafe",
 		Signals:            []RebaseSignal{},
 		Blockers:           []string{},
-		RequiredValidation: []string{"run app test command", "run clearcutt certify", "human approval required before publish"},
+		RequiredValidation: []string{"run app test command", "run clearcutt-verify certify", "human approval required before publish"},
 		TestCommand:        app.TestCommand,
 		NewBaseCandidates:  []string{},
 	}
@@ -214,7 +214,7 @@ func PlanRebase(candidates RebaseCandidateSet, candidateID, newBase string, obse
 		Validation: RebaseValidation{CertificationRequired: true, TestCommandRequired: true, HumanApprovalRequired: true},
 		Commands: RebasePlanCommands{
 			ExperimentalApply: "",
-			Certify:           "clearcutt certify <rebased-image> --require-signature --require-sbom --require-provenance",
+			Certify:           "clearcutt-verify certify <rebased-image> --require-signature --require-sbom --require-provenance",
 		},
 		Warnings: []string{"plan only; imported-fleet rebase does not publish or mutate production tags"},
 	}, nil

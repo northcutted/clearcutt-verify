@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/northcutted/clearcutt/internal/sitetemplate/rules"
+	"github.com/northcutted/clearcutt-verify/internal/sitetemplate/rules"
 )
 
 func main() {

@@ -7,7 +7,7 @@ land on `main` and ship in the next release.
 
 | Version                                                                       | Supported          |
 | ----------------------------------------------------------------------------- | ------------------ |
-| Latest release ([GitHub Releases](https://github.com/northcutted/clearcutt/releases/latest)) | Yes |
+| Latest release ([GitHub Releases](https://github.com/northcutted/clearcutt-verify/releases/latest)) | Yes |
 | Older releases                                                                | No                 |
 
 If you run an older release, upgrade to the latest release before reporting —
@@ -20,7 +20,7 @@ reporting:
 
 1. Open the repository's **Security** tab.
 2. Choose **Report a vulnerability** (or go directly to
-   <https://github.com/northcutted/clearcutt/security/advisories/new>).
+   <https://github.com/northcutted/clearcutt-verify/security/advisories/new>).
 3. Include reproduction steps, the affected surface
    (`core` / `cli` / `site` / `docs` / `workflows`), and the impact you see.
 

@@ -3,7 +3,7 @@ package catalog_test
 import (
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
 )
 
 func TestValidateImageRecord_RejectsUnknownEnums(t *testing.T) {

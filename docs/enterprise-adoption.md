@@ -22,7 +22,7 @@ workflow identities, and catalog site.
 Adoption should start where developers already work: local builds, devcontainers,
 and CI.
 
-- Use `clearcutt list` and `clearcutt inspect` to choose a runtime line and tier.
+- Use `clearcutt-verify list` and `clearcutt-verify inspect` to choose a runtime line and tier.
 - Keep Nix out of the app-team path unless the team is intentionally customizing
   the platform fleet.
 
@@ -34,7 +34,7 @@ are equivalent to ClearCutt from-scratch distroless images.
 
 - Use `clearcutt.lib.graftOntoBase` from `core/flake.nix` to graft the
   reproducible `/nix` runtime closure onto the mandated base. (The
-  `clearcutt overlay generate` CLI wrapper was removed; the Nix helper remains.)
+  `clearcutt-verify overlay generate` CLI wrapper was removed; the Nix helper remains.)
 - Preserve required agents and OS policy while standardizing language runtimes.
 - Be explicit about the trade-off: overlays inherit the parent image's shell,
   package manager, and CVE footprint.
@@ -44,21 +44,21 @@ are equivalent to ClearCutt from-scratch distroless images.
 Make certification and verification normal CI steps before enforcing cluster
 admission.
 
-- Run `clearcutt certify` against downstream application images to catch shells,
+- Run `clearcutt-verify certify` against downstream application images to catch shells,
   package managers, root users, and policy violations before release.
-- Run `clearcutt verify image` for catalog evidence and vulnerability thresholds.
-- Use `clearcutt conformance run` inside containers when you need runtime
+- Run `clearcutt-verify verify image` for catalog evidence and vulnerability thresholds.
+- Use `clearcutt-verify conformance run` inside containers when you need runtime
   environment checks such as CA trust, timezone data, UID, and writable `/tmp`.
 
 ## 5. Admit And Operate Under Review
 
 Admission and remediation should be explicit control points.
 
-- Generate Kyverno or OPA bundles with `clearcutt policy` and pin expected OIDC
+- Generate Kyverno or OPA bundles with `clearcutt-verify policy` and pin expected OIDC
   workflow identities.
-- Use `clearcutt scan`, `remediation`, `exceptions`, and `vex` to triage current
+- Use `clearcutt-verify scan`, `remediation`, `exceptions`, and `vex` to triage current
   risk instead of reducing the story to raw CVE counts.
-- For compatible rebasable apps, use `clearcutt app diff-base` and
-  `clearcutt app rebase --sign --attest` from a dedicated CI workflow. The
+- For compatible rebasable apps, use `clearcutt-verify app diff-base` and
+  `clearcutt-verify app rebase --sign --attest` from a dedicated CI workflow. The
   rebase path preserves app layers, verifies the developer signature, and emits a
   separate rebase attestation; it should not silently merge or deploy changes.

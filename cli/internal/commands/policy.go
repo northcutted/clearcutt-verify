@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
 	"github.com/spf13/cobra"
 )
 

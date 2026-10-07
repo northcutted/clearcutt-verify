@@ -8,7 +8,7 @@ agent-sync:
 # The platform source archive is generated (gitignored), not committed; build
 # and test through these targets so the binary ships it and its tests run.
 cli-build:
-	cd cli && go build -o ../clearcutt ./cmd/clearcutt
+	cd cli && go build -o ../clearcutt-verify ./cmd/clearcutt-verify
 
 cli-test: cli-embed-source
 	cd cli && go test ./...
@@ -46,19 +46,19 @@ site-typecheck: $(SITE_NPM_STAMP)
 	cd site && npm run typecheck
 
 site-verify-catalog: cli-build
-	./clearcutt verify catalog --catalog site/src/data/catalog
+	./clearcutt-verify verify catalog --catalog site/src/data/catalog
 
 catalog-generate: cli-build
-	./clearcutt catalog gather
+	./clearcutt-verify catalog gather
 
 catalog-enrich: cli-build
-	./clearcutt catalog enrich
+	./clearcutt-verify catalog enrich
 
 catalog-build: cli-build
-	./clearcutt catalog build
+	./clearcutt-verify catalog build
 
 catalog-scan: cli-build
-	./clearcutt scan --mode catalog
+	./clearcutt-verify scan --mode catalog
 
 demo-imported-fleet-offline:
 	./scripts/demo-imported-fleet-offline.sh
@@ -79,5 +79,5 @@ test: cli-vet cli-test site-typecheck site-build core-remediation-tests
 # floor, documented-command validation, and workflow hardening checks.
 check: cli-vet cli-fmt-check cli-build
 	cd cli && COVERAGE_MIN=85.0 ./scripts/go-coverage.sh
-	./scripts/validate-doc-commands.sh ./clearcutt
+	./scripts/validate-doc-commands.sh ./clearcutt-verify
 	./scripts/validate-workflow-hardening.sh

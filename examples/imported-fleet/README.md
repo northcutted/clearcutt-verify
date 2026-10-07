@@ -6,7 +6,7 @@ This example works offline. It shows the principle that ClearCutt does not need 
 rm -rf /tmp/clearcutt-import
 mkdir -p /tmp/clearcutt-import
 
-clearcutt import images \
+clearcutt-verify import images \
   --refs examples/imported-fleet/refs.txt \
   --output /tmp/clearcutt-import/images.yaml \
   --owner acme \
@@ -15,32 +15,32 @@ clearcutt import images \
   --generated-at 2026-01-01T00:00:00Z \
   --force
 
-clearcutt catalog generate \
+clearcutt-verify catalog generate \
   --images /tmp/clearcutt-import/images.yaml \
   --output /tmp/clearcutt-import/catalog \
   --owner acme \
   --repo imported-fleet \
   --registry-base registry.acme.dev/platform
 
-clearcutt --catalog /tmp/clearcutt-import/catalog catalog validate
+clearcutt-verify --catalog /tmp/clearcutt-import/catalog catalog validate
 
-clearcutt import observe \
+clearcutt-verify import observe \
   --images /tmp/clearcutt-import/images.yaml \
   --offline-fixtures examples/imported-fleet/observations.fixture.json \
   --output /tmp/clearcutt-import/observations.json \
   --generated-at 2026-01-01T00:00:00Z
 
-clearcutt import assess \
+clearcutt-verify import assess \
   --images /tmp/clearcutt-import/images.yaml \
   --observations /tmp/clearcutt-import/observations.json \
   --catalog /tmp/clearcutt-import/catalog \
   --output /tmp/clearcutt-import/governance
 
-clearcutt import report \
+clearcutt-verify import report \
   --assessment /tmp/clearcutt-import/governance \
   --output /tmp/clearcutt-import/imported-fleet-report.md
 
-clearcutt rebase discover \
+clearcutt-verify rebase discover \
   --apps examples/imported-fleet/apps.yaml \
   --bases /tmp/clearcutt-import/images.yaml \
   --observations /tmp/clearcutt-import/observations.json \

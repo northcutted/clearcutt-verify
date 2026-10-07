@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
 )
 
 func writeCatalogJSON(t *testing.T, path string, v any) {

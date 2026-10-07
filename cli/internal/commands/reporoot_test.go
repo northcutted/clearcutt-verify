@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/config"
 	"github.com/spf13/cobra"
 )
 

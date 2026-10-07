@@ -12,8 +12,8 @@ Start with the smallest proof that matches your change. Avoid broad matrix runs 
 
 ```bash
 cd cli
-go run ./cmd/clearcutt --catalog internal/testdata/catalog catalog validate
-go run ./cmd/clearcutt --catalog internal/testdata/catalog inspect java21-distroless
+go run ./cmd/clearcutt-verify --catalog internal/testdata/catalog catalog validate
+go run ./cmd/clearcutt-verify --catalog internal/testdata/catalog inspect java21-distroless
 ```
 
 Those commands use committed fixtures and do not require release assets, registry credentials, or generated `site/src/data/catalog` state.
@@ -39,7 +39,7 @@ For CLI changes:
 cd cli
 go test ./...
 go vet ./...
-go build -o ../clearcutt ./cmd/clearcutt
+go build -o ../clearcutt-verify ./cmd/clearcutt-verify
 ```
 
 For core pipeline or remediation changes:

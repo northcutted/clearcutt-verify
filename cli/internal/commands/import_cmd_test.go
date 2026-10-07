@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
-	"github.com/northcutted/clearcutt/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
 )
 
 func TestImportedFleetCommandWorkflowOffline(t *testing.T) {

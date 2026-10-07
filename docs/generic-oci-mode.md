@@ -8,7 +8,7 @@ Use this mode when you want the portal shape first and will add richer evidence
 later.
 
 Imported-fleet mode builds on this data path. Use
-`clearcutt import images` when you have a plain list of external image refs and
+`clearcutt-verify import images` when you have a plain list of external image refs and
 want ClearCutt to generate the compatible `images.yaml` for you.
 
 ## Inventory File
@@ -68,7 +68,7 @@ are currently `amd64` and `arm64`.
 ## Generate A Catalog
 
 ```bash
-clearcutt catalog generate \
+clearcutt-verify catalog generate \
   --images images.yaml \
   --output ./dist/catalog \
   --owner acme \
@@ -83,7 +83,7 @@ available from the reference itself.
 ## Build A Site Directly
 
 ```bash
-clearcutt catalog site build \
+clearcutt-verify catalog site build \
   --images images.yaml \
   --owner acme \
   --repo base-images \
@@ -114,7 +114,7 @@ images it did not build.
 ## Validation
 
 ```bash
-clearcutt --catalog ./dist/catalog catalog validate
+clearcutt-verify --catalog ./dist/catalog catalog validate
 ```
 
 Use `--warnings-as-errors` only after your generic catalog has enough evidence

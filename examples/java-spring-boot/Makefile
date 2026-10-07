@@ -13,7 +13,7 @@ certify:
 	APP_IMAGE="$(IMAGE_NAME)"; \
 	APP_DIGEST=$$(docker buildx imagetools inspect "$$APP_IMAGE" --format '{{json .Manifest.Digest}}' | tr -d '"'); \
 	docker save "$$APP_IMAGE" -o image.tar; \
-	clearcutt certify image.tar \
+	clearcutt-verify certify image.tar \
 	  --policy policy.yaml \
 	  --base java25-distroless \
 	  --image-ref "$${APP_IMAGE%:*}@$${APP_DIGEST}"

@@ -2,7 +2,7 @@
 
 ClearCutt can discover an image estate instead of being handed one.
 
-`clearcutt registry scan` asks a registry what it actually holds. `clearcutt graph
+`clearcutt-verify registry scan` asks a registry what it actually holds. `clearcutt-verify graph
 build` then works out which of those images are built on which, how that was
 established, and how far behind each consumer is from the newest version of its base.
 
@@ -23,7 +23,7 @@ question instead: *"given these images, which are built on which?"*
 
 ```bash
 # 1. Ask the registry what it holds
-clearcutt registry scan \
+clearcutt-verify registry scan \
   --registry ghcr.io \
   --namespace acme/platform \
   --repository base-java21 \
@@ -31,12 +31,12 @@ clearcutt registry scan \
   --output dist/scan/images.yaml
 
 # 2. Read each image's manifest, config, layers, and labels
-clearcutt import observe \
+clearcutt-verify import observe \
   --images dist/scan/images.yaml \
   --output dist/scan/observations.json
 
 # 3. Derive the graph and an auditable report
-clearcutt graph build \
+clearcutt-verify graph build \
   --observations dist/scan/observations.json \
   --output dist/scan/graph.json \
   --report dist/scan/inventory.md
@@ -52,7 +52,7 @@ configs, no tag is mutated, and nothing is published.
 implement `_catalog` for a user namespace. Name the repositories instead:
 
 ```bash
-clearcutt registry scan --registry ghcr.io --namespace acme/platform \
+clearcutt-verify registry scan --registry ghcr.io --namespace acme/platform \
   --repository base-java21 --repository base-node22 \
   --output dist/scan/images.yaml
 ```
@@ -82,7 +82,7 @@ credential helpers) by default. For explicit credentials:
 
 ```bash
 export ACME_TOKEN=...
-clearcutt registry scan --registry ghcr.io --namespace acme/platform \
+clearcutt-verify registry scan --registry ghcr.io --namespace acme/platform \
   --username acme-ci --password-env ACME_TOKEN --output dist/scan/images.yaml
 ```
 
@@ -219,10 +219,10 @@ layer view cannot: when a CVE lands against a named package at a named version,
 which images ship it.
 
 ```bash
-clearcutt graph packages --observations observations.json --output packages.json
+clearcutt-verify graph packages --observations observations.json --output packages.json
 
 # An openssl advisory just landed.
-clearcutt graph packages --observations observations.json --package openssl
+clearcutt-verify graph packages --observations observations.json --package openssl
 ```
 
 ### For Nix this costs nothing
@@ -303,13 +303,13 @@ For those estates the label-based detectors still apply if the builder stamps
 
 ## Layer-Level Commonality
 
-`clearcutt graph layers` answers the other half of the question. Where `graph build`
+`clearcutt-verify graph layers` answers the other half of the question. Where `graph build`
 asks what an image is built **on** — parentage, answered by layer *order* —
 `graph layers` asks what the fleet has **in common** — content, answered by layer
 *membership*. The two are independent, and neither implies the other.
 
 ```bash
-clearcutt graph layers \
+clearcutt-verify graph layers \
   --observations dist/scan/observations.json \
   --output dist/scan/layers.json \
   --report dist/scan/commonality.md \
@@ -380,14 +380,14 @@ every qualifying pair.
 
 ## Persisting A Snapshot
 
-`clearcutt estate push` stores a snapshot — the observations plus both graphs — in a
+`clearcutt-verify estate push` stores a snapshot — the observations plus both graphs — in a
 registry as an OCI artifact, and `estate pull` reads it back.
 
 ```bash
-clearcutt estate push ghcr.io/acme/clearcutt-estate:$(date +%F) \
+clearcutt-verify estate push ghcr.io/acme/clearcutt-estate:$(date +%F) \
   --dir . --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-clearcutt estate pull ghcr.io/acme/clearcutt-estate:2026-08-31 --output ./snapshot
+clearcutt-verify estate pull ghcr.io/acme/clearcutt-estate:2026-08-31 --output ./snapshot
 ```
 
 The registry is a deliberate backing store rather than a convenient one. The evidence
@@ -409,7 +409,7 @@ it with `evidence export`, and which tags must stay mutable.
 Two things worth knowing:
 
 - **Sign it.** When the registry is the thing being audited, storing the audit inside
-  it is a mild conflict of interest. `clearcutt` already wraps cosign; a signed
+  it is a mild conflict of interest. `clearcutt-verify` already wraps cosign; a signed
   snapshot makes tampering detectable rather than merely unlikely.
 - **`pull` refuses foreign artifacts.** A manifest whose config media type is not
   `application/vnd.clearcutt.estate.v1+json` is rejected rather than read. Pulling an
@@ -426,7 +426,7 @@ estate is bounded by registry rate limits long before anything else.
 Both artifacts render as pages when passed to the site builder:
 
 ```bash
-clearcutt catalog site build \
+clearcutt-verify catalog site build \
   --catalog site/src/data/catalog --template site --output site/dist --install \
   --graph dist/scan/graph.json \
   --layers dist/scan/layers.json
@@ -462,15 +462,15 @@ An image with no parent is not automatically a finding.
 
 ```bash
 # Only these repositories may act as bases
-clearcutt graph build --observations obs.json --output graph.json \
+clearcutt-verify graph build --observations obs.json --output graph.json \
   --base-repository 'ghcr.io/acme/platform/base-*'
 
 # Accept only proven relationships
-clearcutt graph build --observations obs.json --output graph.json \
+clearcutt-verify graph build --observations obs.json --output graph.json \
   --min-confidence verified
 
 # Fail CI when anything is on a stale base, or cannot be placed
-clearcutt graph build --observations obs.json --output graph.json \
+clearcutt-verify graph build --observations obs.json --output graph.json \
   --fail-on-stale --fail-on-unknown
 ```
 
@@ -490,8 +490,8 @@ a verdict, not a crash.
   consumers as current.
 - A shared layer means shared content, not a base relationship.
 - No CVE, signature, SBOM, or provenance conclusion is drawn. Run
-  `clearcutt import assess` for the evidence-gap view, and
-  `clearcutt rebase discover` / `clearcutt rebase plan` to prepare a rebase.
+  `clearcutt-verify import assess` for the evidence-gap view, and
+  `clearcutt-verify rebase discover` / `clearcutt-verify rebase plan` to prepare a rebase.
 
 ## Related
 

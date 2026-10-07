@@ -102,20 +102,20 @@ jobs:
           cache-dependency-path: site/package-lock.json
 
       - name: Install ClearCutt CLI
-        uses: ./.github/actions/install-clearcutt
+        uses: ./.github/actions/install-clearcutt-verify
         with:
           mode: ${{ vars.CLEARCUTT_CLI_MODE || 'release' }}
           version: ${{ vars.CLEARCUTT_CLI_VERSION || 'v0.17.0' }}
-          repo: ${{ vars.CLEARCUTT_CLI_REPO || 'northcutted/clearcutt' }}
+          repo: ${{ vars.CLEARCUTT_CLI_REPO || 'northcutted/clearcutt-verify' }}
 
       - name: Validate Mixed Runtime and Service Catalog
         run: |
-          ./clearcutt --catalog cli/internal/testdata/mixed-catalog catalog validate --schema-version clearcutt.catalog.index/v2
-          ./clearcutt --catalog cli/internal/testdata/mixed-catalog catalog validate --schema-version clearcutt.catalog.image/v2
+          ./clearcutt-verify --catalog cli/internal/testdata/mixed-catalog catalog validate --schema-version clearcutt.catalog.index/v2
+          ./clearcutt-verify --catalog cli/internal/testdata/mixed-catalog catalog validate --schema-version clearcutt.catalog.image/v2
 
       - name: Build Catalog Site From Mixed Fixture
         run: |
-          ./clearcutt catalog site build --catalog cli/internal/testdata/mixed-catalog --template site --output "$RUNNER_TEMP/service-site" --install
+          ./clearcutt-verify catalog site build --catalog cli/internal/testdata/mixed-catalog --template site --output "$RUNNER_TEMP/service-site" --install
           service_page="$RUNNER_TEMP/service-site/images/postgres16/index.html"
           catalog_page="$RUNNER_TEMP/service-site/catalog/index.html"
           test -f "$service_page"
@@ -157,10 +157,10 @@ jobs:
         run: make cli-build
 
       - name: Imported Fleet Offline Demo
-        run: CLEARCUTT="$PWD/clearcutt" ./scripts/demo-imported-fleet-offline.sh
+        run: CLEARCUTT="$PWD/clearcutt-verify" ./scripts/demo-imported-fleet-offline.sh
 
       - name: Validate Documented Commands
-        run: ./scripts/validate-doc-commands.sh ./clearcutt
+        run: ./scripts/validate-doc-commands.sh ./clearcutt-verify
 
       - name: Go Test with Coverage
         working-directory: cli
@@ -189,7 +189,7 @@ jobs:
             mapfile -t images < <(python3 -c 'import json, sys; catalog = json.load(open(sys.argv[1], encoding="utf-8")); print("\n".join(image["id"] for image in catalog.get("images", [])))' "$fixture_catalog/index.json")
             for img in "${images[@]}"; do
               echo "Checking strict catalog drift for $fixture_catalog/$img..."
-              ./clearcutt --catalog "$fixture_catalog" inspect "$img" --strict >/dev/null
+              ./clearcutt-verify --catalog "$fixture_catalog" inspect "$img" --strict >/dev/null
             done
           done
           echo "Drift guard check PASSED!"

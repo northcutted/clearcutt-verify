@@ -1,7 +1,7 @@
 # ClearCutt CLI Reference
 
 This page is a compact map of the current CLI surface. It is not a replacement
-for `clearcutt --help`; use help output for the final flag contract.
+for `clearcutt-verify --help`; use help output for the final flag contract.
 
 ## Exit Codes
 
@@ -23,7 +23,7 @@ scripts that need to branch on "policy failure vs broken pipeline" can now test
 the code directly:
 
 ```text
-clearcutt verify image <id> ...; case $? in
+clearcutt-verify verify image <id> ...; case $? in
   0) deploy ;;
   2) block release: policy gate rejected the image ;;
   *) investigate: verification could not run ;;
@@ -41,79 +41,79 @@ stderr.
 
 ## Install
 
-Releases ship cross-compiled binaries (`clearcutt-<os>-<arch>` for
+Releases ship cross-compiled binaries (`clearcutt-verify-<os>-<arch>` for
 `darwin`/`linux`/`windows` on `amd64`/`arm64`), a keyless Sigstore signature
 bundle per binary (`<binary>.sig`), `clearcutt-cli-assets.json`, and a
 `SHA256SUMS.txt` manifest. The release workflow owns the release
 binary matrix, optional `cosign sign-blob` calls, and checksum manifest; GitHub
 Actions supplies the OIDC identity when the release workflow runs it with
 `--sign`. Download a binary and its `.sig` bundle from the
-[latest release](https://github.com/northcutted/clearcutt/releases/latest)
+[latest release](https://github.com/northcutted/clearcutt-verify/releases/latest)
 and verify before use:
 
 ```bash
 cosign verify-blob \
-  --bundle clearcutt-linux-amd64.sig \
-  --certificate-identity 'https://github.com/northcutted/clearcutt/.github/workflows/release.yml@refs/heads/main' \
+  --bundle clearcutt-verify-linux-amd64.sig \
+  --certificate-identity-regexp '^https://github\.com/northcutted/clearcutt(-verify)?/\.github/workflows/release\.yml@refs/heads/main$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  clearcutt-linux-amd64
+  clearcutt-verify-linux-amd64
 
-chmod +x clearcutt-linux-amd64
+chmod +x clearcutt-verify-linux-amd64
 ./clearcutt-linux-amd64 --catalog cli/internal/testdata/catalog list
 ```
 
 The identity is exact, not a pattern: releases run only from
 `refs/heads/main`, and the same string is pinned as
 `release.workflowIdentity` in `clearcutt.yaml` and passed to
-`clearcutt verify release-evidence --workflow-identity`. Build from source
+`clearcutt-verify verify release-evidence --workflow-identity`. Build from source
 (below) when contributing.
 
 ## Build
 
 ```bash
-go -C cli build -o ../clearcutt ./cmd/clearcutt
-./clearcutt --help
+go -C cli build -o ../clearcutt-verify ./cmd/clearcutt-verify
+./clearcutt-verify --help
 ```
 
 Catalog-backed discovery commands need generated catalog data or a fixture:
 
 ```bash
-./clearcutt --catalog cli/internal/testdata/catalog list
-./clearcutt --catalog cli/internal/testdata/catalog inspect java21-distroless
+./clearcutt-verify --catalog cli/internal/testdata/catalog list
+./clearcutt-verify --catalog cli/internal/testdata/catalog inspect java21-distroless
 ```
 
 ## App-Team Commands
 
 ```bash
-./clearcutt --catalog cli/internal/testdata/catalog list
-./clearcutt --catalog cli/internal/testdata/catalog inspect java21-distroless
+./clearcutt-verify --catalog cli/internal/testdata/catalog list
+./clearcutt-verify --catalog cli/internal/testdata/catalog inspect java21-distroless
 
 ## Catalog And Trust Commands
 
 ```bash
-./clearcutt catalog generate --config clearcutt.yaml --include-services --output dist/catalog
-./clearcutt --catalog dist/catalog catalog validate
-./clearcutt --catalog dist/catalog catalog summarize
-./clearcutt --catalog dist/catalog catalog inspect java21-distroless
-./clearcutt catalog diff --old previous/catalog --new dist/catalog
-./clearcutt catalog site build --catalog dist/catalog --output dist/site --install
-./clearcutt catalog workflow-params --github-output "$GITHUB_OUTPUT"
-./clearcutt catalog vex-all --output-dir dist/site/vex
-./clearcutt catalog build --core-dir core --update-db --include-services
+./clearcutt-verify catalog generate --config clearcutt.yaml --include-services --output dist/catalog
+./clearcutt-verify --catalog dist/catalog catalog validate
+./clearcutt-verify --catalog dist/catalog catalog summarize
+./clearcutt-verify --catalog dist/catalog catalog inspect java21-distroless
+./clearcutt-verify catalog diff --old previous/catalog --new dist/catalog
+./clearcutt-verify catalog site build --catalog dist/catalog --output dist/site --install
+./clearcutt-verify catalog workflow-params --github-output "$GITHUB_OUTPUT"
+./clearcutt-verify catalog vex-all --output-dir dist/site/vex
+./clearcutt-verify catalog build --core-dir core --update-db --include-services
 
-./clearcutt --catalog cli/internal/testdata/catalog verify image java21-distroless \
+./clearcutt-verify --catalog cli/internal/testdata/catalog verify image java21-distroless \
   --require-signature \
   --require-sbom \
   --require-provenance \
   --allow-preview
 
-./clearcutt verify release-evidence \
+./clearcutt-verify verify release-evidence \
   --ref ghcr.io/YOUR_ORG/YOUR_REPO/YOUR_IMAGE:TAG \
   --repo YOUR_ORG/YOUR_REPO \
   --workflow-identity 'https://github.com/YOUR_ORG/YOUR_REPO/.github/workflows/release.yml@refs/heads/main' \
   --core-dir core
 
-./clearcutt verify rebuild ghcr.io/YOUR_ORG/YOUR_REPO/clearcutt-java21:TAG-distroless \
+./clearcutt-verify verify rebuild ghcr.io/YOUR_ORG/YOUR_REPO/clearcutt-java21:TAG-distroless \
   --target java21-distroless \
   --rebuild \
   --pull-registry-archive \
@@ -135,7 +135,7 @@ local files.
 
 ```bash
 # Enumerate a registry namespace into an inventory
-./clearcutt registry scan \
+./clearcutt-verify registry scan \
   --registry ghcr.io \
   --namespace YOUR_ORG/YOUR_REPO \
   --repository YOUR_BASE_IMAGE \
@@ -143,29 +143,29 @@ local files.
   --output dist/scan/images.yaml
 
 # Read each image's manifest, config, layers, and labels
-./clearcutt import observe --images dist/scan/images.yaml --output dist/scan/observations.json
+./clearcutt-verify import observe --images dist/scan/images.yaml --output dist/scan/observations.json
 
 # Derive which images are built on which, and how stale each one is
-./clearcutt graph build \
+./clearcutt-verify graph build \
   --observations dist/scan/observations.json \
   --output dist/scan/graph.json \
   --report dist/scan/inventory.md
 
 # What the estate has in common at the layer level
-./clearcutt graph layers \
+./clearcutt-verify graph layers \
   --observations dist/scan/observations.json \
   --output dist/scan/layers.json \
   --report dist/scan/commonality.md \
   --mermaid dist/scan/graph.mmd
 
 # Use it as a CI gate
-./clearcutt graph build --observations dist/scan/observations.json \
+./clearcutt-verify graph build --observations dist/scan/observations.json \
   --output dist/scan/graph.json --min-confidence verified --fail-on-stale
 
 # Persist the snapshot where the images live, and read it back
-./clearcutt estate push ghcr.io/acme/clearcutt-estate:2026-08-31 \
+./clearcutt-verify estate push ghcr.io/acme/clearcutt-estate:2026-08-31 \
   --dir dist/scan --generated-at 2026-08-31T00:00:00Z
-./clearcutt estate pull ghcr.io/acme/clearcutt-estate:2026-08-31 --output ./snapshot
+./clearcutt-verify estate pull ghcr.io/acme/clearcutt-estate:2026-08-31 --output ./snapshot
 ```
 
 `estate push` stores observations and both graphs as a single OCI artifact. It is
@@ -200,10 +200,10 @@ every edge with the confidence that method earns. See
 
 ```bash
 # Verify every image against a policy and write the estate report bundle
-./clearcutt verify estate --refs refs.txt --policy policy.yaml --name acme --out dist/estate
+./clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme --out dist/estate
 
 # Reuse a scan, verify with flags instead of a policy file, gate CI
-./clearcutt verify estate --observations dist/scan/observations.json \
+./clearcutt-verify estate verify --observations dist/scan/observations.json \
   --require signature,sbom,provenance \
   --trusted-identity-regexp '^https://github\.com/acme/' \
   --trusted-issuer https://token.actions.githubusercontent.com \
@@ -215,9 +215,9 @@ See [Verifying an estate](verify-estate.md) and the [report contract](../contrac
 ## Scan Commands
 
 ```bash
-./clearcutt scan refresh-kev
+./clearcutt-verify scan refresh-kev
 
-./clearcutt scan \
+./clearcutt-verify scan \
   --mode remediation \
   --sbom-dir site/src/data/sboms \
   --out-dir site/src/data/vulnerabilities \
@@ -238,9 +238,9 @@ wrapper.
 ## Policy And Exception Commands
 
 ```bash
-./clearcutt --catalog cli/internal/testdata/catalog policy java21-distroless --engine kyverno --environment production --namespace apps
-./clearcutt exceptions validate exceptions.yaml --fail-on-expired-exceptions
-./clearcutt vex --help
+./clearcutt-verify --catalog cli/internal/testdata/catalog policy java21-distroless --engine kyverno --environment production --namespace apps
+./clearcutt-verify exceptions validate exceptions.yaml --fail-on-expired-exceptions
+./clearcutt-verify vex --help
 ```
 
 `policy` generates Kubernetes admission policy examples. `exceptions` governs

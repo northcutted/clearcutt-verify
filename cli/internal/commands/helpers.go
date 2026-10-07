@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/config"
 )
 
 // Small shared helpers that outlived the remediation subsystem they were written

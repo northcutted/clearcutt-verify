@@ -1,13 +1,13 @@
 # Catalog Generator
 
-`clearcutt catalog generate` writes portable catalog artifacts that can be used
+`clearcutt-verify catalog generate` writes portable catalog artifacts that can be used
 by CI, policy checks, auditors, and the Astro evidence portal. It is the
 data-only path: it produces JSON and schemas, but it does not build HTML.
 
-Use `clearcutt catalog build` when you want the full ClearCutt release workflow
+Use `clearcutt-verify catalog build` when you want the full ClearCutt release workflow
 pipeline: gather release evidence, enrich registry metadata, scan cached SBOMs,
 fold results back into the catalog, and run catalog verification. Use
-`clearcutt catalog generate` when you already have inputs and want a portable
+`clearcutt-verify catalog generate` when you already have inputs and want a portable
 catalog directory.
 
 ## ClearCutt Fleet Mode
@@ -18,7 +18,7 @@ registry enrichment, SBOM cache data, and vulnerability scan JSON where
 available.
 
 ```bash
-clearcutt catalog generate \
+clearcutt-verify catalog generate \
   --config clearcutt.yaml \
   --include-services \
   --output ./dist/catalog
@@ -49,7 +49,7 @@ Generic OCI mode does not require Nix, ClearCutt release workflows, or a
 ClearCutt fork. It converts an explicit `images.yaml` inventory into catalog
 records and preserves unavailable evidence as missing-evidence states.
 
-Imported-fleet mode starts one step earlier: `clearcutt import images` converts a
+Imported-fleet mode starts one step earlier: `clearcutt-verify import images` converts a
 plain refs file into the same generic OCI `images.yaml`, with optional
 `origin`, `governance`, and `evidencePolicy` metadata. Imported catalog records
 mark `createdByClearCutt: false` and `provenanceClaim: none` so the catalog can
@@ -60,14 +60,14 @@ bootstrap command renders a lightweight GitHub control-plane repo with
 `images.yaml`, catalog/Pages workflows, desired GitHub state, and local docs:
 
 ```bash
-clearcutt catalog generate --config clearcutt.yaml --output dist/catalog
+clearcutt-verify catalog generate --config clearcutt.yaml --output dist/catalog
 ```
 
 The generated `catalog.yml` workflow runs the same data path shown below, then
 validates the catalog and builds the static site artifact.
 
 ```bash
-clearcutt catalog generate \
+clearcutt-verify catalog generate \
   --images images.yaml \
   --output ./dist/catalog \
   --owner acme \
@@ -111,12 +111,12 @@ stable.
 Validate generated data before publishing it:
 
 ```bash
-clearcutt --catalog ./dist/catalog catalog validate
-clearcutt --catalog ./dist/catalog catalog validate \
+clearcutt-verify --catalog ./dist/catalog catalog validate
+clearcutt-verify --catalog ./dist/catalog catalog validate \
   --schema-version clearcutt.catalog.index/v1
-clearcutt --catalog ./dist/catalog catalog validate \
+clearcutt-verify --catalog ./dist/catalog catalog validate \
   --schema-version clearcutt.catalog.image/v1
-clearcutt --catalog ./dist/catalog catalog validate \
+clearcutt-verify --catalog ./dist/catalog catalog validate \
   --schema-version clearcutt.catalog.evidence-manifest/v2
 ```
 
@@ -124,15 +124,15 @@ Warnings are used for missing optional evidence. Turn them into failures when a
 pipeline requires complete evidence:
 
 ```bash
-clearcutt --catalog ./dist/catalog catalog validate --warnings-as-errors
+clearcutt-verify --catalog ./dist/catalog catalog validate --warnings-as-errors
 ```
 
 Summarize, inspect, or diff catalogs:
 
 ```bash
-clearcutt --catalog ./dist/catalog --format json catalog summarize
-clearcutt --catalog ./dist/catalog catalog inspect java21-distroless
-clearcutt catalog diff --old ./previous/catalog --new ./dist/catalog
+clearcutt-verify --catalog ./dist/catalog --format json catalog summarize
+clearcutt-verify --catalog ./dist/catalog catalog inspect java21-distroless
+clearcutt-verify catalog diff --old ./previous/catalog --new ./dist/catalog
 ```
 
 ## Evidence Semantics
@@ -175,7 +175,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: cli/go.mod
-      - run: go build -C cli -o ../clearcutt ./cmd/clearcutt
-      - run: ./clearcutt catalog generate --config clearcutt.yaml --include-services --output dist/catalog
-      - run: ./clearcutt --catalog dist/catalog catalog validate
+      - run: go build -C cli -o ../clearcutt-verify ./cmd/clearcutt-verify
+      - run: ./clearcutt-verify catalog generate --config clearcutt.yaml --include-services --output dist/catalog
+      - run: ./clearcutt-verify --catalog dist/catalog catalog validate
 ```

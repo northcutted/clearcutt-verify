@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/estategraph"
-	"github.com/northcutted/clearcutt/internal/registryscan"
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/registryscan"
 	"github.com/spf13/cobra"
 )
 
@@ -34,7 +34,7 @@ type registryScanFlags struct {
 
 var registryScanOpts registryScanFlags
 
-// NewRegistryCmd builds the `clearcutt registry` command group.
+// NewRegistryCmd builds the `clearcutt-verify registry` command group.
 func NewRegistryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "registry",
@@ -68,11 +68,11 @@ Hub among them) cannot be enumerated blindly. Name the repositories with
 --repository, which can be repeated.`,
 		Args: cobra.NoArgs,
 		Example: `  # Enumerate a namespace on a registry that supports _catalog
-  clearcutt registry scan --registry registry.acme.dev --namespace platform/base \
+  clearcutt-verify registry scan --registry registry.acme.dev --namespace platform/base \
     --output dist/scan/images.yaml
 
   # GHCR: name the repositories explicitly
-  clearcutt registry scan --registry ghcr.io --namespace acme/platform \
+  clearcutt-verify registry scan --registry ghcr.io --namespace acme/platform \
     --repository base-java21 --repository base-node22 \
     --tag-pattern 'v*' --output dist/scan/images.yaml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -183,7 +183,7 @@ func runRegistryScan(ctx context.Context) error {
 	if summary.LowConfidence > 0 {
 		fmt.Fprintf(out, "[registry-scan] %d image(s) could not be classified by runtime and need review\n", summary.LowConfidence)
 	}
-	fmt.Fprintf(out, "[registry-scan] next: clearcutt import observe --images %s --output observations.json\n", opts.output)
+	fmt.Fprintf(out, "[registry-scan] next: clearcutt-verify import observe --images %s --output observations.json\n", opts.output)
 	return nil
 }
 

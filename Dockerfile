@@ -33,8 +33,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux go build -C cli \
       -trimpath \
-      -ldflags "-s -w -buildid= -X github.com/northcutted/clearcutt/internal/commands.Version=${VERSION}" \
-      -o /out/clearcutt ./cmd/clearcutt
+      -ldflags "-s -w -buildid= -X github.com/northcutted/clearcutt-verify/internal/commands.Version=${VERSION}" \
+      -o /out/clearcutt ./cmd/clearcutt-verify
 
 # distroless/static carries CA certificates — required to speak TLS to a
 # registry — and nothing else. No shell, no package manager.
@@ -44,7 +44,7 @@ COPY --from=build /out/clearcutt /usr/local/bin/clearcutt
 
 LABEL org.opencontainers.image.title="clearcutt" \
       org.opencontainers.image.description="Govern container image estates on any OCI registry" \
-      org.opencontainers.image.source="https://github.com/northcutted/clearcutt" \
+      org.opencontainers.image.source="https://github.com/northcutted/clearcutt-verify" \
       org.opencontainers.image.licenses="Apache-2.0"
 
 USER nonroot:nonroot

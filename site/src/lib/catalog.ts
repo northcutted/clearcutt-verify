@@ -24,7 +24,7 @@ export function loadIndex(): CatalogIndexT {
   const file = path.join(dataRoot, 'index.json');
   if (!fs.existsSync(file)) {
     throw new Error(
-      `Catalog index not found at ${file}. Run clearcutt catalog generate first.`,
+      `Catalog index not found at ${file}. Run clearcutt-verify catalog generate first.`,
     );
   }
   const raw = JSON.parse(fs.readFileSync(file, 'utf8'));

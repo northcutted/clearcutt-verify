@@ -1,22 +1,22 @@
-name: Install ClearCutt CLI
-description: Install a verified ClearCutt release binary or build the checked-out source for development.
+name: Install ClearCutt Verify
+description: Install a verified clearcutt-verify release binary or build the checked-out source for development.
 inputs:
   mode:
     description: "'release' installs a verified release asset; 'local' builds from ./cli."
     required: false
     default: release
   version:
-    description: ClearCutt release tag to install when mode=release.
+    description: clearcutt-verify release tag to install when mode=release.
     required: false
     default: latest
   repo:
-    description: GitHub repository that publishes ClearCutt CLI release assets.
+    description: GitHub repository that publishes clearcutt-verify release assets.
     required: false
-    default: northcutted/clearcutt
+    default: northcutted/clearcutt-verify
   output:
     description: Output path for the installed binary.
     required: false
-    default: ./clearcutt
+    default: ./clearcutt-verify
   go-version-file:
     description: go.mod path for local source builds.
     required: false
@@ -42,16 +42,28 @@ runs:
         OUTPUT="${{ inputs.output }}"
         OS=$(uname -s | tr '[:upper:]' '[:lower:]')
         ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
-        ASSET="clearcutt-${OS}-${ARCH}"
+        ASSET="clearcutt-verify-${OS}-${ARCH}"
         if [[ "${VERSION}" == "latest" ]]; then
           BASE_URL="https://github.com/${REPO}/releases/latest/download"
         else
           BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
         fi
-        SIGNING_IDENTITY="https://github.com/${REPO}/.github/workflows/release.yml@refs/heads/main"
-        echo "[clearcutt] Installing verified ${ASSET} from ${REPO}@${VERSION}"
+        # Releases from before the rename to ClearCutt Verify name the binary
+        # clearcutt-<os>-<arch> and were signed by northcutted/clearcutt's
+        # release workflow (the same repository, under its old name).
+        OWNER="${REPO%%/*}"
+        NAME="${REPO#*/}"
+        case "${NAME}" in
+          clearcutt | clearcutt-verify) NAMES="(clearcutt|clearcutt-verify)" ;;
+          *) NAMES="${NAME//./\\.}" ;;
+        esac
+        SIGNING_IDENTITY_RE="^https://github\\.com/${OWNER}/${NAMES}/\\.github/workflows/release\\.yml@refs/heads/main$"
         mkdir -p "$(dirname "${OUTPUT}")"
-        curl -fsSL -o "${RUNNER_TEMP}/${ASSET}" "${BASE_URL}/${ASSET}"
+        if ! curl -fsSL -o "${RUNNER_TEMP}/${ASSET}" "${BASE_URL}/${ASSET}" 2>/dev/null; then
+          ASSET="clearcutt-${OS}-${ARCH}"
+          curl -fsSL -o "${RUNNER_TEMP}/${ASSET}" "${BASE_URL}/${ASSET}"
+        fi
+        echo "[clearcutt-verify] Installing verified ${ASSET} from ${REPO}@${VERSION}"
         curl -fsSL -o "${RUNNER_TEMP}/${ASSET}.sig" "${BASE_URL}/${ASSET}.sig"
         curl -fsSL -o "${RUNNER_TEMP}/SHA256SUMS.txt" "${BASE_URL}/SHA256SUMS.txt"
         (
@@ -60,7 +72,7 @@ runs:
         )
         cosign verify-blob "${RUNNER_TEMP}/${ASSET}" \
           --bundle "${RUNNER_TEMP}/${ASSET}.sig" \
-          --certificate-identity "${SIGNING_IDENTITY}" \
+          --certificate-identity-regexp "${SIGNING_IDENTITY_RE}" \
           --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
         install -m 0755 "${RUNNER_TEMP}/${ASSET}" "${OUTPUT}"
         "${OUTPUT}" --version
@@ -92,8 +104,8 @@ runs:
         mkdir -p "$(dirname "${OUTPUT}")"
         cd cli
         go build \
-          -ldflags="-s -w -X github.com/northcutted/clearcutt/internal/commands.Version=${VERSION}" \
-          -o "${BUILD_OUTPUT}" ./cmd/clearcutt
+          -ldflags="-s -w -X github.com/northcutted/clearcutt-verify/internal/commands.Version=${VERSION}" \
+          -o "${BUILD_OUTPUT}" ./cmd/clearcutt-verify
         cd ..
         "${OUTPUT}" --version
         if [[ -n "${GITHUB_PATH:-}" ]]; then

@@ -29,15 +29,15 @@ const methodRows = graph
       .map((id) => ({ id, count: graph.summary.edgesByMethod[id] ?? 0, ...METHOD_LABELS[id] }))
   : [];
 
-const scanCommands = `clearcutt registry scan \\
+const scanCommands = `clearcutt-verify registry scan \\
   --registry ghcr.io --namespace YOUR_ORG/YOUR_REPO \\
   --repository YOUR_BASE_IMAGE --repository YOUR_APP_IMAGE \\
   --output dist/scan/images.yaml
 
-clearcutt import observe \\
+clearcutt-verify import observe \\
   --images dist/scan/images.yaml --output dist/scan/observations.json
 
-clearcutt graph build \\
+clearcutt-verify graph build \\
   --observations dist/scan/observations.json \\
   --output dist/scan/graph.json --report dist/scan/inventory.md`;
 ---

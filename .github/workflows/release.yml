@@ -144,23 +144,23 @@ jobs:
           mkdir -p build-outputs
           for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
             os="${target%/*}"; arch="${target#*/}"
-            out="build-outputs/clearcutt-${os}-${arch}"
+            out="build-outputs/clearcutt-verify-${os}-${arch}"
             CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go -C cli build \
               -trimpath \
-              -ldflags "-s -w -buildid= -X github.com/northcutted/clearcutt/internal/commands.Version=${VERSION}" \
-              -o "../${out}" ./cmd/clearcutt
+              -ldflags "-s -w -buildid= -X github.com/northcutted/clearcutt-verify/internal/commands.Version=${VERSION}" \
+              -o "../${out}" ./cmd/clearcutt-verify
             cosign sign-blob --yes "$out" \
               --output-signature "${out}.sig" \
               --output-certificate "${out}.pem"
           done
-          ( cd build-outputs && sha256sum clearcutt-* > SHA256SUMS.txt )
+          ( cd build-outputs && sha256sum clearcutt-verify-* > SHA256SUMS.txt )
 
       - name: Upload CLI Artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-cli-binaries
           path: |
-            build-outputs/clearcutt-*
+            build-outputs/clearcutt-verify-*
             build-outputs/SHA256SUMS.txt
           retention-days: 7
 

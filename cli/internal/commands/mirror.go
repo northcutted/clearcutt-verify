@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ const (
 	// own release workflow. mirror verify pins to it by default so a mirrored
 	// signature must trace back to a genuine ClearCutt release, not just any valid
 	// Sigstore certificate. Override with --identity when mirroring a fork.
-	defaultReleaseIdentityRegex = "https://github.com/northcutted/clearcutt/.github/workflows/release.yml@.*"
+	defaultReleaseIdentityRegex = "https://github.com/northcutted/clearcutt(-verify)?/.github/workflows/release.yml@.*"
 	// defaultOIDCIssuer is the GitHub Actions OIDC issuer used for keyless signing.
 	defaultOIDCIssuer = "https://token.actions.githubusercontent.com"
 )
@@ -101,8 +101,8 @@ TGT="%s"
 IDENTITY="%s"
 ISSUER="%s"
 
-log()  { echo "[clearcutt mirror verify] $1"; }
-fail() { echo "[clearcutt mirror verify] FAIL: $1" >&2; exit 1; }
+log()  { echo "[clearcutt-verify mirror verify] $1"; }
+fail() { echo "[clearcutt-verify mirror verify] FAIL: $1" >&2; exit 1; }
 
 # 1. Both references must resolve to the same image digest.
 log "Resolving manifest digests..."
@@ -172,7 +172,7 @@ func runMirror(imageID string) error {
 set -euo pipefail
 
 log_info() {
-  echo "[clearcutt mirror] $1"
+  echo "[clearcutt-verify mirror] $1"
 }
 
 log_info "1. Copying multi-architecture layers securely using skopeo..."

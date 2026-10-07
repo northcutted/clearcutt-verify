@@ -26,10 +26,10 @@ runtime fields that older consumers use.
 Validate a generated catalog against a required schema version:
 
 ```bash
-clearcutt --catalog ./dist/catalog catalog validate \
+clearcutt-verify --catalog ./dist/catalog catalog validate \
   --schema-version clearcutt.catalog.index/v1
 
-clearcutt --catalog ./dist/catalog catalog validate \
+clearcutt-verify --catalog ./dist/catalog catalog validate \
   --schema-version clearcutt.catalog.image/v1
 ```
 

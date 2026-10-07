@@ -24,7 +24,7 @@ certified before deployment. It implements strict Pod Security Standards (PSS):
 
 The [`kyverno-policy.yaml`](./kyverno-policy.yaml) is a hand-written Kyverno
 `ClusterPolicy` example aligned with the canonical generated path from
-`clearcutt policy --engine kyverno --environment production`.
+`clearcutt-verify policy --engine kyverno --environment production`.
 
 When a deployment is submitted, Kyverno intercepts the API request and performs
 the following cryptographic checks **before the pod is admitted to the cluster**:
@@ -53,7 +53,7 @@ the following cryptographic checks **before the pod is admitted to the cluster**
                          [ ADMITTED TO CLUSTER ]
 ```
 
-For downstream applications rebased with `clearcutt app rebase`, the same policy
+For downstream applications rebased with `clearcutt-verify app rebase`, the same policy
 file includes a template pair of rules for `ghcr.io/acme/*`:
 
 *   The rebased image digest must be signed by the pinned rebase-engine workflow.

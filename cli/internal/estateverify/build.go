@@ -15,15 +15,15 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 
-	"github.com/northcutted/clearcutt/internal/estategraph"
-	"github.com/northcutted/clearcutt/internal/report"
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
 // Options configures a run.
 type Options struct {
 	// Name identifies the estate in the report.
 	Name string
-	// Version is the clearcutt version writing the report.
+	// Version is the clearcutt-verify version writing the report.
 	Version string
 	Policy  report.Policy
 	Sources []report.Source

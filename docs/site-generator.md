@@ -1,6 +1,6 @@
 # Astro Site Generator
 
-`clearcutt catalog site ...` renders catalog artifacts as a portable Astro
+`clearcutt-verify catalog site ...` renders catalog artifacts as a portable Astro
 evidence portal. The site generator is separate from catalog data generation:
 catalog data lives under `public/catalog`, while the Astro project owns layout,
 search, routes, and customization.
@@ -8,10 +8,10 @@ search, routes, and customization.
 ## Commands
 
 ```bash
-clearcutt catalog site scaffold
-clearcutt catalog site build
-clearcutt catalog site preview
-clearcutt catalog site eject
+clearcutt-verify catalog site scaffold
+clearcutt-verify catalog site build
+clearcutt-verify catalog site preview
+clearcutt-verify catalog site eject
 ```
 
 Use the `catalog site` namespace because the site is a renderer for catalog
@@ -20,12 +20,12 @@ data, not a general website generator.
 ## Scaffold A Persistent Project
 
 ```bash
-clearcutt catalog generate \
+clearcutt-verify catalog generate \
   --config clearcutt.yaml \
   --include-services \
   --output ./dist/catalog
 
-clearcutt catalog site scaffold \
+clearcutt-verify catalog site scaffold \
   --catalog ./dist/catalog \
   --output ./clearcutt-catalog-site
 
@@ -50,7 +50,7 @@ renders catalog data for `<owner>/<repo>`; ClearCutt is the generator." Fork
 owners should customize `site.title`, `site.description`, and links, but the
 portal should keep ownership and evidence scope visible.
 
-The Astro template is embedded in the `clearcutt` binary, so `scaffold`,
+The Astro template is embedded in the `clearcutt-verify` binary, so `scaffold`,
 `build`, `preview`, and `eject` work from any directory — no ClearCutt checkout
 required. When you run inside the repository, the live `site/` directory is used
 instead (and its `node_modules` is reused to speed up builds). Override the
@@ -65,7 +65,7 @@ source explicitly with `--template <dir>`.
 Build from an existing catalog directory:
 
 ```bash
-clearcutt catalog site build \
+clearcutt-verify catalog site build \
   --catalog ./dist/catalog \
   --output ./dist/site \
   --install \
@@ -76,12 +76,12 @@ Generate mixed runtime/service catalog data, then build the static site from tha
 catalog:
 
 ```bash
-clearcutt catalog generate \
+clearcutt-verify catalog generate \
   --config clearcutt.yaml \
   --include-services \
   --output ./dist/catalog
 
-clearcutt catalog site build \
+clearcutt-verify catalog site build \
   --catalog ./dist/catalog \
   --output ./dist/site \
   --install
@@ -95,7 +95,7 @@ To verify service rendering without release data, build from the committed
 mixed fixture:
 
 ```bash
-clearcutt catalog site build \
+clearcutt-verify catalog site build \
   --catalog cli/internal/testdata/mixed-catalog \
   --template site \
   --output ./dist/service-demo \
@@ -105,7 +105,7 @@ clearcutt catalog site build \
 Build and generate catalog data in one command from generic OCI inventory:
 
 ```bash
-clearcutt catalog site build \
+clearcutt-verify catalog site build \
   --images images.yaml \
   --owner acme \
   --repo base-images \
@@ -121,7 +121,7 @@ build.
 ## Preview Locally
 
 ```bash
-clearcutt catalog site preview \
+clearcutt-verify catalog site preview \
   --catalog ./dist/catalog \
   --install \
   --host 127.0.0.1 \
@@ -134,7 +134,7 @@ steps instead of failing the catalog workflow.
 ## Eject The Template
 
 ```bash
-clearcutt catalog site eject \
+clearcutt-verify catalog site eject \
   --output ./astro-catalog-template
 ```
 
@@ -146,7 +146,7 @@ specific catalog artifact. Eject does not copy generated catalog data.
 For GitHub Pages or a nested static path, pass `--base-path`:
 
 ```bash
-clearcutt catalog site build \
+clearcutt-verify catalog site build \
   --catalog ./dist/catalog \
   --output ./dist/site \
   --base-path /clearcutt \
@@ -162,7 +162,7 @@ files.
 Use `--site-config` and `--overrides` to customize without forking ClearCutt:
 
 ```bash
-clearcutt catalog site build \
+clearcutt-verify catalog site build \
   --catalog ./dist/catalog \
   --site-config ./clearcutt.site.yaml \
   --overrides ./site-overrides \

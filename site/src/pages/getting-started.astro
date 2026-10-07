@@ -6,7 +6,7 @@ import { loadSiteConfig, tierLabel } from '../lib/site-config';
 
 let index;
 try { index = loadIndex(); } catch { index = null; }
-const ownerRepo = index ? `${index.owner}/${index.repo}` : 'northcutted/clearcutt';
+const ownerRepo = index ? `${index.owner}/${index.repo}` : 'northcutted/clearcutt-verify';
 const repoDir = ownerRepo.split('/')[1] ?? 'clearcutt';
 const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '') + '/';
 const siteConfig = loadSiteConfig();
@@ -40,7 +40,7 @@ const tierLabels = {
       <p class="text-sm text-ink-200">
         Start with the committed fixture catalog. After your platform team publishes a catalog, replace the fixture path with that generated catalog directory.
       </p>
-      <CopyBlock language="shell" code={`git clone https://github.com/${ownerRepo}.git\ncd ${repoDir}\ngo -C cli build -o ../clearcutt ./cmd/clearcutt\n\n./clearcutt --catalog cli/internal/testdata/catalog list\n./clearcutt --catalog cli/internal/testdata/catalog inspect java21-distroless\n./clearcutt --catalog cli/internal/testdata/catalog verify image java21-distroless \\\n  --require-signature \\\n  --require-sbom \\\n  --require-provenance \\\n  --max-critical 0 \\\n  --max-high 3 \\\n  --allow-preview`} />
+      <CopyBlock language="shell" code={`git clone https://github.com/${ownerRepo}.git\ncd ${repoDir}\ngo -C cli build -o ../clearcutt-verify ./cmd/clearcutt-verify\n\n./clearcutt --catalog cli/internal/testdata/catalog list\n./clearcutt --catalog cli/internal/testdata/catalog inspect java21-distroless\n./clearcutt --catalog cli/internal/testdata/catalog verify image java21-distroless \\\n  --require-signature \\\n  --require-sbom \\\n  --require-provenance \\\n  --max-critical 0 \\\n  --max-high 3 \\\n  --allow-preview`} />
     </section>
 
     <section class="space-y-4 max-w-3xl">
@@ -51,7 +51,7 @@ const tierLabels = {
       <p class="text-sm text-ink-200">
         The starter includes a Dockerfile, devcontainer, certification policy, release workflow, and rebase workflow.
       </p>
-      <CopyBlock language="shell" code={`./clearcutt app template java --output examples/my-java-service --name my-java-service`} />
+      <CopyBlock language="shell" code={`./clearcutt-verify app template java --output examples/my-java-service --name my-java-service`} />
     </section>
 
     <section class="space-y-4 max-w-3xl">
@@ -62,7 +62,7 @@ const tierLabels = {
       <p class="text-sm text-ink-200">
         Use the matching {tierLabels.dev} image for build tools. The first command is fixture-backed and prints a devcontainer; the container command needs Docker or Podman access to the configured dev image.
       </p>
-      <CopyBlock language="shell" code={`./clearcutt --catalog cli/internal/testdata/dev-catalog dev java21-distroless --devcontainer --print\n./clearcutt --catalog cli/internal/testdata/dev-catalog dev java21-distroless --container --engine docker --command 'java -version'`} />
+      <CopyBlock language="shell" code={`./clearcutt-verify --catalog cli/internal/testdata/dev-catalog dev java21-distroless --devcontainer --print\n./clearcutt --catalog cli/internal/testdata/dev-catalog dev java21-distroless --container --engine docker --command 'java -version'`} />
     </section>
 
     <section class="space-y-4 max-w-3xl">

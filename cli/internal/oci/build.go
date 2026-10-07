@@ -18,7 +18,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-// BuildOptions describes a `clearcutt app build`: lay one prebuilt artifact on
+// BuildOptions describes a `clearcutt-verify app build`: lay one prebuilt artifact on
 // top of a ClearCutt base image as one deterministic layer, stamp the lifecycle
 // labels, and push the result.
 type BuildOptions struct {

@@ -201,7 +201,7 @@ cd cli && go test ./...
 cd cli && go vet ./...
 ```
 
-A bare `go build -o ../clearcutt ./cmd/clearcutt` works but skips the embedded
+A bare `go build -o ../clearcutt-verify ./cmd/clearcutt-verify` works but skips the embedded
 source generation (`make cli-embed-source`); the resulting binary falls back to
 the release-download path for `platform new`. Use `make cli-build` for anything
 that exercises platform scaffolding.
@@ -240,10 +240,10 @@ one they are using.
    offline tests, and first-run validation:
 
    ```bash
-   go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog list
-   go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog catalog validate
-   go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog inspect java21-distroless
-   go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog verify image java21-distroless \
+   go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog list
+   go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog catalog validate
+   go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog inspect java21-distroless
+   go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog verify image java21-distroless \
      --require-signature \
      --require-sbom \
      --require-provenance \
@@ -258,13 +258,13 @@ one they are using.
    site data:
 
    ```bash
-   cd cli && go build -o ../clearcutt ./cmd/clearcutt
-   ./clearcutt catalog generate --config clearcutt.yaml --include-services --output /tmp/clearcutt-catalog
-   ./clearcutt --catalog /tmp/clearcutt-catalog catalog validate
-   ./clearcutt catalog site build --catalog /tmp/clearcutt-catalog --template site --output /tmp/clearcutt-site --install --clean
+   cd cli && go build -o ../clearcutt-verify ./cmd/clearcutt-verify
+   ./clearcutt-verify catalog generate --config clearcutt.yaml --include-services --output /tmp/clearcutt-catalog
+   ./clearcutt-verify --catalog /tmp/clearcutt-catalog catalog validate
+   ./clearcutt-verify catalog site build --catalog /tmp/clearcutt-catalog --template site --output /tmp/clearcutt-site --install --clean
    ```
 
-3. **Live release-evidence catalog.** Use `./clearcutt catalog build` only when
+3. **Live release-evidence catalog.** Use `./clearcutt-verify catalog build` only when
    the task needs release assets, registry evidence, scans, enrichment, or Pages
    parity. This path may require network, GitHub, registry tools, and current
    release state.
@@ -277,7 +277,7 @@ using stale local data, fixture data, or newly generated data.
 
 If a site build appears wrong, check for stale `site/src/data/catalog` before
 debugging Astro components. For reproducible site validation, prefer
-`./clearcutt catalog site build --catalog cli/internal/testdata/mixed-catalog
+`./clearcutt-verify catalog site build --catalog cli/internal/testdata/mixed-catalog
 --template site --output /tmp/clearcutt-site --install --clean`.
 
 ## Codex setup

@@ -13,10 +13,10 @@ import (
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/v1"
-	"github.com/northcutted/clearcutt/internal/catalogbuild"
-	"github.com/northcutted/clearcutt/internal/config"
-	"github.com/northcutted/clearcutt/internal/oci"
-	"github.com/northcutted/clearcutt/internal/sign"
+	"github.com/northcutted/clearcutt-verify/internal/catalogbuild"
+	"github.com/northcutted/clearcutt-verify/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/oci"
+	"github.com/northcutted/clearcutt-verify/internal/sign"
 	"github.com/spf13/cobra"
 )
 

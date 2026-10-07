@@ -139,7 +139,7 @@ spec:
       createdAt: 2026-06-03
       expiresAt: 2026-12-03
       references:
-        - https://github.com/northcutted/clearcutt/issues/123
+        - https://github.com/northcutted/clearcutt-verify/issues/123
       notes: Upstream vulnerability scan misidentified the version mapping in the layered layout.
 
     - id: CVE-2023-98765

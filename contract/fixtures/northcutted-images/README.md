@@ -7,7 +7,7 @@ example fleet (`platform-tools`, `debian-tools`, `amazonlinux-tools`,
 Generated with [`policy.yaml`](policy.yaml) and [`refs.txt`](refs.txt):
 
 ```bash
-clearcutt verify estate --refs refs.txt --policy policy.yaml --name northcutted-images \
+clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name northcutted-images \
   --platforms linux/amd64,linux/arm64 --reproduce --out .
 ```
 

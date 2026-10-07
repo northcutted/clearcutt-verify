@@ -17,7 +17,7 @@ This document traces the design logic and rationale behind the key security cons
 * **Decision**: Digest-pinning is the required **production** posture: production deployments and certified app images must pin OCI image references using their immutable SHA-256 digest rather than standard mutable version tags. Scaffolded app templates and documentation examples deliberately start on mutable tags (`:dev`, `:distroless`) to keep the inner development loop fast, and must carry an explicit "pin your base before production" step.
 * **Rationale**: In standard container registries, tags (like `:latest` or `:1.0.0`) are mutable. An attacker who gains write access to a registry can overwrite the tag with a compromised layer graph without altering downstream deployment configurations. Digest-pinning makes the intended image content explicit.
 * **Reproducibility**: Pinned digests ensure that every deployment, whether local, CI, or production, resolves to the same image archive and closes the common tag-drift path.
-* **Where the gate lives**: `clearcutt certify` rejects app images that are not digest-pinned (`--image-ref ...@sha256:...`), and the generated certification policies require digest-pinned refs. Catalog records carry `latestManifestDigest`; `clearcutt inspect <id>` prints the digest-pinned reference to copy into a production `FROM` line. Digest-resolving scaffolds (generating templates with the digest already substituted) are a deferred follow-up.
+* **Where the gate lives**: `clearcutt-verify certify` rejects app images that are not digest-pinned (`--image-ref ...@sha256:...`), and the generated certification policies require digest-pinned refs. Catalog records carry `latestManifestDigest`; `clearcutt-verify inspect <id>` prints the digest-pinned reference to copy into a production `FROM` line. Digest-resolving scaffolds (generating templates with the digest already substituted) are a deferred follow-up.
 
 ---
 
@@ -48,7 +48,7 @@ This document traces the design logic and rationale behind the key security cons
 
 ## 6. Priced CVE Triage Routes with Self-Retiring Decisions (SUPERSEDED)
 
-* **Status**: Removed. `clearcutt remediation triage` priced six CVE routes
+* **Status**: Removed. `clearcutt-verify remediation triage` priced six CVE routes
   (`version_bump`, `substitute_vex`, `unstable_optin`, `fetchpatch_rebuild`,
   `scanner_ignore`, `wait`), each with a cost-now / risk-carried / retirement
   triple, and recorded self-retiring decision records with a `decidedBy`

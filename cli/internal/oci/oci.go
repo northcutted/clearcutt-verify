@@ -1,4 +1,4 @@
-// Package oci wraps go-containerregistry to give the `clearcutt app` command group
+// Package oci wraps go-containerregistry to give the `clearcutt-verify app` command group
 // a small, intention-revealing surface for the few OCI operations it needs:
 // pulling an image or multi-arch index, assembling an application image on top of a
 // ClearCutt base, and rebasing an application onto a new base while preserving the

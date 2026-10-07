@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Report a security vulnerability
-    url: https://github.com/northcutted/clearcutt/security/policy
+    url: https://github.com/northcutted/clearcutt-verify/security/policy
     about: Do not open a public issue for vulnerabilities. Follow the private reporting process in SECURITY.md.

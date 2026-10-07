@@ -19,7 +19,7 @@ This persistent ledger records critical repository-specific constraints, environ
 ## 2. Go CLI & Testing Pitfalls
 
 ### Bare OS Errors vs Actionable Errors
-* **Context:** When running commands like `clearcutt list` without a catalog path or database, Go can return raw, uninformative system errors.
+* **Context:** When running commands like `clearcutt-verify list` without a catalog path or database, Go can return raw, uninformative system errors.
 * **Lesson:** Always intercept folder-read operations and return high-fidelity, actionable error messages (e.g., "no ClearCutt catalog found") rather than passing through bare OS filesystem errors.
 
 ### Offline Testing Fixtures
@@ -44,7 +44,7 @@ This persistent ledger records critical repository-specific constraints, environ
 
 ### Astro Catalog Data Modes
 * **Context:** Building or previewing the Astro site can silently use ignored local catalog data under `site/src/data/catalog`, which may be stale and is not clean-clone truth.
-* **Lesson:** Be explicit about catalog mode. Use `cli/internal/testdata/catalog` or `cli/internal/testdata/mixed-catalog` for clean-clone and fixture-backed proof. Use `clearcutt catalog generate --config clearcutt.yaml --include-services --output /tmp/clearcutt-catalog` for current generator behavior without touching ignored site data. Use `clearcutt catalog build` only for live release-evidence parity. Inspect `site/src/data/catalog/index.json` before relying on local generated site data.
+* **Lesson:** Be explicit about catalog mode. Use `cli/internal/testdata/catalog` or `cli/internal/testdata/mixed-catalog` for clean-clone and fixture-backed proof. Use `clearcutt-verify catalog generate --config clearcutt.yaml --include-services --output /tmp/clearcutt-catalog` for current generator behavior without touching ignored site data. Use `clearcutt-verify catalog build` only for live release-evidence parity. Inspect `site/src/data/catalog/index.json` before relying on local generated site data.
 
 ---
 

@@ -9,9 +9,9 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-if [[ ! -x ./clearcutt ]]; then
+if [[ ! -x ./clearcutt-verify ]]; then
   echo "[record-demo] building CLI..." >&2
-  (cd cli && go build -o ../clearcutt ./cmd/clearcutt)
+  (cd cli && go build -o ../clearcutt-verify ./cmd/clearcutt-verify)
 fi
 
 # The tape builds a scratch estate here from examples/runtime-estate/refs.txt.

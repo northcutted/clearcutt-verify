@@ -1,6 +1,6 @@
 package estategraph
 
-import "github.com/northcutted/clearcutt/internal/catalog"
+import "github.com/northcutted/clearcutt-verify/internal/catalog"
 
 const (
 	APIVersion = "clearcutt.dev/v1"

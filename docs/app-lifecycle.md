@@ -4,15 +4,15 @@ This guide shows the supported end-to-end flow for application teams that want
 to build once, sign the application payload, and later move that payload onto a
 patched ClearCutt base without recompiling.
 
-The important boundary is simple: `clearcutt app build` packages one prebuilt
+The important boundary is simple: `clearcutt-verify app build` packages one prebuilt
 artifact into one OCI layer. The artifact can be a single file or a publish
 directory; either way, that one app layer is preserved byte-for-byte during
-`clearcutt app rebase`. The base layers underneath it are swapped only after the
+`clearcutt-verify app rebase`. The base layers underneath it are swapped only after the
 CLI verifies runtime compatibility and the developer signature over the source
 image.
 
 If your service needs runtime package installation or custom image assembly,
-keep using a normal Containerfile and run `clearcutt certify` on the finished
+keep using a normal Containerfile and run `clearcutt-verify certify` on the finished
 image.
 
 For deployment shapes after certification, see
@@ -60,7 +60,7 @@ early adoption. Production policies with `allowPreview: false` should use active
 runtime lines until the catalog lifecycle for that line moves to active.
 
 The sections below are live/generated-catalog examples. A clean clone only
-proves the Java 21 fixture path; run `./clearcutt --catalog
+proves the Java 21 fixture path; run `./clearcutt-verify --catalog
 cli/internal/testdata/catalog inspect java21-distroless` before your fork has
 published a full catalog.
 
@@ -85,14 +85,14 @@ the same:
 cosign sign --yes "$APP_IMAGE"
 
 # 2. Compare the patched base before changing the image.
-clearcutt app diff-base \
+clearcutt-verify app diff-base \
   --image "$APP_IMAGE" \
   --candidate-base "$PATCHED_BASE" \
   --candidate-base-id "$BASE_ID" \
   --fail-on-incompatible
 
 # 3. Rebase from a dedicated CI workflow with id-token: write.
-clearcutt app rebase \
+clearcutt-verify app rebase \
   --image "$APP_IMAGE" \
   --candidate-base "$PATCHED_BASE" \
   --candidate-base-id "$BASE_ID" \
@@ -131,7 +131,7 @@ cp target/payments-api-*-all.jar target/app.jar
 export BASE_ID="java21-distroless"
 export PATCHED_BASE="ghcr.io/northcutted/clearcutt/clearcutt-java21:vX.Y.Z-distroless"
 
-clearcutt app build \
+clearcutt-verify app build \
   --base "$BASE_ID" \
   --artifact target/app.jar \
   --dest /workspace/app.jar \
@@ -159,7 +159,7 @@ npx esbuild src/server.ts \
 export BASE_ID="node22-distroless"
 export PATCHED_BASE="ghcr.io/northcutted/clearcutt/clearcutt-node22:vX.Y.Z-distroless"
 
-clearcutt app build \
+clearcutt-verify app build \
   --base "$BASE_ID" \
   --artifact dist/server.mjs \
   --dest /workspace/server.mjs \
@@ -184,7 +184,7 @@ pex . \
 export BASE_ID="python3.14-distroless"
 export PATCHED_BASE="ghcr.io/northcutted/clearcutt/clearcutt-python3.14:vX.Y.Z-distroless"
 
-clearcutt app build \
+clearcutt-verify app build \
   --base "$BASE_ID" \
   --artifact dist/payments-api.pyz \
   --dest /workspace/payments-api.pyz \
@@ -204,7 +204,7 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 export BASE_ID="go1.26-distroless"
 export PATCHED_BASE="ghcr.io/northcutted/clearcutt/clearcutt-go1.26:vX.Y.Z-distroless"
 
-clearcutt app build \
+clearcutt-verify app build \
   --base "$BASE_ID" \
   --artifact dist/payments-api \
   --dest /workspace/payments-api \
@@ -224,7 +224,7 @@ published registry archive, and compares ordered layer digests. If layers
 differ, `--diffoscope-out` records the detailed local mismatch report.
 
 ```bash
-clearcutt verify rebuild \
+clearcutt-verify verify rebuild \
   ghcr.io/acme/clearcutt/clearcutt-java21:vX.Y.Z-distroless \
   --target java21-distroless \
   --rebuild \
@@ -274,17 +274,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: sigstore/cosign-installer@v4
       - name: Build clearcutt
-        run: go -C cli build -o ../clearcutt ./cmd/clearcutt
+        run: go -C cli build -o ../clearcutt-verify ./cmd/clearcutt-verify
       - name: Check candidate base
         run: |
-          ./clearcutt app diff-base \
+          ./clearcutt-verify app diff-base \
             --image "${{ inputs.image }}" \
             --candidate-base "${{ inputs.patched_base }}" \
             --candidate-base-id "${{ inputs.base_id }}" \
             --fail-on-incompatible
       - name: Rebase, sign, and attest
         run: |
-          ./clearcutt app rebase \
+          ./clearcutt-verify app rebase \
             --image "${{ inputs.image }}" \
             --candidate-base "${{ inputs.patched_base }}" \
             --candidate-base-id "${{ inputs.base_id }}" \

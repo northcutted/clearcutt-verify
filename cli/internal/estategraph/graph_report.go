@@ -141,7 +141,7 @@ func GraphMarkdown(graph Graph) string {
 	fmt.Fprintf(&b, "- A `declared`, `assisted`, or `weak` edge rests on metadata the image's author supplied. Treat it as a claim to verify, not a finding.\n")
 	fmt.Fprintf(&b, "- Currency is measured against the newest version observed **in this scan**, not against upstream. A base family that is itself out of date will still report its consumers as current.\n")
 	fmt.Fprintf(&b, "- A shared layer means shared content, not a base relationship. Two sibling images built from the same recipe share layers while neither is built on the other.\n")
-	fmt.Fprintf(&b, "- No CVE, signature, SBOM, or provenance conclusion is drawn here. Run `clearcutt import assess` for the evidence-gap view.\n\n")
+	fmt.Fprintf(&b, "- No CVE, signature, SBOM, or provenance conclusion is drawn here. Run `clearcutt-verify import assess` for the evidence-gap view.\n\n")
 
 	if len(graph.Warnings) > 0 {
 		fmt.Fprintf(&b, "## Scan warnings\n\n")

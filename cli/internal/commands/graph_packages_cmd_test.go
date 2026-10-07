@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/northcutted/clearcutt/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
 )
 
 func writeObservationsFile(t *testing.T, obs estategraph.Observations) string {

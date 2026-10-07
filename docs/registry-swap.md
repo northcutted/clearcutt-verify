@@ -75,7 +75,7 @@ working with nothing set.**
 - **ECR/GAR short-lived auth** needs an extra auth step today (no `authMode`
   selector yet).
 
-After changing `registry.host`, re-run `clearcutt registry scan` against the new host to confirm credentials and reachability.
+After changing `registry.host`, re-run `clearcutt-verify registry scan` against the new host to confirm credentials and reachability.
 
 ## Verify the swap
 
@@ -83,7 +83,7 @@ After configuring the knobs, run a release and confirm evidence resolves against
 the new host:
 
 ```bash
-clearcutt registry scan --registry "$NEW_HOST" --namespace YOUR_ORG --repository YOUR_IMAGE --output /tmp/images.yaml
+clearcutt-verify registry scan --registry "$NEW_HOST" --namespace YOUR_ORG --repository YOUR_IMAGE --output /tmp/images.yaml
 # or, for a consumer of a published image:
-clearcutt certify <your-host>/<org>/<repo>/<image>:<tag> --require-signature --require-provenance
+clearcutt-verify certify <your-host>/<org>/<repo>/<image>:<tag> --require-signature --require-provenance
 ```

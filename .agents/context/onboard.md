@@ -34,7 +34,7 @@ Every agent working in this repository MUST adhere to the following contract:
 ClearCutt is a Nix-powered base image overlay factory and governance platform. Understand where you are:
 
 * `core/`: The Nix base image overlay configurations, release pipeline, and vulnerability gating tests.
-* `cli/`: A statically compiled Go governance CLI (`clearcutt`) and its testing suite.
+* `cli/`: A statically compiled Go governance CLI (`clearcutt-verify`) and its testing suite.
 * `site/`: Astro catalog site representing the published images.
 * `schemas/`: Declarative YAML validation schemas (e.g., Exception policies).
 

@@ -14,7 +14,7 @@ So for a Nix estate the exact package set, with versions and content hashes,
 costs **no extra registry requests**:
 
 ```sh
-clearcutt graph packages --package openssl
+clearcutt-verify graph packages --package openssl
 ```
 
 ```
@@ -32,7 +32,7 @@ on disk.
 ## Regenerating
 
 ```sh
-clearcutt import observe --images images.yaml --output observations.json
+clearcutt-verify import observe --images images.yaml --output observations.json
 ```
 
 The images are ClearCutt's own former base images. The project no longer builds

@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
-	"github.com/northcutted/clearcutt/internal/catalogbuild"
-	"github.com/northcutted/clearcutt/internal/config"
-	"github.com/northcutted/clearcutt/internal/evidence"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalogbuild"
+	"github.com/northcutted/clearcutt-verify/internal/config"
+	"github.com/northcutted/clearcutt-verify/internal/evidence"
 	"github.com/spf13/cobra"
 )
 

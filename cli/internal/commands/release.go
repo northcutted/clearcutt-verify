@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/northcutted/clearcutt/internal/catalog"
+	"github.com/northcutted/clearcutt-verify/internal/catalog"
 )
 
 // latestOrTaggedRelease returns the release matching tag, or the latest release

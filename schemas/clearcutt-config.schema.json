@@ -173,7 +173,7 @@
           }
         },
         "preview": {
-          "description": "Persistent opt-in to preview-channel runtimes for the language-level form; overridable per run by clearcutt fleet compile --allow-preview.",
+          "description": "Persistent opt-in to preview-channel runtimes for the language-level form; overridable per run by clearcutt-verify fleet compile --allow-preview.",
           "type": "boolean"
         }
       }

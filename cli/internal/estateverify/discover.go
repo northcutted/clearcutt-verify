@@ -27,7 +27,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 
-	"github.com/northcutted/clearcutt/internal/report"
+	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
 // Evidence kinds, as the report names them.

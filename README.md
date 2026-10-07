@@ -1,21 +1,28 @@
-# ClearCutt
+# ClearCutt Verify
 
 **Point it at a registry. Find out which images are built on what, how stale
 they are, and what you can actually prove about them.**
 
-[![Live Catalog Site](https://img.shields.io/badge/Live%20Catalog-Site-blueviolet.svg?logo=astro&logoColor=white)](https://northcutted.github.io/clearcutt)
-[![ClearCutt PR Gating](https://github.com/northcutted/clearcutt/actions/workflows/pr-gate.yml/badge.svg)](https://github.com/northcutted/clearcutt/actions/workflows/pr-gate.yml)
+[![Live Catalog Site](https://img.shields.io/badge/Live%20Catalog-Site-blueviolet.svg?logo=astro&logoColor=white)](https://northcutted.github.io/clearcutt-verify)
+[![ClearCutt PR Gating](https://github.com/northcutted/clearcutt-verify/actions/workflows/pr-gate.yml/badge.svg)](https://github.com/northcutted/clearcutt-verify/actions/workflows/pr-gate.yml)
 [![Cosign Signed](https://img.shields.io/badge/Sigstore-Cosign%20Signed-orange.svg)](https://sigstore.dev)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-ClearCutt is a free, open-source CLI for governing container image estates —
-including estates it did not build. It enumerates a registry, works out which
+ClearCutt Verify (`clearcutt-verify`) is a free, open-source CLI for governing
+and verifying container image estates — including estates it did not build. It enumerates a registry, works out which
 images are layered on which, measures how far each consumer has drifted from its
 base, reports what the estate has in common, and produces an auditable inventory
 that is honest about what it cannot prove.
 
 There is no hosted control plane and no image feed to subscribe to. ClearCutt
-reads registries you already have and writes files you own.
+Verify reads registries you already have and writes files you own.
+
+It is part of ClearCutt, a family of open-source OCI tools:
+[clearcutt-factory](https://github.com/northcutted/clearcutt-factory) builds
+reproducible, signed images from YAML; clearcutt-verify checks an estate,
+including factory-built fleets, and writes the estate report;
+clearcutt-portal (in progress) publishes
+it as a website.
 
 ![Terminal demo walking through four stages — observing eight public images live from a list of refs, proving five of five base relationships by layer digest, answering UNKNOWN rather than zero when Debian records no package list, and answering the same question for free where the builder does record one](docs/images/demo.gif)
 
@@ -37,7 +44,7 @@ shows the same question answered for free where the builder does record one.
 | **Map** | `graph build` | Which images are built on which, and how stale is each one? |
 | **Compare** | `graph layers` | What does the fleet have in common, and what would a fix reach? |
 | **Assess** | `import observe` → `import assess` | What evidence exists per image, and what is missing? |
-| **Verify** | `verify estate` | Is every image signed, attested, and current, by whom, and can it be rebuilt? Writes the estate report clearcutt-portal reads. |
+| **Verify** | `estate verify` | Is every image signed, attested, and current, by whom, and can it be rebuilt? Writes the estate report clearcutt-portal reads. |
 | **Gate** | `verify`, `certify`, `policy` | Does this image meet policy, at CI and at admission? |
 | **Publish** | `catalog build`, `catalog site build` | A static evidence portal anyone can read. |
 
@@ -75,11 +82,11 @@ These commands use the committed catalog fixture, so they work before you
 generate or publish your own catalog data:
 
 ```bash
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog list
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog inspect java21-distroless
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog catalog validate
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog list
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog inspect java21-distroless
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog catalog validate
 
-go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog verify image java21-distroless \
+go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog verify image java21-distroless \
   --require-signature \
   --require-sbom \
   --require-provenance \
@@ -100,28 +107,28 @@ registry. Every step is read-only: it lists tags and reads manifests and image
 configs, and writes local files. Nothing is pulled, mutated, or published.
 
 ```bash
-go -C cli build -o ../clearcutt ./cmd/clearcutt
+go -C cli build -o ../clearcutt-verify ./cmd/clearcutt-verify
 
 # 1. Ask the registry what it holds. Registries without a _catalog endpoint
 #    (GHCR, Docker Hub) need --repository, which repeats.
 export GHCR_TOKEN=$(gh auth token)
-./clearcutt registry scan \
+./clearcutt-verify registry scan \
   --registry ghcr.io --namespace YOUR_ORG/YOUR_REPO \
   --repository YOUR_BASE_IMAGE --repository YOUR_APP_IMAGE \
   --username YOUR_USER --password-env GHCR_TOKEN \
   --output dist/scan/images.yaml
 
 # 2. Read each image's manifest, config, layers, and labels.
-./clearcutt import observe \
+./clearcutt-verify import observe \
   --images dist/scan/images.yaml --output dist/scan/observations.json
 
 # 3. Work out which images are built on which, and how stale each one is.
-./clearcutt graph build \
+./clearcutt-verify graph build \
   --observations dist/scan/observations.json \
   --output dist/scan/graph.json --report dist/scan/inventory.md
 
 # 4. Report what the estate has in common, with a diagram.
-./clearcutt graph layers \
+./clearcutt-verify graph layers \
   --observations dist/scan/observations.json \
   --output dist/scan/layers.json --report dist/scan/commonality.md
 ```
@@ -146,7 +153,7 @@ built by Nix `dockerTools` it costs **no extra requests at all**: the package se
 with exact versions is already in the image config that step 2 fetched.
 
 ```bash
-./clearcutt graph packages --observations dist/scan/observations.json --package openssl
+./clearcutt-verify graph packages --observations dist/scan/observations.json --package openssl
 ```
 
 ```
@@ -165,10 +172,10 @@ Snapshots persist as OCI artifacts in the registry the images already live in,
 so there is no database to run and evidence travels with a mirror.
 
 ```bash
-./clearcutt estate push ghcr.io/acme/estate:$(date +%F) \
+./clearcutt-verify estate push ghcr.io/acme/estate:$(date +%F) \
   --dir dist/scan --history ghcr.io/acme/estate:history
 
-./clearcutt estate history ghcr.io/acme/estate:history
+./clearcutt-verify estate history ghcr.io/acme/estate:history
 ```
 
 The history is an OCI index whose entries carry each run's metrics as
@@ -183,27 +190,30 @@ garbage-collection and tag-mutability constraints that come with this.
 ## Install
 
 Each release publishes cross-compiled CLI binaries named
-`clearcutt-<os>-<arch>` for `darwin`, `linux`, and `windows` on `amd64` and
+`clearcutt-verify-<os>-<arch>` for `darwin`, `linux`, and `windows` on `amd64` and
 `arm64`, a keyless Sigstore signature bundle (`<binary>.sig`) for each, and a
-`SHA256SUMS.txt` checksum manifest. Download the binary for your platform and
+`SHA256SUMS.txt` checksum manifest. (Releases before the rename to ClearCutt
+Verify name them `clearcutt-<os>-<arch>` and were signed as
+`northcutted/clearcutt`; the identity below accepts both.) Download the binary
+for your platform and
 its `.sig` bundle from the
-[latest release](https://github.com/northcutted/clearcutt/releases/latest),
+[latest release](https://github.com/northcutted/clearcutt-verify/releases/latest),
 then verify the signature before running anything:
 
 ```bash
 # Example assets: Apple Silicon macOS. Pick the pair matching your OS/arch.
 cosign verify-blob \
-  --bundle clearcutt-darwin-arm64.sig \
-  --certificate-identity 'https://github.com/northcutted/clearcutt/.github/workflows/release.yml@refs/heads/main' \
+  --bundle clearcutt-verify-darwin-arm64.sig \
+  --certificate-identity-regexp '^https://github\.com/northcutted/clearcutt(-verify)?/\.github/workflows/release\.yml@refs/heads/main$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  clearcutt-darwin-arm64
+  clearcutt-verify-darwin-arm64
 
-chmod +x clearcutt-darwin-arm64
+chmod +x clearcutt-verify-darwin-arm64
 ```
 
 The certificate identity is the release workflow pinned to `refs/heads/main` —
 the same identity recorded in `clearcutt.yaml` and matched exactly by
-`clearcutt verify release-evidence`. From a repo clone, the verified binary
+`clearcutt-verify verify release-evidence`. From a repo clone, the verified binary
 runs the same fixture-backed first proof as above:
 
 ```bash
@@ -217,13 +227,13 @@ Building from source stays the contributor path; see
 
 | Role | First document | First useful command |
 | --- | --- | --- |
-| Estate owner | [Registry scan and the base image graph](docs/registry-graph.md) | `go -C cli run ./cmd/clearcutt registry scan --registry ghcr.io --namespace YOUR_ORG/YOUR_REPO --repository YOUR_IMAGE --output /tmp/images.yaml` |
-| App developer | [Getting started](docs/getting-started.md) | `go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog inspect java21-distroless` |
-| Imported fleet owner | [Imported fleets](docs/imported-fleets.md) | `go -C cli run ./cmd/clearcutt import images --refs ../examples/imported-fleet/refs.txt --output /tmp/clearcutt-import/images.yaml --force` |
-| Estate owner | [Registry scan and the base image graph](docs/registry-graph.md) | `go -C cli run ./cmd/clearcutt registry scan --registry ghcr.io --namespace YOUR_ORG/YOUR_REPO --repository YOUR_IMAGE --output /tmp/images.yaml` |
-| Security or auditor | [Trust evidence walkthrough](docs/trust/evidence-walkthrough.md) | `go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog verify image java21-distroless --require-signature --require-sbom --require-provenance --allow-preview` |
+| Estate owner | [Registry scan and the base image graph](docs/registry-graph.md) | `go -C cli run ./cmd/clearcutt-verify registry scan --registry ghcr.io --namespace YOUR_ORG/YOUR_REPO --repository YOUR_IMAGE --output /tmp/images.yaml` |
+| App developer | [Getting started](docs/getting-started.md) | `go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog inspect java21-distroless` |
+| Imported fleet owner | [Imported fleets](docs/imported-fleets.md) | `go -C cli run ./cmd/clearcutt-verify import images --refs ../examples/imported-fleet/refs.txt --output /tmp/clearcutt-import/images.yaml --force` |
+| Estate owner | [Registry scan and the base image graph](docs/registry-graph.md) | `go -C cli run ./cmd/clearcutt-verify registry scan --registry ghcr.io --namespace YOUR_ORG/YOUR_REPO --repository YOUR_IMAGE --output /tmp/images.yaml` |
+| Security or auditor | [Trust evidence walkthrough](docs/trust/evidence-walkthrough.md) | `go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog verify image java21-distroless --require-signature --require-sbom --require-provenance --allow-preview` |
 | Engineering manager | [Alternatives and fit](docs/alternatives.md) | `sed -n '1,120p' docs/alternatives.md` |
-| Open-source evaluator | [Demo path](docs/demo.md) | `go -C cli run ./cmd/clearcutt --catalog internal/testdata/catalog list` |
+| Open-source evaluator | [Demo path](docs/demo.md) | `go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog list` |
 
 For a deterministic imported-fleet proof that does not require Nix or registry
 access:

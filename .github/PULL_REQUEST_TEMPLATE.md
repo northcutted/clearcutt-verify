@@ -10,5 +10,5 @@
 
 - [ ] `go -C cli vet ./...` passes
 - [ ] `go -C cli test ./...` passes
-- [ ] `go -C cli build -o ../clearcutt ./cmd/clearcutt && ./scripts/validate-doc-commands.sh ./clearcutt` passes
+- [ ] `go -C cli build -o ../clearcutt-verify ./cmd/clearcutt-verify && ./scripts/validate-doc-commands.sh ./clearcutt-verify` passes
 - [ ] Docs updated if commands, flags, or output changed

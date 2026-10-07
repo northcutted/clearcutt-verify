@@ -23,7 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 
-	"github.com/northcutted/clearcutt/internal/report"
+	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
 const reusable = "https://github.com/acme/factory/.github/workflows/images.yml@refs/tags/v1"
