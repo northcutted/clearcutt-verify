@@ -72,6 +72,14 @@ jobs:
       - name: Go Build
         run: make cli-build
 
+      - name: Install Through The Action (Source Build)
+        uses: ./
+        with:
+          version: source
+
+      - name: Check The Action's Binary
+        run: clearcutt-verify estate verify --help >/dev/null
+
       - name: Imported Fleet Offline Demo
         run: CLEARCUTT="$PWD/clearcutt-verify" ./scripts/demo-imported-fleet-offline.sh
 

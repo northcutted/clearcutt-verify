@@ -9,10 +9,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+
+	"github.com/northcutted/clearcutt-verify/internal/registryauth"
 )
 
 // SBOMFetcher retrieves an image's SBOM. It is an interface so the expensive
@@ -254,7 +255,7 @@ type RegistrySBOMFetcher struct {
 }
 
 func NewRegistrySBOMFetcher() *RegistrySBOMFetcher {
-	return &RegistrySBOMFetcher{remoteOpts: []remote.Option{remote.WithAuthFromKeychain(authn.DefaultKeychain)}}
+	return &RegistrySBOMFetcher{remoteOpts: []remote.Option{remote.WithAuthFromKeychain(registryauth.Keychain)}}
 }
 
 func NewInsecureSBOMFetcher() *RegistrySBOMFetcher {

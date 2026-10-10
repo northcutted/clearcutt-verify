@@ -104,14 +104,11 @@ configs, and writes local files. Nothing is pulled, mutated, or published.
 ```bash
 go -C cli build -o ../clearcutt-verify ./cmd/clearcutt-verify
 
-# 1. Ask the registry what it holds. Registries without a _catalog endpoint
-#    (GHCR, Docker Hub) need --repository, which repeats.
-export GHCR_TOKEN=$(gh auth token)
-./clearcutt-verify registry scan \
-  --registry ghcr.io --namespace YOUR_ORG/YOUR_REPO \
-  --repository YOUR_BASE_IMAGE --repository YOUR_APP_IMAGE \
-  --username YOUR_USER --password-env GHCR_TOKEN \
-  --output dist/scan/images.yaml
+# 1. Ask the registry what it holds. On GHCR, list an organization's packages
+#    through the GitHub API; registries without a _catalog endpoint (Docker
+#    Hub) need --repository, which repeats.
+export GITHUB_TOKEN=$(gh auth token)
+./clearcutt-verify registry scan --github-org YOUR_ORG --output dist/scan/images.yaml
 
 # 2. Read each image's manifest, config, layers, and labels.
 ./clearcutt-verify import observe \
@@ -228,7 +225,7 @@ Building from source stays the contributor path; see
 
 | Role | First document | First useful command |
 | --- | --- | --- |
-| Estate owner | [Registry scan and the base image graph](docs/registry-graph.md) | `clearcutt-verify registry scan --registry ghcr.io --namespace YOUR_ORG --repository YOUR_IMAGE --output /tmp/images.yaml` |
+| Estate owner | [Registry scan and the base image graph](docs/registry-graph.md) | `clearcutt-verify registry scan --github-org YOUR_ORG --output /tmp/images.yaml` |
 | Security or auditor | [Verifying an estate](docs/verify-estate.md) | `clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme --out /tmp/estate` |
 | Imported fleet owner | [Imported fleets](docs/imported-fleets.md) | `clearcutt-verify import images --refs examples/imported-fleet/refs.txt --output /tmp/images.yaml --force` |
 | Engineering manager | [Alternatives and fit](docs/alternatives.md) | `sed -n '1,120p' docs/alternatives.md` |
@@ -236,6 +233,9 @@ Building from source stays the contributor path; see
 ClearCutt Verify governs imported images without trusting them by default. It
 records what can be observed, preserves missing evidence, and only treats
 provenance as verified when actual provenance evidence exists.
+
+To run it on a schedule in GitHub Actions, see
+[verifying an estate in GitHub Actions](docs/github-actions.md).
 
 The full documentation index is [docs/README.md](docs/README.md).
 

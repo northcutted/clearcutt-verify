@@ -7,18 +7,20 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 
 	"github.com/northcutted/clearcutt-verify/internal/estategraph"
 	"github.com/northcutted/clearcutt-verify/internal/estateverify"
+	"github.com/northcutted/clearcutt-verify/internal/registryauth"
 	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
@@ -130,7 +132,12 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	// One cache for the run: the observer, the verifier, and base checks read
 	// many of the same manifests, and registries count each read.
 	ropts := []remote.Option{
-		remote.WithAuthFromKeychain(authn.DefaultKeychain),
+		remote.WithAuthFromKeychain(registryauth.Keychain),
+		// Ride out registry throttling and blips; a refusal that persists
+		// is reported as unknown.
+		remote.WithRetryStatusCodes(http.StatusRequestTimeout, http.StatusTooManyRequests, http.StatusInternalServerError,
+			http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout),
+		remote.WithRetryBackoff(remote.Backoff{Duration: time.Second, Factor: 2, Jitter: 0.2, Steps: 4}),
 		remote.WithTransport(estateverify.NewManifestCache(remote.DefaultTransport)),
 	}
 	var observations estategraph.Observations

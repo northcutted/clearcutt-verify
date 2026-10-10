@@ -11,10 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
+
+	"github.com/northcutted/clearcutt-verify/internal/registryauth"
 )
 
 // verify_release_evidence.go ports the since-removed
@@ -42,7 +43,7 @@ var releaseEvidenceResolveDigest = func(ref string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	desc, err := remote.Head(r, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	desc, err := remote.Head(r, remote.WithAuthFromKeychain(registryauth.Keychain))
 	if err != nil {
 		return "", err
 	}

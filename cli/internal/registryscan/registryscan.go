@@ -22,6 +22,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+
+	"github.com/northcutted/clearcutt-verify/internal/registryauth"
 )
 
 const (
@@ -303,7 +305,7 @@ type RemoteLister struct {
 
 // NewRemoteLister returns a Lister authenticated from the ambient keychain.
 func NewRemoteLister() *RemoteLister {
-	return &RemoteLister{remoteOpts: []remote.Option{remote.WithAuthFromKeychain(authn.DefaultKeychain)}}
+	return &RemoteLister{remoteOpts: []remote.Option{remote.WithAuthFromKeychain(registryauth.Keychain)}}
 }
 
 // NewRemoteListerWithBasicAuth returns a Lister using explicit credentials.

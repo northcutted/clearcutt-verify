@@ -17,6 +17,16 @@ Add an entry here in the same PR as any user-visible behavior change
 workflow archives this section into the release notes.
 -->
 
+- New `registry scan --github-org ORG` enumerates an organization's (or
+  user's) ghcr.io container packages through the GitHub Packages API, with
+  `--package-prefix` to keep some of them. GHCR has no `_catalog` endpoint.
+- New GitHub Action (`uses: northcutted/clearcutt-verify@vX.Y.Z`) installs
+  cosign and a signature-verified release (`version: source` builds the
+  action's checkout), and `docs/github-actions.md` shows a scheduled estate job
+  that keeps its history in the registry.
+- Registry reads fall back to `GITHUB_TOKEN` for ghcr.io only (never another
+  registry), and `estate verify` retries throttled and failed registry
+  requests with backoff before reporting them as unknown.
 - `estate verify` policies can limit how old a vulnerability scan may be
   (`maxScanAgeDays`, `--max-scan-age-days`). An older scan, or one with no
   scan time, leaves the image unverified: what was found since is unknown.

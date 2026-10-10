@@ -9,12 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"sigs.k8s.io/yaml"
+
+	"github.com/northcutted/clearcutt-verify/internal/registryauth"
 )
 
 type ImageObserver interface {
@@ -224,7 +225,7 @@ type RegistryObserver struct {
 }
 
 func (r RegistryObserver) options(ctx context.Context) []remote.Option {
-	return append([]remote.Option{remote.WithContext(ctx), remote.WithAuthFromKeychain(authn.DefaultKeychain)}, r.Options...)
+	return append([]remote.Option{remote.WithContext(ctx), remote.WithAuthFromKeychain(registryauth.Keychain)}, r.Options...)
 }
 
 // Digest reports the manifest digest with a single HEAD request, fetching no

@@ -28,6 +28,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+
+	"github.com/northcutted/clearcutt-verify/internal/registryauth"
 )
 
 const (
@@ -64,7 +66,7 @@ type Client struct {
 // NewClient authenticates from the ambient keychain (docker config, cloud
 // credential helpers).
 func NewClient() *Client {
-	return &Client{remoteOpts: []remote.Option{remote.WithAuthFromKeychain(authn.DefaultKeychain)}}
+	return &Client{remoteOpts: []remote.Option{remote.WithAuthFromKeychain(registryauth.Keychain)}}
 }
 
 // NewBasicAuthClient authenticates with explicit credentials rather than the
