@@ -101,6 +101,17 @@ func EnrichWithSBOMs(ctx context.Context, observations Observations, fetcher SBO
 	cache := map[string][]Package{}
 	failures := map[string]string{}
 
+	// One fetch per distinct content, queued once: checking a cache when a
+	// job is picked up would let concurrent workers fetch the same content.
+	var unique []job
+	queued := map[string]bool{}
+	for _, j := range jobs {
+		if !queued[j.key] {
+			queued[j.key] = true
+			unique = append(unique, j)
+		}
+	}
+
 	var wg sync.WaitGroup
 	queue := make(chan job)
 	for w := 0; w < concurrency; w++ {
@@ -108,13 +119,6 @@ func EnrichWithSBOMs(ctx context.Context, observations Observations, fetcher SBO
 		go func() {
 			defer wg.Done()
 			for j := range queue {
-				mu.Lock()
-				_, cached := cache[j.key]
-				_, failed := failures[j.key]
-				mu.Unlock()
-				if cached || failed {
-					continue
-				}
 				raw, err := fetcher.FetchSBOM(ctx, j.ref)
 				mu.Lock()
 				if err != nil {
@@ -128,7 +132,7 @@ func EnrichWithSBOMs(ctx context.Context, observations Observations, fetcher SBO
 			}
 		}()
 	}
-	for _, j := range jobs {
+	for _, j := range unique {
 		queue <- j
 	}
 	close(queue)
