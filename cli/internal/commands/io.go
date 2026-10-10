@@ -38,7 +38,7 @@ func structuredFormat() bool {
 
 // printStructured emits payload on stdout in the structured format selected by
 // the global --format flag. It mirrors the json/yaml branches used by
-// `verify image` and `platform status`: data goes to stdout, human commentary
+// the other commands: data goes to stdout, human commentary
 // stays on stderr. Callers must only invoke it when structuredFormat() is true.
 func printStructured(payload any) error {
 	switch strings.ToLower(GlobalOpts.Format) {

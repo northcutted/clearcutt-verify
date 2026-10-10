@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/northcutted/clearcutt-verify/internal/catalog"
 	"github.com/spf13/cobra"
 )
 
@@ -13,10 +12,9 @@ var Version = "dev"
 
 // GlobalOptions stores the CLI flags shared across commands.
 type GlobalOptions struct {
-	CatalogPath string
-	Format      string
-	Quiet       bool
-	Verbose     bool
+	Format  string
+	Quiet   bool
+	Verbose bool
 }
 
 // GlobalOpts holds the active parsed global options.
@@ -41,71 +39,32 @@ publishes. It is part of ClearCutt, with clearcutt-factory.`,
 		// ValidateGlobalFormat itself. No subcommand defines one today; keep it
 		// that way or compose explicitly.
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := ValidateGlobalFormat(GlobalOpts.Format); err != nil {
-				return err
-			}
-			// The default catalog data directory is repo state under
-			// site/src/data/catalog; resolve it against the enclosing repo
-			// root so catalog readers and the catalog build pipeline's default
-			// output sink agree no matter which subdirectory the CLI runs
-			// from. An explicit --catalog keeps its exact (cwd-relative)
-			// meaning.
-			resolveRepoRootDefault(cmd, "catalog", &GlobalOpts.CatalogPath)
-			return nil
+			return ValidateGlobalFormat(GlobalOpts.Format)
 		},
 	}
 
-	rootCmd.PersistentFlags().StringVar(&GlobalOpts.CatalogPath, "catalog", "site/src/data/catalog", "Path to local catalog JSON data directory")
 	rootCmd.PersistentFlags().StringVar(&GlobalOpts.Format, "format", "table", "Output format: table, json, or yaml")
 	rootCmd.PersistentFlags().BoolVar(&GlobalOpts.Quiet, "quiet", false, "Suppress non-essential console outputs")
 	rootCmd.PersistentFlags().BoolVar(&GlobalOpts.Verbose, "verbose", false, "Enable verbose debug outputs")
-	rootCmd.PersistentFlags().BoolVar(&catalog.Strict, "strict", false, "Reject catalog JSON containing fields unknown to the CLI data model")
 
-	// The CLI help is a tool map, not a marketing funnel. Several commands span
-	// multiple SDLC phases, so group them by operator job while the README/site
-	// explain the higher-level lifecycle story.
 	rootCmd.AddGroup(
-		&cobra.Group{ID: "catalog", Title: "Catalog & Release Evidence:"},
-		&cobra.Group{ID: "browse", Title: "Catalog Discovery:"},
-		&cobra.Group{ID: "apps", Title: "App Team Workflow:"},
-		&cobra.Group{ID: "govern", Title: "Governance Gates:"},
-		&cobra.Group{ID: "secure", Title: "Security Operations:"},
+		&cobra.Group{ID: "map", Title: "Map an estate:"},
+		&cobra.Group{ID: "verify", Title: "Verify and report:"},
 	)
-
 	add := func(groupID string, cmd *cobra.Command) {
 		cmd.GroupID = groupID
 		rootCmd.AddCommand(cmd)
 	}
 
-	// Build catalog data and publish release evidence.
-	add("catalog", NewCatalogCmd())
-	add("catalog", NewReleaseCmd())
+	// Find the images, and what they are built on, share, and install.
+	add("map", NewRegistryCmd())
+	add("map", NewImportCmd())
+	add("map", NewGraphCmd())
 
-	// Browse published catalog contents.
-	add("browse", NewListCmd())
-	add("browse", NewInspectCmd())
-	add("browse", NewDiffCmd())
-
-	// Give app teams matching dev, build, rebase, mirroring, and admission tools.
-	add("apps", NewAppCmd())
-	add("apps", NewRebaseCmd())
-	add("apps", NewMirrorCmd())
-	add("apps", NewPolicyCmd())
-
-	// Gate image releases and cluster admission decisions.
-	add("govern", NewRegistryCmd())
-	add("govern", NewGraphCmd())
-	add("govern", NewImportCmd())
-	add("govern", NewEstateCmd())
-	add("govern", NewEvidenceCmd())
-	add("govern", NewCertifyCmd())
-	add("govern", NewVerifyCmd())
-	add("govern", NewConformanceCmd())
-
-	// Operate security remediation, exceptions, and VEX flows.
-	add("secure", NewScanCmd())
-	add("secure", NewExceptionsCmd())
-	add("secure", NewVexCmd())
+	// Verify their evidence, write the estate report, and keep it.
+	add("verify", NewEstateCmd())
+	add("verify", NewEvidenceCmd())
+	add("verify", NewVerifyCmd())
 
 	return rootCmd
 }

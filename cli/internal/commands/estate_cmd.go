@@ -47,7 +47,7 @@ air gap. Nothing new has to be operated.
 Snapshots are deterministic: identical inputs produce an identical digest, so a
 nightly push of an unchanged estate does not create a new version.`,
 	}
-	cmd.AddCommand(newEstateVerifyCmd(), newEstatePushCmd(), newEstatePullCmd(), newEstateHistoryCmd())
+	cmd.AddCommand(newEstateVerifyCmd(), newEstateDependentsCmd(), newEstatePushCmd(), newEstatePullCmd(), newEstateHistoryCmd())
 	return cmd
 }
 

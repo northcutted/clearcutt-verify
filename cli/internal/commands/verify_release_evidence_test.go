@@ -10,7 +10,6 @@ import (
 
 func TestReleaseEvidenceResolveDigestUsesGoOCIClient(t *testing.T) {
 	client, host := commandTestRegistry(t)
-	restoreOCIClient(t, client)
 	ref := host + "/acme/base:latest"
 	img := commandTestImage(t, 9001)
 	want, err := client.PushImage(ref, img)
@@ -83,69 +82,6 @@ exit 0
 	}
 }
 
-func TestVerifyReleaseEvidenceCoreDirRunsVerifierToolsThroughNix(t *testing.T) {
-	if _, err := exec.LookPath("bash"); err != nil {
-		t.Skip("bash not available")
-	}
-	binDir := t.TempDir()
-	logPath := filepath.Join(t.TempDir(), "nix.log")
-	oldResolve := releaseEvidenceResolveDigest
-	oldOpts := releaseEvidenceOpts
-	releaseEvidenceResolveDigest = func(ref string) (string, error) {
-		return "sha256:def456", nil
-	}
-	t.Cleanup(func() {
-		releaseEvidenceResolveDigest = oldResolve
-		releaseEvidenceOpts = oldOpts
-	})
-
-	writeExecutable(t, filepath.Join(binDir, "nix"), `#!/usr/bin/env bash
-printf '%s\n' "$PWD :: $*" >> "$CLEARCUTT_NIX_LOG"
-case "$*" in
-  *"--command cosign verify "*|*"--command cosign verify-attestation "*|*"--command slsa-verifier verify-image "*|*"--command gh attestation verify "*) exit 0 ;;
-  *) exit 9 ;;
-esac
-`)
-	oldPath := os.Getenv("PATH")
-	t.Cleanup(func() { _ = os.Setenv("PATH", oldPath) })
-	if err := os.Setenv("PATH", binDir+string(os.PathListSeparator)+oldPath); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("CLEARCUTT_NIX_LOG", logPath)
-	coreDir := filepath.Join(t.TempDir(), "core")
-	if err := os.MkdirAll(coreDir, 0o755); err != nil {
-		t.Fatalf("mkdir core dir: %v", err)
-	}
-
-	stdout, err := runCLI(t, "verify", "release-evidence",
-		"--ref", "ghcr.io/example/clearcutt-java21:v1-distroless",
-		"--repo", "example/clearcutt",
-		"--workflow-identity", "https://github.com/example/clearcutt/.github/workflows/release.yml@refs/heads/main",
-		"--source-ref", "refs/heads/main",
-		"--core-dir", coreDir,
-	)
-	if err != nil {
-		t.Fatalf("expected success, got %v:\n%s", err, stdout)
-	}
-	raw, err := os.ReadFile(logPath)
-	if err != nil {
-		t.Fatalf("read nix log: %v", err)
-	}
-	log := string(raw)
-	for _, want := range []string{
-		coreDir + " :: develop --extra-experimental-features nix-command flakes --accept-flake-config --command cosign verify ghcr.io/example/clearcutt-java21@sha256:def456",
-		"--command cosign verify-attestation ghcr.io/example/clearcutt-java21@sha256:def456 --type spdxjson",
-		"--command cosign verify-attestation ghcr.io/example/clearcutt-java21@sha256:def456 --type custom",
-		"--command slsa-verifier verify-image ghcr.io/example/clearcutt-java21@sha256:def456 --source-uri github.com/example/clearcutt --source-branch main",
-		"--command gh attestation verify oci://ghcr.io/example/clearcutt-java21@sha256:def456 --repo example/clearcutt",
-	} {
-		if !strings.Contains(log, want) {
-			t.Fatalf("expected wrapped verifier command %q in:\n%s", want, log)
-		}
-	}
-}
-
-// A digest that does not match the registry-resolved digest must fail closed.
 func TestVerifyReleaseEvidenceFailsOnDigestMismatch(t *testing.T) {
 	oldResolve := releaseEvidenceResolveDigest
 	releaseEvidenceResolveDigest = func(ref string) (string, error) {

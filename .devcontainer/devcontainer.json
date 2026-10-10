@@ -1,27 +1,19 @@
-// ClearCutt contributor environment: Go CLI + Astro site + Nix image tooling.
+// ClearCutt Verify contributor environment: the Go CLI.
 // After the container is created, `make check` is the canonical pre-PR gate
-// (mirrors the pr-gate go-ci job); `make test` adds the site and core checks.
+// (mirrors the pr-gate go-ci job).
 {
-  "name": "clearcutt",
+  "name": "clearcutt-verify",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
     "ghcr.io/devcontainers/features/go:1": {
       "version": "1.26"
-    },
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "22"
-    },
-    "ghcr.io/devcontainers/features/nix:1": {
-      "extraNixConfig": "experimental-features = nix-command flakes"
     }
   },
   "postCreateCommand": "go -C cli mod download",
   "customizations": {
     "vscode": {
       "extensions": [
-        "golang.go",
-        "astro-build.astro-vscode",
-        "jnoortheen.nix-ide"
+        "golang.go"
       ]
     }
   }

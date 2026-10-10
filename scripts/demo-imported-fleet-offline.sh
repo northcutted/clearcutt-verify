@@ -64,28 +64,14 @@ run_clearcutt import images \
   --generated-at "$STAMP" \
   --force
 
-run_clearcutt catalog generate \
-  --images "$OUT/images.yaml" \
-  --output "$OUT/dist/catalog" \
-  --owner acme \
-  --repo imported-fleet \
-  --registry-base registry.acme.dev/platform
-
 run_clearcutt import observe \
   --images "$OUT/images.yaml" \
   --offline-fixtures "$ROOT/examples/imported-fleet/observations.fixture.json" \
   --output "$OUT/dist/observations.json" \
   --generated-at "$STAMP"
 
-run_clearcutt import apply-evidence \
-  --catalog "$OUT/dist/catalog" \
-  --observations "$OUT/dist/observations.json"
-
-run_clearcutt --catalog "$OUT/dist/catalog" catalog validate
-
 run_clearcutt import assess \
   --images "$OUT/images.yaml" \
-  --catalog "$OUT/dist/catalog" \
   --observations "$OUT/dist/observations.json" \
   --output "$OUT/dist/governance" \
   --generated-at "$STAMP"
@@ -94,47 +80,28 @@ run_clearcutt import report \
   --assessment "$OUT/dist/governance" \
   --output "$OUT/imported-fleet-report.md"
 
-run_clearcutt rebase discover \
-  --apps "$ROOT/examples/imported-fleet/apps.yaml" \
-  --bases "$OUT/images.yaml" \
+run_clearcutt graph build \
   --observations "$OUT/dist/observations.json" \
-  --generated-at "$STAMP" \
-  --output "$OUT/rebase-candidates.json"
+  --output "$OUT/dist/graph.json" \
+  --report "$OUT/dist/inventory.md"
 
-plan_generated=false
 if command -v jq >/dev/null 2>&1; then
   jq -e '.kind == "ImportedFleetObservations"' "$OUT/dist/observations.json" >/dev/null
-  jq -e '.kind == "RebaseCandidateSet"' "$OUT/rebase-candidates.json" >/dev/null
   jq -e '(.summary.importedImages // 4) == 4' "$OUT/dist/governance/estate-summary.json" >/dev/null
-  jq -e '[.candidates[] | select(.confidence == "verified")] | length >= 1' "$OUT/rebase-candidates.json" >/dev/null
-
-  candidate_id="$(jq -r '.candidates[] | select(.confidence == "verified" and (.newBaseCandidates | length > 0)) | .id' "$OUT/rebase-candidates.json" | head -n 1)"
-  new_base="$(jq -r '.candidates[] | select(.id == "'"$candidate_id"'") | .newBaseCandidates[0]' "$OUT/rebase-candidates.json" | head -n 1)"
-  if [[ -n "$candidate_id" && "$candidate_id" != "null" && -n "$new_base" && "$new_base" != "null" ]]; then
-    run_clearcutt rebase plan \
-      --candidate "$candidate_id" \
-      --candidates "$OUT/rebase-candidates.json" \
-      --new-base "$new_base" \
-      --observations "$OUT/dist/observations.json" \
-      --output "$OUT/rebase-plan.json"
-    plan_generated=true
-  else
-    echo "No verified rebase candidate with a new base was found; skipping rebase plan."
-  fi
+  jq -e '(.edges | length) >= 1' "$OUT/dist/graph.json" >/dev/null
 else
-  echo "jq not found; skipping optional JSON assertions and rebase plan generation."
+  echo "jq not found; skipping optional JSON assertions."
 fi
 
 required_outputs=(
   "$OUT/images.yaml"
-  "$OUT/dist/catalog/index.json"
-  "$OUT/dist/catalog/evidence-manifest.json"
   "$OUT/dist/observations.json"
   "$OUT/dist/governance/estate-summary.json"
   "$OUT/dist/governance/evidence-gaps.json"
   "$OUT/dist/governance/policy-posture.json"
   "$OUT/imported-fleet-report.md"
-  "$OUT/rebase-candidates.json"
+  "$OUT/dist/graph.json"
+  "$OUT/dist/inventory.md"
 )
 
 for file in "${required_outputs[@]}"; do
@@ -150,16 +117,8 @@ echo "Output directory: $OUT"
 echo
 echo "Key outputs:"
 echo "  images.yaml"
-echo "  dist/catalog/index.json"
-echo "  dist/catalog/evidence-manifest.json"
 echo "  dist/observations.json"
 echo "  dist/governance/estate-summary.md"
 echo "  dist/governance/evidence-gaps.md"
+echo "  dist/graph.json and dist/inventory.md"
 echo "  imported-fleet-report.md"
-echo "  rebase-candidates.json"
-if [[ "$plan_generated" == "true" ]]; then
-  echo "  rebase-plan.json"
-fi
-echo
-echo "Optional site build:"
-echo "  clearcutt-verify catalog site build --catalog \"$OUT/dist/catalog\" --output \"$OUT/dist/site\" --install"

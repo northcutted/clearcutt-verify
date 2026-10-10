@@ -38,7 +38,6 @@ type importObserveFlags struct {
 type importAssessFlags struct {
 	images       string
 	observations string
-	catalog      string
 	output       string
 	generatedAt  string
 }
@@ -48,16 +47,10 @@ type importReportFlags struct {
 	output     string
 }
 
-type importApplyEvidenceFlags struct {
-	catalog      string
-	observations string
-}
-
 var importImagesOpts importImagesFlags
 var importObserveOpts importObserveFlags
 var importAssessOpts importAssessFlags
 var importReportOpts importReportFlags
-var importApplyEvidenceOpts importApplyEvidenceFlags
 
 func NewImportCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -71,8 +64,6 @@ deterministic reports without claiming ClearCutt build provenance.`,
 	cmd.AddCommand(newImportObserveCmd())
 	cmd.AddCommand(newImportAssessCmd())
 	cmd.AddCommand(newImportReportCmd())
-	cmd.AddCommand(newImportApplyEvidenceCmd())
-	cmd.AddCommand(newImportRebaseCmd())
 	return cmd
 }
 
@@ -214,64 +205,6 @@ func runImportObserve(ctx context.Context) error {
 	return nil
 }
 
-func newImportApplyEvidenceCmd() *cobra.Command {
-	importApplyEvidenceOpts = importApplyEvidenceFlags{}
-	cmd := &cobra.Command{
-		Use:    "apply-evidence",
-		Short:  "Apply imported observation evidence statuses to a generated catalog",
-		Hidden: true,
-		Args:   cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runImportApplyEvidence()
-		},
-	}
-	f := cmd.Flags()
-	f.StringVar(&importApplyEvidenceOpts.catalog, "catalog", "", "Generated catalog directory to update")
-	f.StringVar(&importApplyEvidenceOpts.observations, "observations", "", "Imported observations.json")
-	_ = cmd.MarkFlagRequired("catalog")
-	_ = cmd.MarkFlagRequired("observations")
-	return cmd
-}
-
-func runImportApplyEvidence() error {
-	observations, err := estategraph.ReadObservations(importApplyEvidenceOpts.observations)
-	if err != nil {
-		return fmt.Errorf("read observations: %w", err)
-	}
-	updated, err := estategraph.ApplyObservationEvidenceToCatalog(importApplyEvidenceOpts.catalog, observations)
-	if err != nil {
-		return err
-	}
-	if err := writeEvidenceManifestFile(importApplyEvidenceOpts.catalog); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "[import-apply-evidence] updated evidence statuses for %d catalog image(s) in %s\n", updated, importApplyEvidenceOpts.catalog)
-	return nil
-}
-
-func mergeExtraFixtureObservations(observed estategraph.Observations, fixtures estategraph.Observations) estategraph.Observations {
-	seen := map[string]bool{}
-	for _, obs := range observed.Images {
-		if obs.ID != "" {
-			seen["id:"+obs.ID] = true
-		}
-		if obs.SourceRef != "" {
-			seen["source:"+obs.SourceRef] = true
-		}
-	}
-	for _, obs := range fixtures.Images {
-		if obs.ID != "" && seen["id:"+obs.ID] {
-			continue
-		}
-		if obs.SourceRef != "" && seen["source:"+obs.SourceRef] {
-			continue
-		}
-		observed.Images = append(observed.Images, obs)
-	}
-	sort.SliceStable(observed.Images, func(i, j int) bool { return observed.Images[i].ID < observed.Images[j].ID })
-	return observed
-}
-
 func newImportAssessCmd() *cobra.Command {
 	importAssessOpts = importAssessFlags{}
 	cmd := &cobra.Command{
@@ -285,7 +218,6 @@ func newImportAssessCmd() *cobra.Command {
 	f := cmd.Flags()
 	f.StringVar(&importAssessOpts.images, "images", "", "Estate images.yaml inventory")
 	f.StringVar(&importAssessOpts.observations, "observations", "", "Imported observations.json")
-	f.StringVar(&importAssessOpts.catalog, "catalog", "", "Generated catalog directory")
 	f.StringVar(&importAssessOpts.output, "output", "", "Output governance directory")
 	f.StringVar(&importAssessOpts.generatedAt, "generated-at", "", "Deterministic generated timestamp")
 	_ = cmd.MarkFlagRequired("images")
@@ -303,7 +235,7 @@ func runImportAssess() error {
 	if err != nil {
 		return err
 	}
-	assessment, err := estategraph.Assess(inventory, observations, estategraph.AssessOptions{GeneratedAt: importAssessOpts.generatedAt, CatalogPath: importAssessOpts.catalog})
+	assessment, err := estategraph.Assess(inventory, observations, estategraph.AssessOptions{GeneratedAt: importAssessOpts.generatedAt})
 	if err != nil {
 		return err
 	}
@@ -350,12 +282,25 @@ func runImportReport() error {
 	return nil
 }
 
-func newImportRebaseCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "rebase",
-		Short: "Discover estate rebase candidates and plans",
+func mergeExtraFixtureObservations(observed estategraph.Observations, fixtures estategraph.Observations) estategraph.Observations {
+	seen := map[string]bool{}
+	for _, obs := range observed.Images {
+		if obs.ID != "" {
+			seen["id:"+obs.ID] = true
+		}
+		if obs.SourceRef != "" {
+			seen["source:"+obs.SourceRef] = true
+		}
 	}
-	cmd.AddCommand(newRebaseDiscoverCmd())
-	cmd.AddCommand(newRebasePlanCmd())
-	return cmd
+	for _, obs := range fixtures.Images {
+		if obs.ID != "" && seen["id:"+obs.ID] {
+			continue
+		}
+		if obs.SourceRef != "" && seen["source:"+obs.SourceRef] {
+			continue
+		}
+		observed.Images = append(observed.Images, obs)
+	}
+	sort.SliceStable(observed.Images, func(i, j int) bool { return observed.Images[i].ID < observed.Images[j].ID })
+	return observed
 }

@@ -22,7 +22,7 @@ reporting:
 2. Choose **Report a vulnerability** (or go directly to
    <https://github.com/northcutted/clearcutt-verify/security/advisories/new>).
 3. Include reproduction steps, the affected surface
-   (`core` / `cli` / `site` / `docs` / `workflows`), and the impact you see.
+   (`cli` / `contract` / `docs` / `workflows`), and the impact you see.
 
 Do **not** open a public issue or pull request for an unfixed vulnerability.
 
@@ -42,12 +42,11 @@ documented in [docs/security-model.md](docs/security-model.md). Please read it
 before reporting:
 
 - In scope: flaws that break a documented assurance — e.g. signature, SBOM, or
-  provenance verification bypasses in the CLI; release/rebase workflow identity
-  confusion; catalog evidence that claims more than was verified.
+  provenance verification bypasses in the CLI; trusted-signer or workflow
+  identity confusion; an estate report that claims more than was verified.
 - Out of scope: limitations the security model already lists as non-claims, and
-  CVEs in upstream packages inside published images (those flow through the
-  scheduled scan and remediation pipeline — open a regular issue if that
-  pipeline mishandles them).
+  CVEs in the images an estate contains (clearcutt-verify reports them; it
+  does not ship them).
 
 <!--
 Maintainer setup: private vulnerability reporting must be enabled for the

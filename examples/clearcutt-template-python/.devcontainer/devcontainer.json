@@ -1,9 +1,0 @@
-{
-  "name": "clearcutt-template-python",
-  "image": "ghcr.io/northcutted/clearcutt/clearcutt-python3.14:dev",
-  "workspaceFolder": "/workspace",
-  "remoteUser": "10001",
-  "containerEnv": {
-    "CLEARCUTT_IMAGE_ID": "python3.14-dev"
-  }
-}

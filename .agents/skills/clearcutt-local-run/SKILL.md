@@ -1,21 +1,15 @@
 ---
 name: clearcutt-local-run
-description: Use when building, running, previewing, or validating ClearCutt locally, especially when catalog data may be missing or stale, site builds depend on generated catalog files, or a clean-clone fixture path is needed.
+description: Use when building, running, or validating clearcutt-verify locally, including the offline demo, the estate report fixture, and live runs against registries with rate limits.
 ---
 
-# ClearCutt Local Run
-
-Use this skill for local build, run, preview, and stale-catalog questions.
+# ClearCutt Verify Local Run
 
 ## First checks
 
 1. Run `git status --short` so local generated or dirty state is visible.
-2. If catalog behavior matters, identify the catalog mode:
-   - fixture catalog: clean-clone, offline proof;
-   - generated portable catalog: current generator output in temp or `dist/`;
-   - live release-evidence catalog: `catalog build` from release assets and registry evidence;
-   - `site/src/data/catalog`: ignored local state that may be stale.
-3. If `site/src/data/catalog/index.json` exists, inspect `generatedAt`, `owner`, `repo`, and `registryBase` before treating it as evidence.
+2. Decide whether the task needs a registry. Prefer the offline demo and
+   committed fixtures for docs, tests, and quick proof.
 
 ## Commands
 
@@ -27,51 +21,30 @@ cd cli && go vet ./...
 cd cli && go build -o ../clearcutt-verify ./cmd/clearcutt-verify
 ```
 
-Clean-clone fixture proof:
+Offline proof:
 
 ```bash
-go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog list
-go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog catalog validate
-go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog inspect java21-distroless
+./scripts/demo-imported-fleet-offline.sh
 ```
 
-Current generator proof without touching ignored site data:
+The estate report fixture (regenerate deliberately; it reads live registries
+and, with `--reproduce`, rebuilds images):
 
 ```bash
-cd cli && go build -o ../clearcutt-verify ./cmd/clearcutt-verify
-./clearcutt-verify catalog generate --config clearcutt.yaml --include-services --output /tmp/clearcutt-catalog
-./clearcutt-verify --catalog /tmp/clearcutt-catalog catalog validate
+cd contract/fixtures/northcutted-images
+../../../clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name northcutted-images \
+  --platforms linux/amd64,linux/arm64 --reproduce --out .
 ```
 
-Fixture-backed site build:
+## Live-run rules
 
-```bash
-cd cli && go build -o ../clearcutt-verify ./cmd/clearcutt-verify
-./clearcutt-verify catalog site build --catalog cli/internal/testdata/mixed-catalog --template site --output /tmp/clearcutt-site --install --clean
-```
-
-Astro source checks:
-
-```bash
-cd site && npm install
-cd site && npm run typecheck
-cd site && npm run build
-```
-
-Core remediation tests:
-
-```bash
-cd core && python3 -m unittest tests/test_remediation_pipeline.py
-```
-
-## Catalog rules
-
-- Do not assume `site/src/data/catalog` is present in a clean checkout.
-- Do not assume `site/src/data/catalog` is fresh when it exists locally.
-- Prefer fixture-backed commands for docs, tests, clean-clone claims, and quick local proof.
-- Prefer `/tmp` or `dist/` output for generated catalog experiments.
-- Only write to `site/src/data/catalog` when the task explicitly requires refreshing local site data.
-- Use `./clearcutt-verify catalog build` only for live release-evidence parity or publish-path work.
+- Docker Hub allows 100 anonymous manifest reads an hour per IP; a run reads
+  each manifest once, but other tools on the same IP share the quota. Lookups
+  it refuses are `unknown`, so check the report's warnings before committing a
+  fixture.
+- `--reproduce` needs `clearcutt-factory` and a container runtime; on macOS the
+  rebuild works under the user cache directory because the VM doesn't share
+  `/tmp`.
 
 ## Make caveat
 

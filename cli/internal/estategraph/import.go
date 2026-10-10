@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/northcutted/clearcutt-verify/internal/catalog"
 	"sigs.k8s.io/yaml"
 )
 
@@ -130,18 +129,18 @@ func importedImageSpec(ref, defaultTier, lifecycleStatus, generatedAt, owner str
 	spec := ImageSpec{
 		ID:    id,
 		Image: ref,
-		Language: catalog.LanguageInfo{
+		Language: LanguageInfo{
 			ID:          lang.ID,
 			DisplayName: lang.DisplayName,
 			Version:     lang.Version,
 		},
 		Tier: defaultTier,
-		Lifecycle: &catalog.Lifecycle{
+		Lifecycle: &Lifecycle{
 			Status:            lifecycleStatus,
 			Support:           "unsupported",
 			ProductionAllowed: false,
 		},
-		Origin: &catalog.ImageOrigin{
+		Origin: &ImageOrigin{
 			Kind:               "imported",
 			CreatedByClearCutt: false,
 			SourceRef:          ref,
@@ -149,14 +148,14 @@ func importedImageSpec(ref, defaultTier, lifecycleStatus, generatedAt, owner str
 			ObservationMode:    "explicit-list",
 			ProvenanceClaim:    "none",
 		},
-		Governance: &catalog.ImageGovernance{
+		Governance: &ImageGovernance{
 			Imported:                 true,
 			Owner:                    owner,
 			ClassificationConfidence: confidence,
 			ProductionIntent:         "unknown",
 			Notes:                    []string{},
 		},
-		EvidencePolicy: &catalog.EvidencePolicy{
+		EvidencePolicy: &EvidencePolicy{
 			Signature:         "optional",
 			SBOM:              "optional",
 			Provenance:        "optional",

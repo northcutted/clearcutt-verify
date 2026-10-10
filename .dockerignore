@@ -1,8 +1,5 @@
-# The build needs Go sources and the embedded assets the CLI generates from
-# site/ and the repo tree. Everything else is noise that busts the build cache.
+# The build needs the Go sources. Everything else is noise that busts the
+# build cache.
 .git
-site/node_modules
-site/dist
-core/build-outputs
 **/*.tar.gz
 dist

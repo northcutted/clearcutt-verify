@@ -37,48 +37,33 @@ arguably its best use.
 Choose plain `pkgs.dockerTools`, apko, or Docker multi-stage when you want
 build mechanics without a governance layer on top.
 
-## What ClearCutt Is Not
+## What ClearCutt Verify Is Not
 
-- **Not an image feed.** The one runtime line it publishes (java25) is a
-  reference fixture that proves the build and evidence path works end to end.
-  It is not maintained for production use. Governance features are demonstrated
-  against real public images instead — see `examples/public-estate/` — which is
-  the stronger claim: the product has to work on images it did not build.
-- **Not a patcher.** ClearCutt reports and gates. It will tell you an image is
-  on a stale base or missing a signature; it will not rebuild or re-tag it.
-- **Not a scanner.** It normalizes Grype output and gates on policy; it does not
-  maintain a vulnerability database.
+- **Not an image feed.** It publishes no images. Governance features are
+  demonstrated against real public images (see `examples/public-estate/`) and
+  the clearcutt-factory example fleet: the product has to work on images it did
+  not build.
+- **Not a builder or patcher.** It reports and gates. It will tell you an image
+  is on a stale base or missing a signature; it will not rebuild or re-tag it.
+  [clearcutt-factory](https://github.com/northcutted/clearcutt-factory) builds
+  and rebases, and `estate dependents` tells it which images a new base affects.
+- **Not a scanner.** It reads the vulnerability attestations images carry and
+  gates on policy; it does not maintain a vulnerability database.
 - **Not hosted.** There is no service, no account, and no telemetry.
 
 ## What The Repo Proves Today
 
-The fixture-backed demo path is the clean-clone proof:
+The offline demo maps four images from committed observations, with no
+registry access:
 
 ```bash
-go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog list
-go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog inspect java21-distroless
-go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog verify image java21-distroless \
-  --require-signature \
-  --require-sbom \
-  --require-provenance \
-  --allow-preview
-go -C cli run ./cmd/clearcutt-verify catalog site build \
-  --catalog internal/testdata/mixed-catalog \
-  --template ../site \
-  --output /tmp/clearcutt-demo-site \
-  --install
+./scripts/demo-imported-fleet-offline.sh
 ```
 
-The committed mixed-catalog fixture used for the README screenshots contains:
-
-| Fixture record | Kind | Evidence shown | Package count shown | Vulnerability status shown |
-|---|---:|---|---:|---|
-| `java21-distroless` | Runtime | Signature, provenance, SBOM, tests, scan data | 2 packages | Scan data attached |
-| `postgres16` | Service | Signature, provenance, SBOM, smoke test, scan data | 3 packages | 0 critical / 0 high in fixture |
-
-Those are fixture numbers, not a claim about the current live release fleet.
-For a published fork, use the live catalog and release-evidence commands before
-making production decisions.
+`contract/fixtures/northcutted-images/` is a real estate report: the
+clearcutt-factory example fleet verified signature, SBOM, vulnerability scan,
+provenance, and recipe against its signer, rebuilt bit for bit, with every base
+proven by layer digest, next to Chainguard and Docker Hub bases that carry less.
 
 ## Comparison Matrix
 
@@ -99,13 +84,12 @@ Use these axes when comparing base-image strategies.
 
 | Measurement | ClearCutt command or source | Why it matters |
 |---|---|---|
-| Compressed image size | Catalog `imageSize`, per-arch layer sizes, or registry manifest layer sums. | Shows network and startup cost. |
-| Package count | Catalog `latestPackageCount` and SBOM package tables. | Provides a rough closure-size and review-surface signal. |
-| Critical/high CVEs | Catalog vulnerability summary and scanner output. | Helps compare risk posture, but must include scanner version and DB time. |
-| SBOM source | Catalog SBOM links plus future Nix-derived SBOM work. | Separates scanned evidence from build-graph-derived evidence. |
+| Compressed image size | The estate report's per-platform sizes, or registry manifest layer sums. | Shows network and startup cost. |
+| Package count | The estate report's package counts, from SBOM attestations. | Provides a rough review-surface signal. |
+| Critical/high CVEs | The estate report's vulnerability summary, from scan attestations. | Helps compare risk posture, but must include scanner version and scan time. |
+| SBOM source | Where the estate report says each SBOM came from. | Separates scanned evidence from build-graph-derived evidence. |
 | Signature identity | `verify release-evidence` expected OIDC subject and issuer. | Proves which workflow identity signed a release. |
 | Provenance builder | SLSA/GitHub attestation payloads. | Connects source, builder, and subject digest. |
-| App adoption friction | Time to generate a template, build an app, certify locally, and rebase. | Keeps the comparison grounded in app-team experience. |
 | Base drift | `graph build` `versionsBehind` / `daysBehind` per consumer. | Shows whether adoption actually keeps up with the base. |
 | Shared exposure | `graph layers` blast radius and fleet core. | Shows how far one bad layer reaches. |
 | Storage cost of the estate | `graph layers` stored-once versus unshared bytes. | Quantifies what layer reuse is buying. |

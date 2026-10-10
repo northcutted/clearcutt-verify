@@ -23,12 +23,12 @@ func ReportMarkdown(assessment Assessment) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Imported Fleet Report\n\n")
 	fmt.Fprintf(&b, "## Executive summary\n\n")
-	fmt.Fprintf(&b, "ClearCutt did not build this estate. It can catalog the images, preserve observed evidence, and report governance gaps without claiming false provenance.\n\n")
+	fmt.Fprintf(&b, "ClearCutt did not build this estate. It can inventory the images, preserve observed evidence, and report governance gaps without claiming false provenance.\n\n")
 	b.WriteString(SummaryMarkdown(assessment))
 	fmt.Fprintf(&b, "\n## What ClearCutt can govern\n\n")
-	fmt.Fprintf(&b, "- Inventory and catalog visibility\n- Evidence gap reporting\n- Runtime contract posture\n- Mutable tag and digest pinning visibility\n- App/base relationship discovery\n- Rebase candidate planning\n\n")
+	fmt.Fprintf(&b, "- Inventory visibility\n- Evidence gap reporting\n- Runtime contract posture\n- Mutable tag and digest pinning visibility\n- Base relationship discovery\n\n")
 	fmt.Fprintf(&b, "## What ClearCutt cannot prove\n\n")
-	fmt.Fprintf(&b, "- It cannot infer signatures.\n- No build provenance is inferred for imported images unless actual provenance evidence is verified.\n- It cannot infer SLSA provenance.\n- It cannot prove source or build workflow for an image it did not build.\n- It cannot safely rebase every image.\n\n")
+	fmt.Fprintf(&b, "- It cannot infer signatures.\n- No build provenance is inferred for imported images unless actual provenance evidence is verified.\n- It cannot infer SLSA provenance.\n- It cannot prove source or build workflow for an image it did not build.\n\n")
 	fmt.Fprintf(&b, "## Imported image inventory\n\n")
 	fmt.Fprintf(&b, "| Image | Runtime | Tier | Posture |\n|---|---|---|---|\n")
 	for _, image := range assessment.Images {
@@ -54,10 +54,8 @@ func ReportMarkdown(assessment Assessment) string {
 		}
 	}
 	fmt.Fprintf(&b, "\n## Suggested next actions\n\n")
-	fmt.Fprintf(&b, "- Pin imported images to digests where possible.\n- Attach or verify SBOM, signature, vulnerability scan, test, and provenance evidence explicitly.\n- Treat low-confidence classifications as review items.\n- Use rebase plans only as auditable preparation; require tests, certification, and human approval before publishing.\n\n")
-	fmt.Fprintf(&b, "## Rebase readiness\n\n")
-	fmt.Fprintf(&b, "Run `clearcutt-verify rebase discover` with app and base inventories to produce candidate data. Plans never apply automatically.\n\n")
+	fmt.Fprintf(&b, "- Pin imported images to digests where possible.\n- Attach or verify SBOM, signature, vulnerability scan, test, and provenance evidence explicitly.\n- Treat low-confidence classifications as review items.\n- Verify the evidence that exists with `clearcutt-verify estate verify`.\n\n")
 	fmt.Fprintf(&b, "## Appendix: command reproduction\n\n")
-	fmt.Fprintf(&b, "```bash\nclearcutt import images --refs refs.txt --output images.yaml\nclearcutt catalog generate --images images.yaml --output dist/catalog\nclearcutt import observe --images images.yaml --output dist/imported/observations.json\nclearcutt import assess --images images.yaml --observations dist/imported/observations.json --catalog dist/catalog --output dist/governance\nclearcutt import report --assessment dist/governance --output imported-fleet-report.md\nclearcutt rebase discover --apps apps.yaml --bases images.yaml --observations dist/imported/observations.json --output dist/rebase/candidates.json\n```\n")
+	fmt.Fprintf(&b, "```bash\nclearcutt-verify import images --refs refs.txt --output images.yaml\nclearcutt-verify import observe --images images.yaml --output dist/imported/observations.json\nclearcutt-verify import assess --images images.yaml --observations dist/imported/observations.json --output dist/governance\nclearcutt-verify import report --assessment dist/governance --output imported-fleet-report.md\nclearcutt-verify graph build --observations dist/imported/observations.json --output dist/graph.json\n```\n")
 	return b.String()
 }

@@ -22,7 +22,7 @@ Use this skill to learn from mistakes without bloating repo instructions.
    - stale or conflicting guidance;
    - failed validation caused by known local setup;
    - broad exploration that a skill or targeted search would have avoided;
-   - reliance on stale generated catalog data;
+   - reliance on stale generated data or fixtures;
    - overlarge logs or noisy tool output that hid the first meaningful error.
 2. Capture concrete evidence: files, commands, error text, stale guidance, or diff paths.
 3. Write the retrospective in this shape:
@@ -53,7 +53,7 @@ Exact minimal file changes, or "none" if the lesson should remain a note.
 ## Token Efficiency Checks
 
 - Did the task need a full repo search, or would `rg` over known files work?
-- Did the agent read generated outputs, coverage HTML, `site/src/data/catalog`, `dist`, or `node_modules` unnecessarily?
+- Did the agent read generated outputs, coverage HTML, `dist`, or large fixtures unnecessarily?
 - Did it run `make` despite the known local `xcrun` issue?
 - Did it run full validation when a focused test or fixture-backed command was enough?
 - Did it paste raw logs instead of summarizing the first meaningful error?

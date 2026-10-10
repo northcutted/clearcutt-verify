@@ -2,20 +2,9 @@ package commands
 
 import (
 	"bytes"
-	"github.com/northcutted/clearcutt-verify/internal/config"
 	"os"
-	"path/filepath"
 	"testing"
 )
-
-// fixtureCatalog is the path to the committed test catalog fixture.
-func fixtureCatalog() string {
-	return filepath.Join("..", "testdata", "catalog")
-}
-
-func mixedFixtureCatalog() string {
-	return filepath.Join("..", "testdata", "mixed-catalog")
-}
 
 // runCLI executes the full root command with the given args, capturing everything
 // written to the package output writers. It exercises real flag parsing, command
@@ -45,19 +34,3 @@ func writeExecutable(t *testing.T, path, content string) {
 		t.Fatal(err)
 	}
 }
-
-// writeConfig writes the default config into dir and returns its path.
-func writeConfig(t *testing.T, dir string) string {
-	t.Helper()
-	raw, err := config.Marshal(config.DefaultConfig("acme", "platform"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(dir, config.DefaultConfigPath)
-	if err := os.WriteFile(path, raw, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
-
-func stringPtr(v string) *string { return &v }

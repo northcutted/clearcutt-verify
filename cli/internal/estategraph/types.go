@@ -1,7 +1,5 @@
 package estategraph
 
-import "github.com/northcutted/clearcutt-verify/internal/catalog"
-
 const (
 	APIVersion = "clearcutt.dev/v1"
 )
@@ -17,17 +15,17 @@ type ImagesFile struct {
 }
 
 type ImageSpec struct {
-	ID              string                   `json:"id"`
-	Image           string                   `json:"image"`
-	Tag             string                   `json:"tag,omitempty"`
-	Language        catalog.LanguageInfo     `json:"language"`
-	Tier            string                   `json:"tier"`
-	Architectures   []string                 `json:"architectures,omitempty"`
-	Lifecycle       *catalog.Lifecycle       `json:"lifecycle,omitempty"`
-	RuntimeContract *catalog.RuntimeContract `json:"runtimeContract,omitempty"`
-	Origin          *catalog.ImageOrigin     `json:"origin,omitempty"`
-	Governance      *catalog.ImageGovernance `json:"governance,omitempty"`
-	EvidencePolicy  *catalog.EvidencePolicy  `json:"evidencePolicy,omitempty"`
+	ID              string           `json:"id"`
+	Image           string           `json:"image"`
+	Tag             string           `json:"tag,omitempty"`
+	Language        LanguageInfo     `json:"language"`
+	Tier            string           `json:"tier"`
+	Architectures   []string         `json:"architectures,omitempty"`
+	Lifecycle       *Lifecycle       `json:"lifecycle,omitempty"`
+	RuntimeContract *RuntimeContract `json:"runtimeContract,omitempty"`
+	Origin          *ImageOrigin     `json:"origin,omitempty"`
+	Governance      *ImageGovernance `json:"governance,omitempty"`
+	EvidencePolicy  *EvidencePolicy  `json:"evidencePolicy,omitempty"`
 }
 
 type ImportOptions struct {
@@ -117,7 +115,6 @@ type Assessment struct {
 
 type AssessmentSummary struct {
 	ImportedImages               int            `json:"importedImages"`
-	CatalogedImages              int            `json:"catalogedImages"`
 	ResolvedDigestRefs           int            `json:"resolvedDigestRefs"`
 	MutableOrUnresolvedRefs      int            `json:"mutableOrUnresolvedRefs"`
 	LowConfidenceClassifications int            `json:"lowConfidenceClassifications"`
@@ -144,84 +141,4 @@ type ImageAssessment struct {
 	VerifiedEvidence         []string `json:"verifiedEvidence"`
 	RuntimeContractGaps      []string `json:"runtimeContractGaps"`
 	Warnings                 []string `json:"warnings"`
-}
-
-type AppInventory struct {
-	APIVersion string    `json:"apiVersion"`
-	Kind       string    `json:"kind"`
-	Apps       []AppSpec `json:"apps"`
-}
-
-type AppSpec struct {
-	ID            string `json:"id"`
-	Image         string `json:"image"`
-	RuntimeFamily string `json:"runtimeFamily"`
-	ExpectedBase  string `json:"expectedBase"`
-	TestCommand   string `json:"testCommand"`
-	ProductionTag string `json:"productionTag"`
-}
-
-type RebaseCandidateSet struct {
-	APIVersion  string            `json:"apiVersion"`
-	Kind        string            `json:"kind"`
-	GeneratedAt string            `json:"generatedAt"`
-	Candidates  []RebaseCandidate `json:"candidates"`
-}
-
-type RebaseCandidate struct {
-	ID                 string         `json:"id"`
-	AppImage           string         `json:"appImage"`
-	AppDigest          string         `json:"appDigest,omitempty"`
-	OldBaseID          string         `json:"oldBaseId,omitempty"`
-	OldBaseDigest      string         `json:"oldBaseDigest,omitempty"`
-	NewBaseCandidates  []string       `json:"newBaseCandidates"`
-	Confidence         string         `json:"confidence"`
-	Signals            []RebaseSignal `json:"signals"`
-	Blockers           []string       `json:"blockers"`
-	RequiredValidation []string       `json:"requiredValidation"`
-	TestCommand        string         `json:"testCommand,omitempty"`
-}
-
-type RebaseSignal struct {
-	Type   string `json:"type"`
-	Result string `json:"result"`
-	Weight string `json:"weight"`
-}
-
-type RebasePlan struct {
-	APIVersion                  string             `json:"apiVersion"`
-	Kind                        string             `json:"kind"`
-	CandidateID                 string             `json:"candidateId"`
-	Confidence                  string             `json:"confidence"`
-	AllowedToApplyAutomatically bool               `json:"allowedToApplyAutomatically"`
-	AppImage                    string             `json:"appImage"`
-	OldBase                     RebasePlanBase     `json:"oldBase"`
-	NewBase                     RebasePlanBase     `json:"newBase"`
-	LayerPlan                   RebaseLayerPlan    `json:"layerPlan"`
-	Validation                  RebaseValidation   `json:"validation"`
-	Commands                    RebasePlanCommands `json:"commands"`
-	Warnings                    []string           `json:"warnings"`
-}
-
-type RebasePlanBase struct {
-	ID     string `json:"id"`
-	Digest string `json:"digest"`
-}
-
-type RebaseLayerPlan struct {
-	OldBaseLayerCount int `json:"oldBaseLayerCount"`
-	AppLayerCount     int `json:"appLayerCount"`
-	NewBaseLayerCount int `json:"newBaseLayerCount"`
-	ResultLayerCount  int `json:"resultLayerCount"`
-}
-
-type RebaseValidation struct {
-	CertificationRequired bool `json:"certificationRequired"`
-	TestCommandRequired   bool `json:"testCommandRequired"`
-	HumanApprovalRequired bool `json:"humanApprovalRequired"`
-}
-
-type RebasePlanCommands struct {
-	ExperimentalApply string `json:"experimentalApply"`
-	Certify           string `json:"certify"`
 }

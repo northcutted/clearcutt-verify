@@ -17,6 +17,21 @@ Add an entry here in the same PR as any user-visible behavior change
 workflow archives this section into the release notes.
 -->
 
+- **ClearCutt Verify now does one job: verify estates and write the estate
+  report.** Removed, with the hardened-image catalog they served (whose images
+  stopped being built in #39): `catalog`, `list`, `inspect`, `diff`,
+  `release`, `verify image`/`catalog`/`rebuild`/`closure-purity`/`runtime-cve`/
+  `boundaries`, `certify`, `policy`, `mirror`, `vex`, `exceptions`, `scan`,
+  `conformance`, `import apply-evidence`, the global `--catalog` and `--strict`
+  flags, the Astro catalog site and its embedded template (the website is
+  [clearcutt-portal](https://github.com/northcutted/clearcutt-portal)'s job),
+  the `clearcutt.yaml` fleet config, and the `certify-app` action. `app build`
+  and `app rebase` are retired in favor of
+  [clearcutt-factory](https://github.com/northcutted/clearcutt-factory)'s
+  `build` and `rebase`, and `rebase discover`/`plan` in favor of:
+- New `clearcutt-verify estate dependents` lists the images an estate report
+  records as built on a base, with their drift and source repositories, so
+  automation can wake exactly the repositories a new base affects.
 - **Renamed to ClearCutt Verify.** The repository is
   `northcutted/clearcutt-verify`, the Go module
   `github.com/northcutted/clearcutt-verify`, and the binary `clearcutt-verify`
@@ -51,71 +66,10 @@ workflow archives this section into the release notes.
 - New estate report contract (`apiVersion: clearcutt.dev/v1`, `kind:
   EstateReport` and `EstateHistory`) in `contract/`: JSON Schemas generated
   from the Go types in `cli/internal/report`, a README defining every status,
-  and a synthetic example bundle. It is the interface clearcutt-portal reads;
-  generating it from a real estate comes next.
-- New `clearcutt-verify platform new [dir]` scaffolds a complete fleet repo without a
-  monorepo checkout, resolving its source from `--source` (dir/zip/URL), a
-  local checkout, the source archive embedded in the released binary, or a
-  GitHub release archive URL, then localizing identity via `platform init`.
-- New `clearcutt-verify platform doctor --github` (first-release GitHub preflight),
-  `platform release-plan` (required vars/secrets/environment checklist),
-  `platform registry-env` (fleet-config-driven registry host/user/auth-mode
-  outputs), and `platform setup-nix` (CLI-owned Nix substituter/trust config).
-- Workflows now install a cosign-verified released CLI through the new
-  `.github/actions/install-clearcutt` action (`vars.CLEARCUTT_CLI_MODE=local`
-  builds from the checkout instead).
-- The embedded platform source archive is generated at build time (via
-  `make cli-build`, CI, and `fleet build-cli-assets`, which regenerates it
-  before compiling release binaries) instead of being committed; a bare
-  `go build` still compiles and falls back to the release archive URL for
-  `platform new`.
-- `fleet certify-target`, `fleet publish-target`, `service build`, and `service
-  publish` now default to the Go-owned build/publish engine. The legacy
-  `core/pipeline/pipeline.sh` path remains available with `--engine shell`, and
-  release/PR/seed-cache workflows still expose `CLEARCUTT_BUILD_ENGINE` as a
-  temporary fallback knob.
-- Seed-cache analysis now runs through `clearcutt-verify fleet seed-cache-plan`, moving
-  release-matrix export, Nix dry-run parsing, eval-error handling, and
-  `GITHUB_OUTPUT` shaping out of inline workflow shell/JQ.
-- Release and PR-gate matrix export now runs through `clearcutt-verify fleet
-  workflow-matrices`, moving fleet/service matrix aggregation and
-  `GITHUB_OUTPUT` shaping out of inline workflow shell/JQ.
-- Catalog Pages parameter export now runs through `clearcutt-verify catalog
-  workflow-params`, and catalog site packaging can generate per-image OpenVEX
-  documents through `clearcutt-verify catalog site build --generate-vex`, removing the
-  Pages workflow's inline catalog `jq` parsing.
-- Catalog scanning can now run Grype through the scaffolded Nix backend with
-  `catalog build --core-dir core --update-db`, so the Pages workflow no longer
-  installs Grype or branches around force-refresh behavior in shell.
-- CLI release assets now build through `clearcutt-verify fleet build-cli-assets`, which
-  owns the OS/architecture binary matrix, version stamping, optional
-  `cosign sign-blob` loop, asset manifest, and deterministic `SHA256SUMS.txt`
-  generation for the release workflow.
-- The retained legacy `core/pipeline/pipeline.sh` fallback now delegates
-  closure-purity and runtime-CVE checks to `clearcutt-verify verify ...` instead of
-  invoking the Python gate scripts directly.
-- Manual CVE patch dispatch now enters through `clearcutt-verify remediation run`
-  instead of invoking `cve-draft-agent.py` directly from GitHub Actions.
-- Scheduled remediation scans now call `clearcutt-verify scan --update-db` directly
-  through the Nix dev shell, replacing the old `core/scripts/scheduled-scan.sh`
-  wrapper.
-- Scheduled CISA KEV refresh now runs through `clearcutt-verify scan refresh-kev`
-  instead of inline workflow `curl`/`jq` scripting.
-- Scheduled remediation parameter output now runs through `clearcutt
-  remediation workflow-params --github-output`, replacing inline workflow `jq`
-  parsing of `matrix export --source fleet`.
-- Scheduled remediation plan, report, and draft-dispatch steps now call the CLI
-  directly using env defaults, `remediation report --allow-missing`, and
-  `remediation run --require-llm-key` instead of shell-built argument arrays.
-- `remediation run --llm off` now synthesizes native deterministic
-  version-bump and fetchpatch overlays from explicit source/patch URL plus hash
-  evidence, reducing the retained Python drafting fallback.
-- `remediation run --llm auto` now also attempts native deterministic drafting
-  before invoking the retained backend, so evidence-backed recipes stay Go-owned
-  even when LLM fallback is enabled for unresolved campaigns.
-- `remediation run` now discovers the core workspace from Nix backend markers
-  (`flake.nix` plus core lib/overlay files), so deterministic Go-native runs do
-  not depend on `cve-draft-agent.py` being present.
-- PR gate now runs the representative image-security boundary suite through
-  `clearcutt-verify verify boundary-suite --core-dir core` instead of invoking
-  `core/tests/verify.sh` directly.
+  a synthetic example bundle, and a fixture generated from a real estate. It is
+  the interface clearcutt-portal reads.
+- **ClearCutt no longer builds images (#39).** The Nix image factory, its
+  reference fleet, and the `platform`, `fleet`, `matrix`, `dev`, `service`,
+  `overlay`, `runtime`, and `remediation` command groups that served it were
+  removed. Building images is
+  [clearcutt-factory](https://github.com/northcutted/clearcutt-factory)'s job.

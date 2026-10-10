@@ -11,6 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
 
@@ -30,20 +33,20 @@ type releaseEvidenceFlags struct {
 	sourceRef        string
 	sourceBranch     string
 	outPath          string
-	coreDir          string
 }
 
 var releaseEvidenceOpts releaseEvidenceFlags
 
 var releaseEvidenceResolveDigest = func(ref string) (string, error) {
-	res, err := newOCIClient().Pull(ref)
+	r, err := name.ParseReference(ref)
 	if err != nil {
 		return "", err
 	}
-	digest, err := res.ManifestDigest()
+	desc, err := remote.Head(r, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
 		return "", err
 	}
+	digest := desc.Digest.String()
 	if strings.TrimSpace(digest) == "" {
 		return "", fmt.Errorf("registry returned an empty digest for %s", ref)
 	}
@@ -51,7 +54,7 @@ var releaseEvidenceResolveDigest = func(ref string) (string, error) {
 }
 
 // VerifyEvidenceResponse is the structured payload for --format json|yaml,
-// mirroring the check-list shape of VerifyResponse from `verify image`.
+// a checklist of each verification.
 type VerifyEvidenceResponse struct {
 	Status string              `json:"status"` // pass or fail
 	Ref    string              `json:"ref"`
@@ -84,7 +87,6 @@ tools from the scaffolded ClearCutt Nix dev shell instead.`,
 	f.StringVar(&releaseEvidenceOpts.sourceRef, "source-ref", "refs/heads/main", "Source ref for GitHub-native provenance verification")
 	f.StringVar(&releaseEvidenceOpts.sourceBranch, "source-branch", "", "Source branch for slsa-verifier (defaults to --source-ref without refs/heads/)")
 	f.StringVar(&releaseEvidenceOpts.outPath, "out", "", "Write the machine-readable verification checklist to this JSON file")
-	f.StringVar(&releaseEvidenceOpts.coreDir, "core-dir", "", "Optional ClearCutt core flake directory; when set, verifier tools run through `nix develop --command`")
 	_ = cmd.MarkFlagRequired("ref")
 	_ = cmd.MarkFlagRequired("repo")
 	_ = cmd.MarkFlagRequired("workflow-identity")
@@ -106,9 +108,8 @@ func evidenceImageRepository(ref string) string {
 // io.Discard (cosign verify-attestation prints multi-MB DSSE payloads even on
 // success), prints failure detail on stderr, and returns captured stdout.
 func evidenceRun(label, name string, args []string, captureStdout bool) (string, error) {
-	cmdName, cmdArgs, cmdDir := releaseEvidenceCommand(name, args)
+	cmdName, cmdArgs := name, args
 	cmd := exec.Command(cmdName, cmdArgs...)
-	cmd.Dir = cmdDir
 	var stdoutBuf, stderrBuf bytes.Buffer
 	if captureStdout {
 		cmd.Stdout = &stdoutBuf
@@ -133,19 +134,6 @@ func evidenceRun(label, name string, args []string, captureStdout bool) (string,
 		return "", fmt.Errorf("release evidence tool %q could not run (%s): %w", cmdName, label, err)
 	}
 	return stdoutBuf.String(), nil
-}
-
-func releaseEvidenceCommand(name string, args []string) (string, []string, string) {
-	coreDir := strings.TrimSpace(releaseEvidenceOpts.coreDir)
-	if coreDir == "" {
-		return name, args, ""
-	}
-	switch name {
-	case "cosign", "gh", "slsa-verifier":
-	default:
-		return name, args, ""
-	}
-	return "nix", nixDevelopCommand(name, args...), coreDir
 }
 
 func runVerifyReleaseEvidence() error {

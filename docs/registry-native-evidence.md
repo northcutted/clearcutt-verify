@@ -26,27 +26,16 @@ run the whole governance loop.
 
 ## Writing and reading the plane
 
-Evidence is written by the publish path and read by the catalog. Both halves
-are needed: reading a plane nothing writes to finds nothing.
+Evidence is written by the publish path and read back by whoever governs the
+estate. Both halves are needed: reading a plane nothing writes to finds nothing.
 
 ```bash
-# Write. Off by default; opt in.
-clearcutt-verify evidence attach ghcr.io/acme/app:v1.4.0 --dir ./evidence \
-  --release v1.4.0
-  --system x86_64-linux --attach-evidence
+# Write: attach an evidence bundle to the image digest it describes.
+clearcutt-verify evidence attach ghcr.io/acme/app:v1.4.0 --dir ./evidence --release v1.4.0
 
-# Read. Defaults to github; opt in.
-clearcutt-verify catalog gather --evidence-source=registry
+# Read.
+clearcutt-verify evidence list ghcr.io/acme/app:v1.4.0
 ```
-
-Both sides are opt-in, and in that order. Defaulting the write on would make
-every existing publish newly depend on a registry write it did not need before —
-a credential that can push an image but not a referrer would turn an upgrade
-into a failed release. Defaulting the read on would point a fork at a plane its
-evidence is not in yet.
-
-**The migration is: turn attachment on for a release cycle so the evidence
-exists, then flip the read side.**
 
 `evidence attach` stores the SBOM, scan and test results for a release against
 the image digest they describe — pinned to the digest, not the staging tag, so a later
@@ -161,12 +150,13 @@ because the metrics live in the index annotations rather than in the snapshots.
 ## Running it anywhere
 
 The governance path — `registry scan`, `import observe`, `graph`, `estate`,
-`evidence`, `certify`, `scan` — is pure Go and needs no Nix. The published
-container image carries only a static binary on a distroless base:
+`evidence` — is pure Go and needs no Nix. The
+container image (the repository's `Dockerfile`) carries only a static binary on
+a distroless base:
 
 ```bash
-docker run --rm ghcr.io/northcutted/clearcutt:latest \
-  evidence list ghcr.io/acme/app:v1.4.0
+docker build -t clearcutt-verify .
+docker run --rm clearcutt-verify evidence list ghcr.io/acme/app:v1.4.0
 ```
 
 Two operational notes:
@@ -177,5 +167,4 @@ Two operational notes:
 - There is **no shell** in the image. Anything that expects to `sh -c` inside it
   will not work; invoke the binary directly.
 
-Only the image *factory* needs Nix, which is a different job with a different
-image. Nothing in the governance loop requires it.
+Nothing in the governance loop requires Nix.

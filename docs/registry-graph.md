@@ -11,13 +11,10 @@ and knows nothing about in advance.
 
 ## Why This Exists
 
-Every other governance path in ClearCutt starts from a list of image references that a
-human wrote by hand. That inverts the actual problem: the reason a platform team needs
-an inventory is that nobody knows what is running on what.
-
-`rebase discover` answers *"is this app really on the base its owner told us it was
-on?"* — it needs a declared `expectedBase`. `graph build` answers the discovery
-question instead: *"given these images, which are built on which?"*
+A hand-written list of image references inverts the actual problem: the reason a
+platform team needs an inventory is that nobody knows what is running on what.
+`graph build` answers the discovery question: *"given these images, which are built
+on which?"*
 
 ## Golden Path
 
@@ -421,32 +418,13 @@ content, so a 10,000-image estate is tens of MB. The limit is the observe fan-ou
 every image costs an index fetch, a per-platform manifest and a config, so a large
 estate is bounded by registry rate limits long before anything else.
 
-## The Published View
+## Published
 
-Both artifacts render as pages when passed to the site builder:
-
-```bash
-clearcutt-verify catalog site build \
-  --catalog site/src/data/catalog --template site --output site/dist --install \
-  --graph dist/scan/graph.json \
-  --layers dist/scan/layers.json
-```
-
-- `/estate` — base families, stale consumers worst-first, undetermined images
-  with their reasons, and the proven-versus-claimed split stated up front.
-- `/estate/layers` — content-identical images, the fleet core and blast radius,
-  clusters, per-image unique content, and deduplication accounting.
-
-Both flags are optional. Without them the pages render an empty state naming the
-commands that populate them, so a site with no estate scan is a normal state
-rather than a build failure.
-
-This repository generates the artifacts at publish time rather than committing
-them: `publish-pages.yml` derives the registry and repository names from the
-catalog records, scans, and passes the results to the site build. A committed
-scan would go stale the moment the fleet moved and would put claims about
-deleted images on a public page. The scan step is best-effort — if it fails, the
-site still publishes with the empty state.
+`estate verify` carries the same base relationships, proven by layer digest, into
+the estate report, and
+[clearcutt-portal](https://github.com/northcutted/clearcutt-portal) publishes it.
+`estate dependents` lists the images built on a base, with their source
+repositories.
 
 ## Roots Versus Orphans
 
@@ -490,11 +468,10 @@ a verdict, not a crash.
   consumers as current.
 - A shared layer means shared content, not a base relationship.
 - No CVE, signature, SBOM, or provenance conclusion is drawn. Run
-  `clearcutt-verify import assess` for the evidence-gap view, and
-  `clearcutt-verify rebase discover` / `clearcutt-verify rebase plan` to prepare a rebase.
+  `clearcutt-verify estate verify` for verified evidence, and
+  `clearcutt-verify import assess` for the evidence-gap view.
 
 ## Related
 
 - [`imported-fleets.md`](imported-fleets.md) — governing images ClearCutt did not build
-- [`generic-oci-mode.md`](generic-oci-mode.md) — the `images.yaml` data model
-- [`app-lifecycle.md`](app-lifecycle.md) — the rebase path for ClearCutt-built apps
+- [`verify-estate.md`](verify-estate.md) — verifying evidence and writing the estate report

@@ -1,21 +1,10 @@
-# Local-dev cosign key cache (see pipeline.sh ensure_cosign_keys).
-# Must never be committed — these are signing keys, even if labelled "ephemeral".
-.nix-enterprise-auth-cache/
-core/.nix-enterprise-auth-cache/
-
 # Any stray signing material that lands at the repo root.
 cosign.key
 cosign.pub
 *.pem
-secret-key.pem
-secret-key-files/
-.wrangler/*
-.wrangler
-result/*
-result
 *.tar.gz
-build-outputs/*
-core/build-outputs/*
+dist/
+
 .claude/*
 # ...except skills, which are part of the repo's tooling and must travel with it.
 !.claude/skills/
@@ -31,10 +20,6 @@ core/build-outputs/*
 /cli/clearcutt
 /cli/clearcutt-verify
 
-# Generated embedded platform source archive (see cli/internal/platformsource/archive/README.md).
-cli/internal/platformsource/archive/source.zip
-cli/internal/platformsource/archive/source.zip.tmp
-
 cli/coverage.out
 cli/coverage.txt
 cli/coverage.html
@@ -45,8 +30,5 @@ cli/coverage-low-functions.txt
 .agents/context/active_context.md
 
 # Accidental nested output roots created when commands run from cli/.
-# The canonical project roots are /site, /examples, /docs, and /core.
-/cli/site/
 /cli/examples/
 /cli/docs/
-/cli/core/

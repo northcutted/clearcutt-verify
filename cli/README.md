@@ -1,6 +1,6 @@
-# ClearCutt CLI Workspace
+# ClearCutt Verify CLI Workspace
 
-This workspace owns the Go `clearcutt-verify` governance CLI.
+This workspace owns the Go `clearcutt-verify` CLI.
 
 ```bash
 cd cli
@@ -16,7 +16,3 @@ make cli-test
 make cli-vet
 make cli-build
 ```
-
-The CLI defaults to reading generated catalog data from
-`site/src/data/catalog` when executed from the repository root. For a quick
-offline fixture, pass `--catalog cli/internal/testdata/catalog`.

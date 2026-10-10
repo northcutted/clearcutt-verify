@@ -4,8 +4,8 @@
 
 This example is the optional live-registry version of the imported-fleet demo.
 It shows ClearCutt importing image references it did not build, observing
-registry metadata, generating a catalog, assessing governance gaps, and writing
-a report without treating imported images as trusted by default.
+registry metadata, mapping base relationships, assessing governance gaps, and
+writing a report without treating imported images as trusted by default.
 
 ## How to create refs.txt
 
@@ -35,19 +35,17 @@ REFS=/path/to/refs.txt OUT=/tmp/my-imported-fleet ./scripts/demo-imported-fleet-
 
 ## What this proves
 
-- ClearCutt can catalog images it did not build.
+- ClearCutt can govern images it did not build.
 - ClearCutt can observe available registry metadata for imported images.
 - ClearCutt can preserve missing evidence as governance gaps.
 - ClearCutt can produce assessment and report artifacts for an imported fleet.
-- ClearCutt can discover rebase candidates when a live app inventory is supplied
-  and the app/base relationship is provable from observed metadata.
+- ClearCutt can prove base relationships by layer digest where they exist.
 
 ## What this does not prove
 
 - ClearCutt cannot infer build provenance.
 - ClearCutt cannot prove source repository or build workflow for arbitrary
   imported images.
-- ClearCutt cannot safely rebase every app image.
 - ClearCutt does not make imported images trusted by default.
 
 ## Why missing provenance is expected

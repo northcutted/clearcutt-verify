@@ -1,29 +1,35 @@
-# ClearCutt Codex Instructions
+# ClearCutt Verify Agent Instructions
 
 ## Project thesis
 
-ClearCutt is a free, open-source, forkable platform kit for teams that want to own their hardened container image fleet, supply-chain evidence, catalog, CI/CD gates, policy examples, and remediation workflows.
+ClearCutt Verify (`clearcutt-verify`) is a free, open-source CLI that governs and
+verifies container image estates, including estates it did not build: which
+images are built on which (proven by layer digest), how stale each is, what
+supply-chain evidence each carries and who signed it, and whether each image
+meets a policy. It writes the estate report (`contract/`), a versioned data
+contract that clearcutt-portal publishes.
 
-The project should read as a serious platform-engineering blueprint, not as a toy demo and not as a hosted commercial product.
+It is one of the ClearCutt tools: clearcutt-factory builds images,
+clearcutt-verify proves things about them, clearcutt-portal shows the result.
+They share data formats (OCI annotations, Sigstore attestations, the estate
+report, the trust policy), not code.
 
 The core value proposition is:
 
-- Ownership over image builds, registry, evidence, policy, and release process.
-- Reproducible platform-owned image generation.
-- Clear evidence surfaces: SBOMs, signatures, provenance, scans, tests, exceptions, and catalog metadata.
-- A generated catalog/operator portal that makes image contents and trust evidence understandable.
-- A paved app-team adoption path that does not require app teams to learn Nix.
+- Proof over claims: layer digests and verified signatures, with unknowns shown
+  as unknown.
+- Works on any estate: Debian, Wolfi, Nix, buildpacks, factory-built or not.
+- The registry as the storage plane: reports and evidence live next to images.
 - Conservative, verifiable claims.
 
 ## Primary audiences
 
-Every product, docs, CLI, and site recommendation must account for these audiences:
+Every product, docs, and CLI recommendation must account for these audiences:
 
-1. Platform engineers evaluating whether they can operate ClearCutt.
-2. App developers evaluating whether adoption is easier than rolling their own Dockerfiles.
-3. Security engineers and auditors evaluating whether evidence is inspectable and trustworthy.
-4. Engineering managers evaluating build-vs-buy tradeoffs, ownership burden, and credibility.
-5. Open-source reviewers evaluating coherence, usefulness, and implementation maturity.
+1. Platform engineers who own an estate and need to know what is in it.
+2. Security engineers and auditors evaluating whether evidence is inspectable and trustworthy.
+3. Engineering managers evaluating ownership burden and credibility.
+4. Open-source reviewers evaluating coherence, usefulness, and implementation maturity.
 
 ## Operating rules
 
@@ -41,7 +47,6 @@ Every product, docs, CLI, and site recommendation must account for these audienc
 - Flag claims that are ahead of implementation.
 - Soften claims that are not fully proven.
 - Preserve technical depth, but make the first-run path clear.
-- Treat Nix as platform-owner/backend machinery unless the reviewed surface is explicitly for image-factory maintainers.
 - Keep app-team workflows understandable with Docker, Podman, Kubernetes, Cosign, and the ClearCutt CLI.
 
 ## Product language rules
@@ -59,17 +64,14 @@ Avoid unqualified claims like:
 Use qualified, verifiable language instead:
 
 - reference implementation
-- forkable platform kit
-- production-oriented blueprint
+- verified (by cosign, against a trusted signer)
+- proven (by layer digest)
+- claimed (by an annotation or label)
 - signed and attested release path, when configured
-- evidence-oriented catalog
-- policy examples
-- reproducible platform-owned build path
 - currently implemented
 - scaffolded
 - planned
 - demo fixture
-- fork owner responsibility
 
 ## Required audit outputs
 
@@ -95,7 +97,7 @@ Every major audit report should include:
 5. Audience-by-audience analysis
 6. Claim-vs-proof table
 7. Feature/readiness matrix
-8. Docs/site/CLI friction points
+8. Docs/CLI friction points
 9. Prioritized action backlog
 10. Recommended implementation phases
 11. Decisions needed from the owner
@@ -143,37 +145,25 @@ Score each audience from 1 to 5.
 
 Platform engineer:
 
-- Can they understand what ClearCutt is in 60 seconds?
-- Can they run something useful in 10 to 15 minutes?
-- Can they see how to fork and operate it?
-- Can they understand how Nix fits without becoming a Nix user?
-
-App developer:
-
-- Can they find the image they need?
-- Can they understand dev, slim, and distroless tiers?
-- Can they generate an app template?
-- Can they certify or verify an app path locally?
+- Can they understand what clearcutt-verify is in 60 seconds?
+- Can they run something useful against their own registry in 10 to 15 minutes?
+- Can they see which images are stale and which images a base change affects?
 
 Security/auditor:
 
-- Can they trace source to build to image to SBOM to signature to provenance to policy?
-- Are claims conservative?
-- Are exceptions, VEX, remediation, and admission flows clear?
-- Is evidence inspectable outside the marketing site?
+- Can they trace an image to its signer, SBOM, provenance, and verdict?
+- Are claims conservative, and are unknowns shown as unknown?
+- Is the trust policy explicit about whose signatures count?
 
 Engineering manager:
 
 - Can they understand why this exists?
-- Can they compare ownership vs vendor trust?
 - Can they estimate operational burden?
-- Can they see adoption path and risk?
 
 Open-source evaluator:
 
 - Is setup practical?
 - Is the repo coherent?
-- Is the project useful before it is complete?
 - Are boundaries honest?
 
 ## Validation expectations
@@ -193,92 +183,15 @@ When implementation changes are requested:
 Prefer direct workspace commands on this host. `make` wrappers can fail before
 their recipes run because of local macOS `xcrun` toolchain issues.
 
-CLI:
-
 ```bash
-make cli-build   # generates the embedded platform-source archive, then builds
+cd cli && go build -o ../clearcutt-verify ./cmd/clearcutt-verify
 cd cli && go test ./...
 cd cli && go vet ./...
+./scripts/demo-imported-fleet-offline.sh
 ```
 
-A bare `go build -o ../clearcutt-verify ./cmd/clearcutt-verify` works but skips the embedded
-source generation (`make cli-embed-source`); the resulting binary falls back to
-the release-download path for `platform new`. Use `make cli-build` for anything
-that exercises platform scaffolding.
-
-Site:
-
-```bash
-cd site && npm install
-cd site && npm run typecheck
-cd site && npm run build
-```
-
-Core remediation tests:
-
-```bash
-cd core && python3 -m unittest tests/test_remediation_pipeline.py
-```
-
-Nix eval checks on this host:
-
-```bash
-source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-nix --extra-experimental-features 'nix-command flakes' flake show ./core 2>&1 | head -50
-nix --extra-experimental-features 'nix-command flakes' eval ./core#packages.x86_64-linux.java21-distroless.name
-```
-
-Use the smallest relevant command set. Do not run broad Nix or release
-pipelines unless the task requires them.
-
-## Catalog data modes
-
-ClearCutt has three different catalog paths. Agents must be explicit about which
-one they are using.
-
-1. **Fixture catalog for clean-clone proof.** Use this for docs examples,
-   offline tests, and first-run validation:
-
-   ```bash
-   go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog list
-   go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog catalog validate
-   go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog inspect java21-distroless
-   go -C cli run ./cmd/clearcutt-verify --catalog internal/testdata/catalog verify image java21-distroless \
-     --require-signature \
-     --require-sbom \
-     --require-provenance \
-     --allow-preview
-   ```
-
-   Use `cli/internal/testdata/mixed-catalog` when validating service-image
-   rendering or mixed runtime/service catalog behavior.
-
-2. **Generated portable catalog for current generator behavior.** Generate into
-   a temp or `dist/` directory unless the task explicitly asks to refresh local
-   site data:
-
-   ```bash
-   cd cli && go build -o ../clearcutt-verify ./cmd/clearcutt-verify
-   ./clearcutt-verify catalog generate --config clearcutt.yaml --include-services --output /tmp/clearcutt-catalog
-   ./clearcutt-verify --catalog /tmp/clearcutt-catalog catalog validate
-   ./clearcutt-verify catalog site build --catalog /tmp/clearcutt-catalog --template site --output /tmp/clearcutt-site --install --clean
-   ```
-
-3. **Live release-evidence catalog.** Use `./clearcutt-verify catalog build` only when
-   the task needs release assets, registry evidence, scans, enrichment, or Pages
-   parity. This path may require network, GitHub, registry tools, and current
-   release state.
-
-The root CLI default is `site/src/data/catalog`. Treat that directory as
-generated local state, not clean-clone truth. It is ignored by Git and can be
-stale. Before relying on it, inspect `site/src/data/catalog/index.json` for
-`generatedAt`, `owner`, `repo`, and `registryBase`, and state whether you are
-using stale local data, fixture data, or newly generated data.
-
-If a site build appears wrong, check for stale `site/src/data/catalog` before
-debugging Astro components. For reproducible site validation, prefer
-`./clearcutt-verify catalog site build --catalog cli/internal/testdata/mixed-catalog
---template site --output /tmp/clearcutt-site --install --clean`.
+After changing `cli/internal/report`, regenerate the contract schemas with
+`go -C cli test ./internal/report -run TestContractSchemasCurrent -update`.
 
 ## Codex setup
 
@@ -326,7 +239,7 @@ Token efficiency is part of the retrospective. Check whether the agent:
 - searched or read too broadly before using `AGENTS.md`, a skill, or `rg`;
 - pasted large logs instead of summarizing the first meaningful error;
 - ran broad validation when a focused command would prove the change;
-- relied on generated or stale catalog data and had to redo work;
+- relied on generated or stale data and had to redo work;
 - spawned subagents for work that was not read-heavy or parallelizable;
 - kept obsolete context in `.agents/context/active_context.md` instead of moving it to a
   runbook or memory.
@@ -337,25 +250,23 @@ project policy after every mistake.
 
 ## Review guidelines
 
-When Codex reviews ClearCutt changes, prioritize correctness, trust boundaries,
-claim boundaries, and missing tests over style comments.
+When reviewing clearcutt-verify changes, prioritize correctness, trust
+boundaries, claim boundaries, and missing tests over style comments.
 
 Treat these as high-priority findings:
 
-- Supply-chain regressions in signing, SBOM generation, provenance, OIDC
-  identity checks, evidence verification, catalog generation, vulnerability
-  scans, exceptions, VEX, policy, remediation, or rebase flows.
-- Claims in README, docs, site copy, generated templates, or CLI help that are
-  broader than current implementation or proof.
+- Supply-chain regressions in evidence discovery or verification, OIDC identity
+  and caller-repository checks, base proofs, or verdicts (anything that could
+  turn unknown into a pass).
+- Changes to the estate report contract that aren't additive, or schemas not
+  regenerated with the types.
+- Claims in README, docs, or CLI help that are broader than current
+  implementation or proof.
 - Public CLI behavior changes without matching docs, tests, and compatibility
   rationale.
-- Workflow changes that make fork setup, release evidence, Pages publishing,
-  scheduled scans, remediation, or app rebase less trustworthy.
-- Site/template drift between `site/` and `cli/internal/sitetemplate/template/`.
+- Workflow changes that make release evidence less trustworthy.
 - Tests or smoke checks that depend on generated, network-only, or local-only
   state when a committed fixture should cover the normal path.
-- Use of `site/src/data/catalog` as proof without checking whether that
-  generated local catalog is fresh and appropriate for the task.
 
 Do not flag low-impact wording nits as blocking review comments unless the
 wording creates a credibility, safety, or adoption risk.
@@ -374,11 +285,9 @@ wording creates a credibility, safety, or adoption risk.
 
 The repo is ready for serious human feedback when:
 
-- A new visitor can explain ClearCutt after the first screen of the README.
+- A new visitor can explain clearcutt-verify after the first screen of the README.
 - A platform engineer can identify the first useful command to run.
-- A security person can find the evidence/trust model.
-- An app developer can find the app adoption path.
+- A security person can find the evidence and trust model.
 - Claims are conservative and backed by proof.
 - Incomplete areas are labeled honestly.
-- The catalog/site demonstrates real value without hiding behind marketing.
 - The next five issues to work on are obvious.

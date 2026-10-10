@@ -4,7 +4,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${OUT:-$(mktemp -d /tmp/clearcutt-import-live-demo.XXXXXX)}"
 REFS="${REFS:-$ROOT/examples/imported-fleet-live/refs.txt}"
-APPS="${APPS:-$ROOT/examples/imported-fleet-live/apps.yaml}"
 
 case "$OUT" in
   ""|"/"|"/tmp")
@@ -93,18 +92,8 @@ if [[ "${STRICT:-0}" == "1" ]]; then
 fi
 run_clearcutt "${observe_args[@]}"
 
-run_clearcutt catalog generate \
-  --images "$OUT/images.yaml" \
-  --output "$OUT/dist/catalog" \
-  --owner acme \
-  --repo imported-fleet-live \
-  --registry-base registry.acme.dev/platform
-
-run_clearcutt --catalog "$OUT/dist/catalog" catalog validate
-
 run_clearcutt import assess \
   --images "$OUT/images.yaml" \
-  --catalog "$OUT/dist/catalog" \
   --observations "$OUT/dist/observations.json" \
   --output "$OUT/dist/governance"
 
@@ -112,21 +101,15 @@ run_clearcutt import report \
   --assessment "$OUT/dist/governance" \
   --output "$OUT/imported-fleet-report.md"
 
-if [[ -f "$APPS" ]]; then
-  run_clearcutt rebase discover \
-    --apps "$APPS" \
-    --bases "$OUT/images.yaml" \
-    --observations "$OUT/dist/observations.json" \
-    --output "$OUT/rebase-candidates.json"
-else
-  echo "No live apps inventory supplied; skipping rebase discovery."
-fi
+run_clearcutt graph build \
+  --observations "$OUT/dist/observations.json" \
+  --output "$OUT/dist/graph.json" \
+  --report "$OUT/dist/inventory.md"
 
 required_outputs=(
   "$OUT/images.yaml"
-  "$OUT/dist/catalog/index.json"
-  "$OUT/dist/catalog/evidence-manifest.json"
   "$OUT/dist/observations.json"
+  "$OUT/dist/graph.json"
   "$OUT/dist/governance/estate-summary.json"
   "$OUT/dist/governance/evidence-gaps.json"
   "$OUT/dist/governance/policy-posture.json"
@@ -143,13 +126,9 @@ echo "Output directory: $OUT"
 echo
 echo "Key outputs:"
 echo "  images.yaml"
-echo "  dist/catalog/index.json"
-echo "  dist/catalog/evidence-manifest.json"
+echo "  dist/graph.json and dist/inventory.md"
 echo "  dist/observations.json"
 echo "  dist/governance/estate-summary.json"
 echo "  dist/governance/evidence-gaps.json"
 echo "  dist/governance/policy-posture.json"
 echo "  imported-fleet-report.md"
-if [[ -f "$OUT/rebase-candidates.json" ]]; then
-  echo "  rebase-candidates.json"
-fi

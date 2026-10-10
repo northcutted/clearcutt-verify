@@ -1,9 +1,0 @@
-apiVersion: clearcutt.dev/v1
-kind: AppImageInventory
-apps:
-- id: payments-api
-  image: registry.acme.dev/apps/payments-api:1.4.7
-  runtimeFamily: java
-  expectedBase: java21-runtime-2026-06-01
-  testCommand: ./gradlew test
-  productionTag: registry.acme.dev/apps/payments-api:1.4.7

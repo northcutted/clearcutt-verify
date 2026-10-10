@@ -1,6 +1,6 @@
 ---
 name: clearcutt-cli-change
-description: Use when implementing or reviewing ClearCutt Go CLI changes under cli/, including command UX, catalog commands, verification, certification, policy, app, dev, scan, remediation, tests, or coverage gates.
+description: Use when implementing or reviewing clearcutt-verify Go CLI changes under cli/, including command UX, registry and graph commands, estate verification, the report contract, tests, or coverage gates.
 ---
 
 # ClearCutt CLI Change
@@ -11,10 +11,9 @@ Use this skill for write-heavy or review-heavy work in the Go CLI.
 
 - Keep public CLI behavior backward compatible unless the approved action item requires a breaking change.
 - Use existing Cobra command patterns under `cli/internal/commands/`.
-- Use structured parsers and internal packages rather than ad hoc string manipulation when handling catalog, OCI, policy, or evidence data.
-- Tests must run offline. Prefer committed fixtures such as `cli/internal/testdata/catalog` and `cli/internal/testdata/dev-catalog`.
-- Do not rely on `site/src/data/catalog` for tests or clean-clone examples; it is ignored generated state and may be stale.
-- Do not change schemas casually. If a schema changes, update docs and tests in the same approved slice.
+- Use structured parsers and internal packages rather than ad hoc string manipulation when handling OCI, policy, or evidence data.
+- Tests must run offline. Use in-process registries and committed fixtures (`examples/`, `contract/`).
+- Do not change the report contract casually. Changes must be additive; regenerate `contract/*.schema.json` with the types, and update docs and tests in the same slice.
 
 ## Workflow
 
