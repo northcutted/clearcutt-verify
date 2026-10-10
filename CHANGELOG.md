@@ -17,6 +17,12 @@ Add an entry here in the same PR as any user-visible behavior change
 workflow archives this section into the release notes.
 -->
 
+- Estate reports list the clearcutt-factory registry stacks the estate's apps
+  are built on (`stacks`): each version in use with its signature verified
+  against the policy's stack signers (a trust policy's `stack` signers, or
+  `stackSigners:`), and how many apps are pinned to an older version than the
+  stack's tag names now. Apps record `factory.stackRef` and
+  `factory.stackDigest`.
 - New `registry scan --github-org ORG` enumerates an organization's (or
   user's) ghcr.io container packages through the GitHub Packages API, with
   `--package-prefix` to keep some of them. GHCR has no `_catalog` endpoint.

@@ -120,6 +120,7 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 
 	r.Bases = basesOf(r.Images)
 	markRoots(r.Images, r.Bases)
+	r.Stacks = stacksOf(ctx, r.Images, opts)
 	// Verdicts last: whether an image is a root is known only now.
 	now, err := time.Parse(time.RFC3339, generatedAt)
 	if err != nil {

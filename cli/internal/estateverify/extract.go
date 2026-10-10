@@ -309,7 +309,10 @@ func readRecipe(pred json.RawMessage) (*report.Factory, *pinnedImage, bool) {
 			Image json.RawMessage `json:"image"`
 		} `json:"tools"`
 		App *struct {
-			Build json.RawMessage `json:"build"`
+			Build         json.RawMessage `json:"build"`
+			Stack         string          `json:"stack"`
+			StackDigest   string          `json:"stackDigest"`
+			StackArtifact *pinnedImage    `json:"stackArtifact"`
 		} `json:"app"`
 	}
 	// The base is read on its own, so a lock whose other sections changed
@@ -327,6 +330,16 @@ func readRecipe(pred json.RawMessage) (*report.Factory, *pinnedImage, bool) {
 		}
 		if l.App != nil {
 			in.Images++
+			if f.Stack == "" {
+				f.Stack = l.App.Stack
+			}
+			// A registry stack is pinned by its artifact digest; a stack
+			// defined beside the app, by the digest of its definition.
+			if a := l.App.StackArtifact; a != nil && a.Ref != "" {
+				f.StackRef, f.StackDigest = a.Ref, a.Digest
+			} else {
+				f.StackDigest = l.App.StackDigest
+			}
 		}
 		for _, t := range l.Tools {
 			if len(t.Image) > 0 && string(t.Image) != "null" {

@@ -131,6 +131,16 @@ The history gains an entry per run; pass `--history` to extend a history kept
 elsewhere. The command prints a summary table, and `--fail-on failed` (or
 `unverified`) makes it exit 2 when any image falls short, for CI.
 
+### Stacks
+
+Apps that clearcutt-factory built on a registry stack (`stack:
+ghcr.io/acme/stacks/go:1`) record the stack version their lock pins. The
+report's `stacks` lists each such stack: the version its tag names now, every
+version apps are pinned to, each version's signature verified against the
+policy's stack signers (a trust policy's `stack` signers, or `stackSigners:`
+in a VerificationPolicy), and how many apps are on an older version. Each app's
+`factory.stackRef` and `factory.stackDigest` say which.
+
 ### Who is built on a base
 
 `estate dependents` reads a report and lists the images built on a base

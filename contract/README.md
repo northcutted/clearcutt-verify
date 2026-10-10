@@ -77,6 +77,12 @@ unknown enum values as-is. Anything else (removing or renaming a field,
 changing a meaning) needs `v2`, with both versions written for a release
 before `v1` is dropped.
 
+The published schemas reject unknown fields (`additionalProperties: false`),
+so they catch a producer that drifts from the types. A reader that validates
+reports against a copy of a schema should allow unknown fields when it does,
+as clearcutt-portal does, or a newer report with an added field fails a check
+it should pass.
+
 ## Changing it
 
 The contract belongs to `clearcutt-verify`. To propose a change, open an issue

@@ -34,6 +34,9 @@ type PolicyFile struct {
 	// MaxScanAgeDays leaves images whose vulnerability scan is older
 	// unverified.
 	MaxScanAgeDays int `json:"maxScanAgeDays"`
+	// StackSigners may sign clearcutt-factory stacks (a trust policy's
+	// stack signers join them).
+	StackSigners []report.Signer `json:"stackSigners"`
 	// TrustPolicy names a TrustPolicy file (relative to this one) whose
 	// image signers are trusted too, the same file clearcutt-factory reads.
 	TrustPolicy string `json:"trustPolicy"`
@@ -52,7 +55,7 @@ func ReadPolicy(path string) (report.Policy, error) {
 	if f.APIVersion != report.APIVersion || f.Kind != "VerificationPolicy" {
 		return report.Policy{}, fmt.Errorf("%s: expected apiVersion %s and kind VerificationPolicy", path, report.APIVersion)
 	}
-	p := report.Policy{Required: f.Required, TrustedSigners: f.TrustedSigner, FailOn: f.FailOn, OnlyFixed: f.OnlyFixed, MaxDaysBehind: f.MaxDaysBehind, MaxScanAgeDays: f.MaxScanAgeDays}
+	p := report.Policy{Required: f.Required, TrustedSigners: f.TrustedSigner, FailOn: f.FailOn, OnlyFixed: f.OnlyFixed, MaxDaysBehind: f.MaxDaysBehind, MaxScanAgeDays: f.MaxScanAgeDays, StackSigners: f.StackSigners}
 	if f.TrustPolicy != "" {
 		tp := f.TrustPolicy
 		if !filepath.IsAbs(tp) {
@@ -63,6 +66,7 @@ func ReadPolicy(path string) (report.Policy, error) {
 			return report.Policy{}, err
 		}
 		p.TrustedSigners = append(p.TrustedSigners, t.For("image")...)
+		p.StackSigners = append(p.StackSigners, t.For("stack")...)
 	}
 	return p, ValidatePolicy(p)
 }
@@ -103,7 +107,7 @@ func ValidatePolicy(p report.Policy) error {
 	if p.FailOn != "" && severityRank(p.FailOn) == 0 {
 		return fmt.Errorf("failOn %q must be negligible, low, medium, high, or critical", p.FailOn)
 	}
-	for _, s := range p.TrustedSigners {
+	for _, s := range append(append([]report.Signer{}, p.TrustedSigners...), p.StackSigners...) {
 		if _, err := signerFlags(s); err != nil {
 			return err
 		}
