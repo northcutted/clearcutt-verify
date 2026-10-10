@@ -224,6 +224,7 @@ func estatePolicy() (report.Policy, error) {
 			return report.Policy{}, err
 		}
 		p.TrustedSigners = append(p.TrustedSigners, t.For("image")...)
+		p.StackSigners = append(p.StackSigners, t.For("stack")...)
 	}
 	return p, estateverify.ValidatePolicy(p)
 }
@@ -306,6 +307,16 @@ func printEstateSummary(w io.Writer, r *report.Report) {
 	fmt.Fprintf(w, "%d images: %d verified, %d failed, %d unverified\n", s.Images, s.Verdicts.Verified, s.Verdicts.Failed, s.Verdicts.Unverified)
 	fmt.Fprintf(w, "bases: %d proven, %d claimed, %d roots, %d unresolved; %d current, %d stale\n",
 		s.Bases.Proven, s.Bases.Claimed, s.Bases.Roots, s.Bases.Unresolved, s.Bases.Current, s.Bases.Stale)
+	for _, st := range r.Stacks {
+		signed := 0
+		for _, v := range st.Versions {
+			if v.Signature.Status == "verified" {
+				signed++
+			}
+		}
+		fmt.Fprintf(w, "stack %s: %d apps, %d on an older version; %d of %d versions in use verified\n",
+			st.Repository, st.Consumers, st.StaleConsumers, signed, len(st.Versions))
+	}
 	fmt.Fprintf(w, "\n%-28s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %s\n", "IMAGE", "SIGNATURE", "SBOM", "VULNS", "PROVENANCE", "RECIPE", "REBASE", "REPRO", "VERDICT")
 	for _, img := range r.Images {
 		e := img.Evidence

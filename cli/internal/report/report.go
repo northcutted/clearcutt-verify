@@ -38,6 +38,10 @@ type Report struct {
 	// Bases are the base-image repositories that images were found to be
 	// built on, with their newest observed version.
 	Bases []Base `json:"bases"`
+	// Stacks are the clearcutt-factory registry stacks the estate's apps
+	// are built on: each version in use, who signed it, and which apps are
+	// pinned to an older version than the stack's tag names now.
+	Stacks []Stack `json:"stacks,omitempty"`
 	// Packages index which images ship which package versions. Only images
 	// whose package set could be read appear here; the rest are counted in
 	// summary.packages.unknown, so a package's absence is not proof that no
@@ -95,6 +99,10 @@ type Policy struct {
 	// older than this many days at the time of the report (what was found
 	// since is unknown); 0 accepts any age.
 	MaxScanAgeDays int `json:"maxScanAgeDays,omitempty"`
+	// StackSigners are who may sign clearcutt-factory stacks: a trust
+	// policy's stack signers. Registry stacks the estate's apps are built on
+	// are verified against them.
+	StackSigners []Signer `json:"stackSigners,omitempty"`
 	// Reproduce reports whether this run rebuilt images to check them.
 	Reproduce bool `json:"reproduce"`
 }
@@ -413,6 +421,12 @@ type Factory struct {
 	Name string `json:"name,omitempty"`
 	// Stack is the stack an app was built on.
 	Stack string `json:"stack,omitempty"`
+	// StackRef is the registry stack an app was built on, as its lock names
+	// it (absent for a stack defined beside the app).
+	StackRef string `json:"stackRef,omitempty"`
+	// StackDigest is the stack version the app's lock pins: the registry
+	// artifact's digest, or the digest of a local stack's definition.
+	StackDigest string `json:"stackDigest,omitempty"`
 	// Version is the clearcutt-factory version that built or rebased it.
 	Version string `json:"version,omitempty"`
 	// SourceDateEpoch is the build timestamp all files were clamped to.
@@ -451,6 +465,36 @@ type Base struct {
 	// of those aren't on the newest version.
 	Consumers      int `json:"consumers"`
 	StaleConsumers int `json:"staleConsumers"`
+}
+
+// Stack is a clearcutt-factory stack published to a registry
+// (stack push), as the estate's apps use it.
+type Stack struct {
+	// Repository is the stack's registry repository.
+	Repository string `json:"repository"`
+	// Ref is the tag apps name, e.g. ghcr.io/acme/stacks/go:1.
+	Ref string `json:"ref"`
+	// CurrentDigest is what Ref points at now; absent when it couldn't be
+	// read.
+	CurrentDigest string `json:"currentDigest,omitempty"`
+	// Versions are the stack versions apps are pinned to.
+	Versions []StackVersion `json:"versions"`
+	// Consumers counts the apps built on the stack; StaleConsumers, those
+	// pinned to a version other than the current one.
+	Consumers      int `json:"consumers"`
+	StaleConsumers int `json:"staleConsumers"`
+}
+
+// StackVersion is one version of a stack, and the apps pinned to it.
+type StackVersion struct {
+	Digest string `json:"digest"`
+	// Current is whether the stack's tag points at this version now.
+	Current bool `json:"current"`
+	// Signature is the stack artifact's signature, verified against the
+	// policy's stack signers.
+	Signature EvidenceItem `json:"signature"`
+	// Images are the IDs of the apps pinned to this version.
+	Images []string `json:"images"`
 }
 
 // PackageUse is one package version and the images that ship it.

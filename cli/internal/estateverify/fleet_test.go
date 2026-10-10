@@ -17,6 +17,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	ggcrregistry "github.com/google/go-containerregistry/pkg/registry"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -265,4 +266,79 @@ func TestReproduceOutcomes(t *testing.T) {
 	if got := reproduce(context.Background(), img, imageData{recipeSigner: signer}, opts); got.Status != "not-checked" || !strings.Contains(got.Detail, "Only verified") {
 		t.Errorf("unverified recipe: %+v", got)
 	}
+}
+
+// TestBuildStacks covers registry stacks: an app pinned to a signed stack
+// version that the stack's tag has since moved on from.
+func TestBuildStacks(t *testing.T) {
+	srv := httptest.NewServer(ggcrregistry.New(ggcrregistry.Logger(log.New(io.Discard, "", 0)), ggcrregistry.WithReferrersSupport(true)))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	ours := fulcioCert(t, ourSigner, ghIssuer)
+
+	pushStack := func(content string) string {
+		img, err := mutate.Append(mutate.ConfigMediaType(mutate.MediaType(empty.Image, types.OCIManifestSchema1), "application/vnd.clearcutt.factory.stack.v1+yaml"),
+			mutate.Addendum{Layer: static.NewLayer([]byte(content), "application/vnd.clearcutt.factory.stack.v1+yaml")})
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, _ := name.ParseReference(host + "/stacks/go:1")
+		if err := remote.Write(r, img); err != nil {
+			t.Fatal(err)
+		}
+		d, _ := img.Digest()
+		return d.String()
+	}
+	old := pushStack("kind: Stack\nmetadata: {name: go}\nbuild: golang:1.26\n")
+	attach(t, host+"/stacks/go", v1.Descriptor{MediaType: types.OCIManifestSchema1, Digest: mustHash(t, old)}, bundleJSON(t, PredicateCosignSign, old, map[string]any{}, ours))
+	current := pushStack("kind: Stack\nmetadata: {name: go}\nbuild: golang:1.27\n")
+
+	app := pushIndex(t, host+"/apps/checkout:1", nil, built, nil)
+	appDesc := descriptorOf(t, app)
+	recipe := map[string]any{
+		"factory":  map[string]string{"version": "v0.1.1"},
+		"manifest": "apiVersion: factory.clearcutt.dev/v1alpha1\nkind: App\nmetadata:\n  name: checkout\nspec:\n  stack: " + host + "/stacks/go:1\n",
+		"lock":     "app:\n  stack: go\n  stackDigest: sha256:" + strings.Repeat("d", 64) + "\n  stackArtifact: {ref: " + host + "/stacks/go:1, digest: " + old + "}\n  build: {ref: golang:1, digest: sha256:" + strings.Repeat("c", 64) + "}\n",
+	}
+	attach(t, host+"/apps/checkout", appDesc, bundleJSON(t, PredicateRecipe, appDesc.Digest.String(), recipe, ours))
+
+	verifier := acmeVerifier()
+	r, err := Build(context.Background(), observe(t, host, "apps/checkout:1"), Options{
+		Name: "stacks", Version: "test", GeneratedAt: "2026-10-10T00:00:00Z", Verifier: verifier,
+		Policy: report.Policy{TrustedSigners: verifier.Signers, StackSigners: verifier.Signers},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := r.Images[0].Factory
+	if f == nil || f.Stack != "go" || f.StackRef != host+"/stacks/go:1" || f.StackDigest != old {
+		t.Fatalf("app factory: %+v", f)
+	}
+	if len(r.Stacks) != 1 {
+		t.Fatalf("stacks: %+v", r.Stacks)
+	}
+	st := r.Stacks[0]
+	if st.Repository != host+"/stacks/go" || st.CurrentDigest != current || st.Consumers != 1 || st.StaleConsumers != 1 {
+		t.Errorf("stack: %+v", st)
+	}
+	if len(st.Versions) != 1 || st.Versions[0].Current || st.Versions[0].Signature.Status != "verified" || strings.Join(st.Versions[0].Images, ",") != "apps/checkout" {
+		t.Errorf("stack versions: %+v", st.Versions)
+	}
+	validateReport(t, r)
+
+	// Without stack signers the signature is present, not verified.
+	r, _ = Build(context.Background(), observe(t, host, "apps/checkout:1"), Options{Name: "stacks", Version: "test", Verifier: verifier,
+		Policy: report.Policy{TrustedSigners: verifier.Signers}})
+	if s := r.Stacks[0].Versions[0].Signature; s.Status != "present" || !strings.Contains(s.Detail, "No stack signer") {
+		t.Errorf("no stack signers: %+v", s)
+	}
+}
+
+func mustHash(t *testing.T, digest string) v1.Hash {
+	t.Helper()
+	h, err := v1.NewHash(digest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return h
 }

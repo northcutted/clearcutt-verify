@@ -326,6 +326,14 @@
           "description": "Stack is the stack an app was built on.",
           "type": "string"
         },
+        "stackDigest": {
+          "description": "StackDigest is the stack version the app's lock pins: the registry artifact's digest, or the digest of a local stack's definition.",
+          "type": "string"
+        },
+        "stackRef": {
+          "description": "StackRef is the registry stack an app was built on, as its lock names it (absent for a stack defined beside the app).",
+          "type": "string"
+        },
         "version": {
           "description": "Version is the clearcutt-factory version that built or rebased it.",
           "type": "string"
@@ -691,6 +699,13 @@
           },
           "type": "array"
         },
+        "stackSigners": {
+          "description": "StackSigners are who may sign clearcutt-factory stacks: a trust policy's stack signers. Registry stacks the estate's apps are built on are verified against them.",
+          "items": {
+            "$ref": "#/$defs/Signer"
+          },
+          "type": "array"
+        },
         "trustedSigners": {
           "description": "TrustedSigners are the identities whose signatures and attestations count as verified. Empty means nothing can be verified, only present.",
           "items": {
@@ -886,6 +901,81 @@
       "required": [
         "basis",
         "url"
+      ],
+      "type": "object"
+    },
+    "Stack": {
+      "additionalProperties": false,
+      "description": "Stack is a clearcutt-factory stack published to a registry (stack push), as the estate's apps use it.",
+      "properties": {
+        "consumers": {
+          "description": "Consumers counts the apps built on the stack; StaleConsumers, those pinned to a version other than the current one.",
+          "type": "integer"
+        },
+        "currentDigest": {
+          "description": "CurrentDigest is what Ref points at now; absent when it couldn't be read.",
+          "type": "string"
+        },
+        "ref": {
+          "description": "Ref is the tag apps name, e.g. ghcr.io/acme/stacks/go:1.",
+          "type": "string"
+        },
+        "repository": {
+          "description": "Repository is the stack's registry repository.",
+          "type": "string"
+        },
+        "staleConsumers": {
+          "type": "integer"
+        },
+        "versions": {
+          "description": "Versions are the stack versions apps are pinned to.",
+          "items": {
+            "$ref": "#/$defs/StackVersion"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "consumers",
+        "ref",
+        "repository",
+        "staleConsumers",
+        "versions"
+      ],
+      "type": "object"
+    },
+    "StackVersion": {
+      "additionalProperties": false,
+      "description": "StackVersion is one version of a stack, and the apps pinned to it.",
+      "properties": {
+        "current": {
+          "description": "Current is whether the stack's tag points at this version now.",
+          "type": "boolean"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "images": {
+          "description": "Images are the IDs of the apps pinned to this version.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "signature": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/EvidenceItem"
+            }
+          ],
+          "description": "Signature is the stack artifact's signature, verified against the policy's stack signers."
+        }
+      },
+      "required": [
+        "current",
+        "digest",
+        "images",
+        "signature"
       ],
       "type": "object"
     },
@@ -1143,6 +1233,13 @@
         }
       ],
       "description": "Policy is what images were held to in this run."
+    },
+    "stacks": {
+      "description": "Stacks are the clearcutt-factory registry stacks the estate's apps are built on: each version in use, who signed it, and which apps are pinned to an older version than the stack's tag names now.",
+      "items": {
+        "$ref": "#/$defs/Stack"
+      },
+      "type": "array"
     },
     "summary": {
       "$ref": "#/$defs/Summary"
