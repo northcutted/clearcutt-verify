@@ -17,8 +17,13 @@ What it shows:
   vulnerability scan, SLSA provenance, and recipe are all verified against
   the factory's signer, which is bound to runs in the clearcutt-factory
   repository. Each image also rebuilt from its recipe to the same digest.
-- Every base is proven by layer digest. `debian-tools` is 17 days behind
-  `debian:trixie-slim` and `platform-tools` 3 days behind `wolfi-base`.
+- Every base is proven by layer digest, and every factory image is on its
+  base's current version (the weekly lock update had just run). Each records
+  the smoke test its recipe declares (`tests: present`): clearcutt-factory
+  runs it on every platform before it pushes, but doesn't attest the result.
+- Three images carry an OpenVEX triage of two Go advisories for the upstream
+  tools they ship; the suppressed findings are listed as such in their
+  vulnerability reports.
 - The Chainguard images verify against Chainguard's signer, but are
   `unverified` because they carry no vulnerability attestation the policy can
   read.

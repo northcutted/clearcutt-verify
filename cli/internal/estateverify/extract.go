@@ -2,6 +2,7 @@ package estateverify
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"sort"
 	"strings"
@@ -442,6 +443,38 @@ func firstNonEmpty(vals ...string) string {
 		if v != "" {
 			return v
 		}
+	}
+	return ""
+}
+
+// recipeTest describes the smoke test a clearcutt-factory recipe's manifest
+// declares (spec.test), or "" when it declares none.
+func recipeTest(pred json.RawMessage) string {
+	var r struct {
+		Manifest string `json:"manifest"`
+	}
+	if json.Unmarshal(pred, &r) != nil {
+		return ""
+	}
+	var m struct {
+		Spec struct {
+			Test *struct {
+				Command []string `json:"command"`
+				HTTP    *struct {
+					Port int    `json:"port"`
+					Path string `json:"path"`
+				} `json:"http"`
+			} `json:"test"`
+		} `json:"spec"`
+	}
+	if yaml.Unmarshal([]byte(r.Manifest), &m) != nil || m.Spec.Test == nil {
+		return ""
+	}
+	switch t := m.Spec.Test; {
+	case t.HTTP != nil:
+		return fmt.Sprintf("GET :%d%s", t.HTTP.Port, firstNonEmpty(t.HTTP.Path, "/"))
+	case len(t.Command) > 0:
+		return strings.Join(t.Command, " ")
 	}
 	return ""
 }

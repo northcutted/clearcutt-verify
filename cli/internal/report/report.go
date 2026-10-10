@@ -257,9 +257,12 @@ type Image struct {
 	// Factory is present for images built or rebased by clearcutt-factory.
 	Factory *Factory `json:"factory,omitempty"`
 	// Packages is how many package versions the image ships, when known.
-	Packages *int     `json:"packages,omitempty"`
-	Verdict  Verdict  `json:"verdict"`
-	Warnings []string `json:"warnings"`
+	Packages *int `json:"packages,omitempty"`
+	// PackagesSource says where the package set came from; absent when it
+	// is unknown.
+	PackagesSource *PackagesSource `json:"packagesSource,omitempty"`
+	Verdict        Verdict         `json:"verdict"`
+	Warnings       []string        `json:"warnings"`
 }
 
 // Platform is one platform image of a multi-platform image.
@@ -301,6 +304,13 @@ type BaseLink struct {
 	// repository@digest).
 	Ref    string `json:"ref"`
 	Digest string `json:"digest,omitempty"`
+	// Platform says which platform image Digest and CurrentDigest name,
+	// e.g. linux/amd64. Absent, they name what the tag points at (the index
+	// of a multi-platform base), as Image.digest does.
+	Platform string `json:"platform,omitempty"`
+	// ProvenOn is the platform whose layers were compared to prove the
+	// relationship (for strength proof).
+	ProvenOn string `json:"provenOn,omitempty"`
 	// Method is how the relationship was established: layer-prefix (the
 	// image starts with the base's exact layers), oci-base-digest,
 	// buildpacks-metadata, oci-base-name, or history.
@@ -444,6 +454,18 @@ type FactoryInputs struct {
 	Images   int `json:"images"`
 }
 
+// PackagesSource is where an image's package set was read from.
+type PackagesSource struct {
+	// Evidence is the evidence kind it was read from (sbom).
+	Evidence string `json:"evidence"`
+	// Status is that evidence's status: verified (a trusted signer vouched
+	// for it) or present (unsigned, or signed by no trusted signer).
+	Status string `json:"status"`
+	// Platforms are the platform images whose SBOMs were read; the image's
+	// packages are their union.
+	Platforms []string `json:"platforms,omitempty"`
+}
+
 // Verdict is whether the image meets the policy.
 type Verdict struct {
 	// Status is verified (meets every requirement), failed (violates one),
@@ -455,10 +477,13 @@ type Verdict struct {
 
 // Base is a base-image repository and its newest observed version.
 type Base struct {
-	Repository     string `json:"repository"`
-	CurrentRef     string `json:"currentRef"`
-	CurrentDigest  string `json:"currentDigest,omitempty"`
-	CurrentCreated string `json:"currentCreated,omitempty"`
+	Repository    string `json:"repository"`
+	CurrentRef    string `json:"currentRef"`
+	CurrentDigest string `json:"currentDigest,omitempty"`
+	// CurrentPlatform says which platform image CurrentDigest names; absent,
+	// it names what the tag points at.
+	CurrentPlatform string `json:"currentPlatform,omitempty"`
+	CurrentCreated  string `json:"currentCreated,omitempty"`
 	// Versions is how many versions of it images are built on.
 	Versions int `json:"versions"`
 	// Consumers is how many images are built on it; StaleConsumers how many
@@ -524,4 +549,30 @@ type HistoryEntry struct {
 	// Ref is where that report is stored (a registry reference or a path).
 	Ref     string  `json:"ref,omitempty"`
 	Summary Summary `json:"summary"`
+	// Images are one row per image in that run, so readers can show an
+	// image's own history (its verdicts, rebases, and findings over time).
+	Images []HistoryImage `json:"images,omitempty"`
+}
+
+// HistoryImage is one image as one run saw it.
+type HistoryImage struct {
+	ID      string `json:"id"`
+	Digest  string `json:"digest"`
+	Verdict string `json:"verdict"`
+	// Base is the base it was built on, when known.
+	Base *HistoryBase `json:"base,omitempty"`
+	// RebasedFrom is the image whose layers were rebased into this one.
+	RebasedFrom string `json:"rebasedFrom,omitempty"`
+	// RebaseStatus is the status of its rebase record.
+	RebaseStatus string `json:"rebaseStatus,omitempty"`
+	// Vulnerabilities are the counted findings; absent when unknown.
+	Vulnerabilities *SeverityCounts `json:"vulnerabilities,omitempty"`
+}
+
+// HistoryBase is an image's base in a history row.
+type HistoryBase struct {
+	Digest   string `json:"digest,omitempty"`
+	Platform string `json:"platform,omitempty"`
+	Drift    string `json:"drift"`
+	Strength string `json:"strength"`
 }

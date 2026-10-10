@@ -298,8 +298,28 @@ func extendHistory(r *report.Report, path, out string) (*report.History, error) 
 			}
 		}
 	}
-	h.Entries = append([]report.HistoryEntry{{GeneratedAt: r.Metadata.GeneratedAt, Ref: report.ReportFile, Summary: r.Summary}}, h.Entries...)
+	h.Entries = append([]report.HistoryEntry{{GeneratedAt: r.Metadata.GeneratedAt, Ref: report.ReportFile, Summary: r.Summary, Images: historyImages(r)}}, h.Entries...)
 	return h, nil
+}
+
+// historyImages is one row per image of the run, for per-image history.
+func historyImages(r *report.Report) []report.HistoryImage {
+	rows := make([]report.HistoryImage, 0, len(r.Images))
+	for _, img := range r.Images {
+		row := report.HistoryImage{ID: img.ID, Digest: img.Digest, Verdict: img.Verdict.Status}
+		if b := img.Base; b != nil {
+			row.Base = &report.HistoryBase{Digest: b.Digest, Platform: b.Platform, Drift: b.Drift, Strength: b.Strength}
+		}
+		if img.Factory != nil && img.Factory.RebasedFrom != "" {
+			row.RebasedFrom, row.RebaseStatus = img.Factory.RebasedFrom, img.Evidence.Rebase.Status
+		}
+		if v := img.Vulnerabilities; v != nil {
+			counts := v.Counts
+			row.Vulnerabilities = &counts
+		}
+		rows = append(rows, row)
+	}
+	return rows
 }
 
 func printEstateSummary(w io.Writer, r *report.Report) {

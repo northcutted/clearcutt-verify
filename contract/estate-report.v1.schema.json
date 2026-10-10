@@ -14,6 +14,10 @@
         "currentDigest": {
           "type": "string"
         },
+        "currentPlatform": {
+          "description": "CurrentPlatform says which platform image CurrentDigest names; absent, it names what the tag points at.",
+          "type": "string"
+        },
         "currentRef": {
           "type": "string"
         },
@@ -75,6 +79,14 @@
             "oci-base-name",
             "history"
           ]
+        },
+        "platform": {
+          "description": "Platform says which platform image Digest and CurrentDigest name, e.g. linux/amd64. Absent, they name what the tag points at (the index of a multi-platform base), as Image.digest does.",
+          "type": "string"
+        },
+        "provenOn": {
+          "description": "ProvenOn is the platform whose layers were compared to prove the relationship (for strength proof).",
+          "type": "string"
         },
         "ref": {
           "description": "Ref is the base as the image is built on it (repository:tag or repository@digest).",
@@ -476,6 +488,14 @@
           "description": "Packages is how many package versions the image ships, when known.",
           "type": "integer"
         },
+        "packagesSource": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/PackagesSource"
+            }
+          ],
+          "description": "PackagesSource says where the package set came from; absent when it is unknown."
+        },
         "platforms": {
           "items": {
             "$ref": "#/$defs/Platform"
@@ -625,6 +645,32 @@
         "name",
         "type",
         "version"
+      ],
+      "type": "object"
+    },
+    "PackagesSource": {
+      "additionalProperties": false,
+      "description": "PackagesSource is where an image's package set was read from.",
+      "properties": {
+        "evidence": {
+          "description": "Evidence is the evidence kind it was read from (sbom).",
+          "type": "string"
+        },
+        "platforms": {
+          "description": "Platforms are the platform images whose SBOMs were read; the image's packages are their union.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "status": {
+          "description": "Status is that evidence's status: verified (a trusted signer vouched for it) or present (unsigned, or signed by no trusted signer).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence",
+        "status"
       ],
       "type": "object"
     },

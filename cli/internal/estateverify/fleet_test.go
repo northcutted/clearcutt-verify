@@ -30,7 +30,7 @@ import (
 func imageRecipePredicate(baseRef, baseDigest string) map[string]any {
 	return map[string]any{
 		"factory":  map[string]string{"version": "v0.1.0"},
-		"manifest": "apiVersion: factory.clearcutt.dev/v1alpha1\nkind: Image\nmetadata:\n  name: tools\n",
+		"manifest": "apiVersion: factory.clearcutt.dev/v1alpha1\nkind: Image\nmetadata:\n  name: tools\nspec:\n  test:\n    command: [/usr/bin/jq, --version]\n",
 		"lock":     "base:\n  ref: " + baseRef + "\n  digest: " + baseDigest + "\npackages:\n  platforms:\n    linux/amd64:\n      - {name: jq, version: '1.8'}\n",
 	}
 }
@@ -130,6 +130,13 @@ func TestBuildFactoryFleet(t *testing.T) {
 	if b := tl.Base; b == nil || b.Strength != "proof" || b.Drift != "stale" || b.DaysBehind != 10 || b.Ref != host+"/base:latest" || b.CurrentDigest == "" || b.CurrentDigest == b.Digest {
 		t.Errorf("tools base: %+v (unresolved %v, warnings %v)", tl.Base, tl.Unresolved, tl.Warnings)
 	}
+	// The claimed base was checked on one platform image, which its digest names.
+	if b := tl.Base; b == nil || b.Platform != "linux/amd64" || b.ProvenOn != "linux/amd64" {
+		t.Errorf("tools base platform: %+v", tl.Base)
+	}
+	if e := tl.Evidence.Tests; e.Status != "present" || e.Source != "recipe" || !strings.Contains(e.Detail, "/usr/bin/jq --version") {
+		t.Errorf("tools tests from the recipe: %+v", e)
+	}
 	if len(tl.Platforms) != 1 || tl.Platforms[0].Platform != "linux/amd64" || tl.Platforms[0].Layers != 2 {
 		t.Errorf("tools platforms: %+v", tl.Platforms)
 	}
@@ -143,6 +150,9 @@ func TestBuildFactoryFleet(t *testing.T) {
 	}
 	if rb.Factory == nil || rb.Factory.Kind != "Image" || rb.Factory.Name != "tools" {
 		t.Errorf("rebased factory (from the original recipe): %+v %v", rb.Factory, rb.Warnings)
+	}
+	if rb.Base != nil && (rb.Base.Platform != "" || rb.Base.ProvenOn != "linux/amd64") {
+		t.Errorf("rebased base found by the graph names the index: %+v", rb.Base)
 	}
 	if rb.Builder.Basis != "clearcutt-factory rebase record" || rb.Base == nil || rb.Base.Drift != "current" {
 		t.Errorf("rebased builder %+v base %+v", rb.Builder, rb.Base)
