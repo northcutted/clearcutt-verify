@@ -1,6 +1,6 @@
 # Agent Onboarding & Self-Extension Guide
 
-Welcome, Agent! You are working in the **ClearCutt Hardened Fleets** repository.
+Welcome, Agent! You are working in the **ClearCutt Verify** repository.
 
 To ensure you can operate here with maximum efficiency, zero regressions, and full synchronization with other AI tools, this repository implements a **Unified, Harness-Agnostic Agent DX & Memory System**.
 
@@ -29,14 +29,13 @@ Every agent working in this repository MUST adhere to the following contract:
 
 ---
 
-## 2. Monorepo Navigation Map
+## 2. Repository Navigation Map
 
-ClearCutt is a Nix-powered base image overlay factory and governance platform. Understand where you are:
+ClearCutt Verify governs and verifies container image estates and writes the estate report. Understand where you are:
 
-* `core/`: The Nix base image overlay configurations, release pipeline, and vulnerability gating tests.
-* `cli/`: A statically compiled Go governance CLI (`clearcutt-verify`) and its testing suite.
-* `site/`: Astro catalog site representing the published images.
-* `schemas/`: Declarative YAML validation schemas (e.g., Exception policies).
+* `cli/`: A statically compiled Go CLI (`clearcutt-verify`) and its testing suite.
+* `contract/`: The estate report contract (JSON Schemas generated from `cli/internal/report`) and fixtures.
+* `docs/`: Reader-facing documentation.
 
 ---
 

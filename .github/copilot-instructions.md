@@ -11,7 +11,7 @@
 
 # Agent Onboarding & Self-Extension Guide
 
-Welcome, Agent! You are working in the **ClearCutt Hardened Fleets** repository.
+Welcome, Agent! You are working in the **ClearCutt Verify** repository.
 
 To ensure you can operate here with maximum efficiency, zero regressions, and full synchronization with other AI tools, this repository implements a **Unified, Harness-Agnostic Agent DX & Memory System**.
 
@@ -40,14 +40,13 @@ Every agent working in this repository MUST adhere to the following contract:
 
 ---
 
-## 2. Monorepo Navigation Map
+## 2. Repository Navigation Map
 
-ClearCutt is a Nix-powered base image overlay factory and governance platform. Understand where you are:
+ClearCutt Verify governs and verifies container image estates and writes the estate report. Understand where you are:
 
-* `core/`: The Nix base image overlay configurations, release pipeline, and vulnerability gating tests.
-* `cli/`: A statically compiled Go governance CLI (`clearcutt-verify`) and its testing suite.
-* `site/`: Astro catalog site representing the published images.
-* `schemas/`: Declarative YAML validation schemas (e.g., Exception policies).
+* `cli/`: A statically compiled Go CLI (`clearcutt-verify`) and its testing suite.
+* `contract/`: The estate report contract (JSON Schemas generated from `cli/internal/report`) and fixtures.
+* `docs/`: Reader-facing documentation.
 
 ---
 
@@ -87,42 +86,24 @@ This document defines the core guidelines, command mappings, and coding standard
 
 ## 1. Directory Layout & Core Commands
 
-Always navigate to the correct workspace and run the appropriate commands:
-
 | Path | Purpose | Key Commands |
 | :--- | :--- | :--- |
-| `core/` | Nix image factory, Python remediation tests, Nix gating shell. | `cd core && nix develop`<br>`make core-verify`<br>`make core-remediation-tests` |
-| `cli/` | Go governance CLI. | `make cli-build`<br>`make cli-test`<br>`make cli-vet` |
-| `site/` | Astro catalog site. | `make site-install`<br>`make site-dev`<br>`make site-build`<br>`make site-typecheck` |
+| `cli/` | Go CLI (`clearcutt-verify`). | `make cli-build`<br>`make cli-test`<br>`make cli-vet` |
+| `contract/` | The estate report contract: generated JSON Schemas, a synthetic example, a real fixture. | `go -C cli test ./internal/report -run TestContractSchemasCurrent -update` |
+| `docs/` | Reader-facing documentation. | `./scripts/validate-doc-commands.sh ./clearcutt-verify` |
 
 ---
 
 ## 2. Gating and Verification Protocols
 
-Never finalize a pull request or commit without running the automated local verification checks.
+Never finalize a pull request or commit without running the local checks that mirror CI (`make check`, or its steps directly when `make` fails on macOS):
 
-### A. The Go CLI & Ecosystem Gating
-Run the unified verification script:
 ```bash
-.claude/skills/test-clearcutt/scripts/verify.sh
-```
-This script checks Go compilation, format (`gofmt`), unit tests, composite GitHub actions, and schema conformances. **Formatting drift will fail CI**, so `gofmt -l` must return zero output.
-
-### B. Nix & Remediation Gating
-To run Nix integration checks (including unprivileged boundaries and CA paths):
-```bash
-cd core && nix develop --extra-experimental-features "nix-command flakes" --accept-flake-config --command ./tests/verify.sh
-```
-To run Python remediation unit tests:
-```bash
-make core-remediation-tests
-```
-
-### C. Astro Catalog Site
-Building the Astro site requires catalog generation first. Never try to build without generating metadata:
-```bash
-make catalog-generate
-make site-build
+cd cli && go vet ./... && go test ./...
+gofmt -l cli/cmd cli/internal   # must print nothing
+./scripts/validate-doc-commands.sh ./clearcutt-verify
+./scripts/demo-imported-fleet-offline.sh
+(cd cli && COVERAGE_MIN=85.0 ./scripts/go-coverage.sh)
 ```
 
 ---
@@ -130,9 +111,9 @@ make site-build
 ## 3. Go Coding Standards
 
 When writing Go code inside `cli/`:
-1. **Error Handling:** Always wrap returned errors with context: `fmt.Errorf("unable to read catalog: %w", err)` rather than returning raw errors.
+1. **Error Handling:** Wrap returned errors with context: `fmt.Errorf("read report: %w", err)`.
 2. **Formatting:** Always run `gofmt` on all modified files.
-3. **Mocks:** When writing unit tests, point `--catalog` at the bundled fixture catalog (`cli/internal/testdata/catalog`) to ensure tests can run completely offline without hitting network paths.
+3. **Offline tests:** Use in-process registries (`github.com/google/go-containerregistry/pkg/registry`) and committed fixtures, never live registries, in unit tests.
 4. **Signatures:** When dealing with signature and attestation verification, ensure strict OIDC issuer and subject checks. Never use wildcard matching patterns in production code paths.
 
 
@@ -143,34 +124,25 @@ Every agent MUST respect and preserve the following design decisions, constraint
 
 ---
 
-## 1. Nix hermetic overlay isolation
+## 1. Proof, claims, and unknowns
 
-* **RPATH / RUNPATH Isolation:** Distroless run-times compiled by the Nix image factory must resolve dynamic libraries from Nix store subpaths and must not ship `/lib` or `/lib64` fallback shims. Slim, dev, and service tiers may retain documented FHS compatibility shims for downstream binaries; do not describe those tiers as the strict dynamic-linkage boundary.
-* **Mac OS Cross-Compilation Constraint:** You can run development shells on macOS, but **cross-compiling runtimes (like Java JDK, Node, .NET) from macOS to Linux target layers via Nix `pkgsCross` is unstable and unsupported**. Production matrix builds MUST be built on native Linux (e.g., standard Linux VM or CI runner).
-
----
-
-## 2. Matrix Lifecycle Hardening
-
-* **`distroless` Tier:** This is a zero-utility tier containing **exactly zero interactive shells or coreutils** (No `/bin/sh`, `/bin/bash`, `ls`, or `cat`).
-* **Privilege Restriction:** Containers are configured to drop all Linux kernel capabilities (`cap_drop: - ALL`) and run under the unprivileged rootless boundary **`user: "10001:10001"`**.
-* **OpenShift Arbitrary UID Support:** To comply with OpenShift SCC (which assigns random random high-range dynamic UIDs at runtime and mounts them inside group ID `0`), container manifests should omit hardcoded UIDs and run with `runAsNonRoot: true` alongside `runAsGroup: 0`.
+* **Layer digests are proof.** A base relationship found by comparing layer digests is reported as `proof`; one read from an annotation or label is a claim, checked against the layers before it counts. A self-reported label never outranks layer evidence.
+* **Unknown is never a pass.** Evidence that couldn't be read is `unknown`, not `missing` and not zero. An image whose requirements can't all be decided is `unverified`, never `verified`. Never add a code path that turns an error into a pass.
 
 ---
 
-## 3. Supply Chain Security Gating
+## 2. Verification
 
-* **Signature and Attestation:** `clearcutt-verify verify` and `clearcutt-verify app rebase` require cryptographic verification via Cosign and OIDC keyless signing.
-* **Wildcard Prohibition:** **Never use wildcards in verification constraints**. In particular, `mirror verify` and `verify` command flows must never use `--certificate-identity-regexp '.*'` or equivalent wildcards. You must always require a pinned, verifiable developer or workflow signer identity.
-* **Rebase Attestation Schema:** The rebase attestation schema (`schemas/rebase-attestation.schema.json`) enforces that a rebase attestation requires a validated developer signature, source image digest, compressed app-layer digests, and a record of the added/removed layers.
+* **cosign does the cryptography.** Evidence is verified by shelling out to cosign against the policy's trusted signers, so trust roots stay cosign's.
+* **Wildcard prohibition.** Never accept empty or wildcard identities (`.*`, `^https://github.com/.*`). Trusted signers name a workflow or organization.
+* **Bind reusable workflows to the caller.** A reusable workflow's certificate names the called workflow, which any repository can call. Evidence it signs is only `verified` when the trusted signer constrains the calling repository (`sourceRepository`, `sourceRepositoryOwner`, `sourceMatchesImage`), enforced with cosign's `--certificate-github-workflow-repository`.
 
 ---
 
-## 4. Exception & Policy Validation
+## 3. The estate report contract
 
-* **Exceptions Schema:** All declarative exception triage files must conform exactly to `schemas/exceptions.schema.json`.
-* **Kind Constraint:** The resource type MUST be defined exactly as **`kind: VulnerabilityExceptions`**. Defining it as `kind: Exceptions` or `VulnerabilityException` will fail schema validation and trigger gating failures.
-* **Certification Policy Schema:** Dynamic policies must conform exactly to `schemas/certification-policy.schema.json` and declare `kind: CertificationPolicy`.
+* **The contract is the interface.** `contract/` (generated from `cli/internal/report`) is what clearcutt-portal and other consumers read. Changes must be additive within `clearcutt.dev/v1`; regenerate the schemas with the types.
+* **Fixtures are real.** `contract/fixtures/` are generated by `estate verify` from real estates, with the command beside them.
 
 
 
@@ -180,47 +152,35 @@ This persistent ledger records critical repository-specific constraints, environ
 
 ---
 
-## 1. Nix & Build Constraints
-
-### macOS Cross-Compilation Failure
-* **Context:** Nix native development shells run on macOS. However, trying to compile standard target runtime matrix tiers (like Java JDK, Node runtimes, ASP.NET) from macOS to Linux target OCI layers via `pkgsCross` is unstable and fails.
-* **Lesson:** Do not write or test macOS cross-compilation targets in `flake.nix` for production container builds. Standard target closures must be compiled on native Linux (VMs or CI runners).
+## 1. Build Constraints
 
 ### macOS `make` xcrun architecture mismatch
-* **Context:** Running `make agent-sync` on macOS hosts can crash with `xcrun: error: unable to load libxcrun` due to local Xcode arm64/arm64e compiler toolchain mismatches.
-* **Lesson:** When Apple's `xcrun` wrapper fails, bypass `make` and run the script directly: `bash .agents/sync.sh`.
+* **Context:** Running `make` on macOS hosts can crash with `xcrun: error: unable to load libxcrun` due to local Xcode arm64/arm64e compiler toolchain mismatches.
+* **Lesson:** When Apple's `xcrun` wrapper fails, bypass `make` and run the recipe's commands directly (for example `bash .agents/sync.sh`, or the `check` steps).
 
 ---
 
 ## 2. Go CLI & Testing Pitfalls
 
-### Bare OS Errors vs Actionable Errors
-* **Context:** When running commands like `clearcutt-verify list` without a catalog path or database, Go can return raw, uninformative system errors.
-* **Lesson:** Always intercept folder-read operations and return high-fidelity, actionable error messages (e.g., "no ClearCutt catalog found") rather than passing through bare OS filesystem errors.
-
 ### Offline Testing Fixtures
-* **Context:** The actual image catalog is generated dynamically and excluded from Git, meaning it is not present on clean workspace checkouts.
-* **Lesson:** Unit and integration tests must run completely offline. When testing CLI commands in Go, always bind the `--catalog` flag to the committed testdata fixture directory (`cli/internal/testdata/catalog`).
+* **Context:** Live registries rate-limit (Docker Hub allows 100 anonymous manifest reads an hour per IP), move tags, and need credentials.
+* **Lesson:** Unit and integration tests must run offline: use in-process registries (`go-containerregistry/pkg/registry`) and committed fixtures. Regenerate `contract/fixtures/` deliberately, from the command beside them.
+
+### Unknown is not missing
+* **Context:** A registry that refuses a request (rate limit, auth) looks like "no evidence" if errors are swallowed.
+* **Lesson:** Registry failures must surface as `unknown` with the reason, never as `missing` or a pass.
 
 ---
 
-## 3. Schema & Attestation Violations
+## 3. Signature Validation
 
-### Exceptions Policy Resource Kind
-* **Context:** Exception triages (`exceptions.yaml`) fail schema validation if their kind is specified as `Exceptions` or `VulnerabilityException`.
-* **Lesson:** The resource type must be declared exactly as **`kind: VulnerabilityExceptions`**. Anything else will fail integration checks.
-
-### Signature Validation Wildcards
+### Wildcards
 * **Context:** Using wildcards inside OIDC certificate checks in supply chain verification.
-* **Lesson:** Never use or recommend wildcards like `--certificate-identity-regexp '.*'` in cosign signature validation. Doing so breaks compliance contracts and fails gating scripts.
+* **Lesson:** Never use or recommend wildcards like `--certificate-identity-regexp '.*'` in cosign signature validation.
 
----
-
-## 4. Ecosystem & Astro Constraints
-
-### Astro Catalog Data Modes
-* **Context:** Building or previewing the Astro site can silently use ignored local catalog data under `site/src/data/catalog`, which may be stale and is not clean-clone truth.
-* **Lesson:** Be explicit about catalog mode. Use `cli/internal/testdata/catalog` or `cli/internal/testdata/mixed-catalog` for clean-clone and fixture-backed proof. Use `clearcutt-verify catalog generate --config clearcutt.yaml --include-services --output /tmp/clearcutt-catalog` for current generator behavior without touching ignored site data. Use `clearcutt-verify catalog build` only for live release-evidence parity. Inspect `site/src/data/catalog/index.json` before relying on local generated site data.
+### Reusable workflows
+* **Context:** A reusable GitHub workflow signs with its own identity wherever it is called from.
+* **Lesson:** Trusting the workflow's identity alone trusts every caller; bind the signer to the calling repository (`sourceRepository`, `sourceRepositoryOwner`, `sourceMatchesImage`).
 
 ---
 

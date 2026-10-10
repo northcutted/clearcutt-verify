@@ -7,13 +7,10 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/northcutted/clearcutt-verify/internal/catalog"
 )
 
 type AssessOptions struct {
 	GeneratedAt string
-	CatalogPath string
 }
 
 func Assess(inventory ImagesFile, observations Observations, opts AssessOptions) (Assessment, error) {
@@ -26,16 +23,6 @@ func Assess(inventory ImagesFile, observations Observations, opts AssessOptions)
 		normalizeObservation(&obs)
 		if obs.ID != "" {
 			obsByID[obs.ID] = obs
-		}
-	}
-	cataloged := map[string]bool{}
-	if opts.CatalogPath != "" {
-		idx, err := catalog.LoadCatalogIndex(opts.CatalogPath)
-		if err != nil {
-			return Assessment{}, fmt.Errorf("load assessment catalog: %w", err)
-		}
-		for _, image := range idx.Images {
-			cataloged[image.ID] = true
 		}
 	}
 	result := Assessment{
@@ -56,9 +43,6 @@ func Assess(inventory ImagesFile, observations Observations, opts AssessOptions)
 	for _, spec := range specs {
 		obs := obsByID[spec.ID]
 		item := assessImage(spec, obs)
-		if cataloged[spec.ID] {
-			result.Summary.CatalogedImages++
-		}
 		result.Summary.ImportedImages++
 		result.Summary.ImagesByRuntime[spec.Language.ID]++
 		result.Summary.ImagesByTier[spec.Tier]++
@@ -188,7 +172,7 @@ func policyPosture(item ImageAssessment, spec ImageSpec, channels map[string]Evi
 
 func allEvidenceVerified(channels map[string]EvidenceChannel) bool {
 	for _, channel := range []string{"signature", "sbom", "provenance", "vulnerabilityScan", "tests"} {
-		if !strings.EqualFold(strings.TrimSpace(channels[channel].Status), catalog.EvidenceStatusVerified) {
+		if !strings.EqualFold(strings.TrimSpace(channels[channel].Status), EvidenceStatusVerified) {
 			return false
 		}
 	}
@@ -219,9 +203,9 @@ func observationChannelSatisfies(name string, channel EvidenceChannel) bool {
 	status := strings.ToLower(strings.TrimSpace(channel.Status))
 	switch name {
 	case "signature", "provenance", "tests":
-		return status == catalog.EvidenceStatusVerified
+		return status == EvidenceStatusVerified
 	case "sbom", "vulnerabilityScan":
-		return status == catalog.EvidenceStatusObserved || status == catalog.EvidenceStatusVerified || status == catalog.EvidenceStatusAttested
+		return status == EvidenceStatusObserved || status == EvidenceStatusVerified || status == EvidenceStatusAttested
 	default:
 		return false
 	}
@@ -285,7 +269,6 @@ func SummaryMarkdown(assessment Assessment) string {
 	fmt.Fprintf(&b, "# Imported Fleet Assessment\n\n")
 	fmt.Fprintf(&b, "ClearCutt did not build this estate. Missing evidence is a governance gap, not proof that an image is insecure.\n\n")
 	fmt.Fprintf(&b, "- %d images imported\n", s.ImportedImages)
-	fmt.Fprintf(&b, "- %d images cataloged\n", s.CatalogedImages)
 	fmt.Fprintf(&b, "- %d refs resolved to digests\n", s.ResolvedDigestRefs)
 	fmt.Fprintf(&b, "- %d refs remain mutable or unresolved\n", s.MutableOrUnresolvedRefs)
 	fmt.Fprintf(&b, "- %d images have verified provenance\n", s.VerifiedEvidenceByChannel["provenance"])

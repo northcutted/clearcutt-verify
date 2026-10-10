@@ -1,84 +1,46 @@
-# ClearCutt Mental Model
+# ClearCutt Verify Mental Model
 
-ClearCutt has three loops. The first is the product; the other two exist because
-they were needed to prove the first one works.
+ClearCutt Verify has one loop, and it does not require anyone to have built
+the images with ClearCutt tools:
 
-## 1. Governance Loop
-
-This is the main path, and it does not require ClearCutt to have built anything:
-
-1. Enumerate a registry namespace into an inventory (`registry scan`).
+1. Enumerate a registry namespace into an inventory (`registry scan`), or list
+   references by hand (`import images`).
 2. Read each image's manifest, config, layers, and labels (`import observe`).
 3. Derive which images are built on which and how stale each is (`graph build`),
-   and what the estate has in common (`graph layers`).
-4. Assess what evidence each image carries and what is missing
-   (`import assess`), without inferring provenance that was never there.
-5. Gate on the result at CI (`verify`, `certify`, `graph build --fail-on-stale`)
-   and at admission (`policy`).
-6. Publish the catalog and evidence portal (`catalog build`,
-   `catalog site build`).
+   what the estate has in common (`graph layers`), and which images ship a
+   package (`graph packages`).
+4. Verify each image's signatures and attestations against a trust policy, and
+   write the estate report (`estate verify`).
+5. Act on it: gate CI on the verdicts (`estate verify --fail-on`), and wake the
+   images built on a base that changed (`estate dependents`).
+6. Keep the report and its history next to the images (`estate push`), for a
+   portal to publish ([clearcutt-portal](https://github.com/northcutted/clearcutt-portal)).
 
-Nothing in this loop needs Nix, a particular Dockerfile, or cooperation from
-whoever built the images.
+## Where it sits in ClearCutt
 
-## 2. Platform Loop
+| Tool | Job |
+| --- | --- |
+| [clearcutt-factory](https://github.com/northcutted/clearcutt-factory) | Builds images reproducibly from YAML, signs and attests them, and rebases apps onto patched bases. |
+| clearcutt-verify | Checks an estate, whatever built it, and writes the estate report. |
+| [clearcutt-portal](https://github.com/northcutted/clearcutt-portal) | Publishes the report as a website. |
 
-A platform team that wants to build its own base images can. This is how the
-project's single reference fixture is produced:
+The tools share data formats, not code: OCI annotations, Sigstore attestations,
+the estate report ([contract](../../contract/README.md)), and one trust policy
+(`kind: TrustPolicy`) that says whose signatures the organization accepts.
 
-1. Configure runtime and service lanes in `clearcutt.yaml`.
-2. Build platform-owned images with the Nix backend.
-3. Publish images to the fork owner's registry.
-4. Attach release evidence when configured: signatures, SBOMs, provenance, test
-   results, scans, and release metadata.
-5. Generate catalog data and publish the evidence portal.
-6. Maintain admission policy examples and exceptions.
+## Proof, claims, and unknowns
 
-This loop is where Nix belongs. It is platform-owner machinery, not an
-app-team prerequisite — and it is optional. ClearCutt governs estates it did
-not build; this loop only matters if you want to be the builder too.
+- A base relationship found by comparing layer digests is **proof**; one read
+  from an `org.opencontainers.image.base.*` annotation is a **claim** its author
+  made, and is checked against the layers before it counts.
+- Evidence is **verified** only when cosign verified it against a trusted
+  signer. Evidence found but not verified is **present**; evidence signed by
+  someone else is **failed**.
+- What couldn't be read is **unknown**, never zero and never a pass. An image
+  whose requirements can't all be decided is **unverified**.
 
-## 3. App-Delivery Loop
+## Evidence channels
 
-Application teams consume the fleet with normal container tooling:
-
-1. Choose a runtime and tier from the catalog.
-2. Generate or copy an app starter.
-3. Build with a `dev` image and run with `slim` or `distroless`.
-4. Certify the app image locally or in CI.
-5. Admit only images that satisfy the platform's evidence and vulnerability
-   policy.
-6. Rebase compatible app images onto newer bases under review when needed.
-   `app rebase` verifies by layer diff_id that the app sits on the old base, so
-   it works on any image, not only ones built by ClearCutt or buildpacks.
-
-## Lanes
-
-- Runtime base images are platform-owned language images for application teams.
-- Service images are platform-owned backing services such as Postgres, Valkey,
-  and oauth2-proxy.
-- Application images are downstream products built by app teams on top of the
-  fleet. They are not a third platform-owned lane.
-
-## Tiers
-
-- `dev`: toolchains, compilers, shells, and build-time utilities.
-- `slim`: smaller runtime tier that keeps a shell for diagnostics.
-- `distroless`: production-oriented runtime tier without shells or package
-  managers.
-
-## Evidence
-
-The catalog reports evidence channels independently. A signature, SBOM,
-provenance record, vulnerability scan, test result, exception, or VEX document
-can be present or missing on its own. Do not treat one green signal as proof
-that every channel is complete.
-
-## Verification And Certification
-
-- `verify image` is a catalog policy gate. It checks catalog-record evidence
-  flags and thresholds.
-- `verify release-evidence`, Cosign, GitHub attestation verification, and SLSA
-  verifier commands perform registry-side checks for published OCI refs.
-- `certify` audits a downstream app image archive against a local hardening
-  policy.
+Signature, SBOM, vulnerability scan, provenance, recipe, rebase record, and test
+results are reported independently. Do not treat one green signal as proof that
+every channel is complete.

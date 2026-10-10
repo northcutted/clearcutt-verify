@@ -103,6 +103,22 @@ The history gains an entry per run; pass `--history` to extend a history kept
 elsewhere. The command prints a summary table, and `--fail-on failed` (or
 `unverified`) makes it exit 2 when any image falls short, for CI.
 
+### Who is built on a base
+
+`estate dependents` reads a report and lists the images built on a base
+repository: the version each is on, how far behind it is, and the repository
+each image was built from (from verified provenance where there was any, else
+its label). A platform team's workflow uses it to wake exactly the repositories
+a newly published base affects, for clearcutt-factory's `rebase` to move them.
+
+```bash
+clearcutt-verify estate dependents --report dist/estate/estate-report.json \
+  --base ghcr.io/acme/platform/run-python --format json
+```
+
+Only relationships proven by layer digest count unless `--min-strength` says
+otherwise; `--transitive` adds the images built on those images.
+
 ### Keeping reports in the registry
 
 The registry that holds the images can hold their reports too, as an OCI

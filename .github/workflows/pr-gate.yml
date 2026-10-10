@@ -1,6 +1,6 @@
-# ClearCutt Hardened Fleets Pull Request Gating Workflow
+# ClearCutt Verify pull request gate
 
-name: ClearCutt PR Gating
+name: ClearCutt Verify PR Gating
 
 on:
   pull_request:
@@ -23,10 +23,6 @@ jobs:
     name: Detect Changed Surfaces
     runs-on: ubuntu-latest
     outputs:
-      fleet: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.fleet }}
-      service: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.service }}
-      site: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.site }}
-      integration: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.integration }}
       go: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.go }}
     steps:
       - name: Checkout Repository
@@ -38,99 +34,19 @@ jobs:
         uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
         with:
           filters: |
-            fleet:
-              - 'clearcutt.yaml'
-              - 'schemas/**'
-              - '.github/workflows/pr-gate.yml'
-              - 'cli/cmd/**'
-              - 'cli/go.*'
-              - 'cli/internal/commands/fleet*.go'
-              - 'cli/internal/commands/matrix*.go'
-              - 'cli/internal/commands/platform*.go'
-              - 'cli/internal/fleet/**'
-            service:
-              - 'clearcutt.yaml'
-              - 'schemas/**'
-              - 'examples/service-images/**'
-              - '.github/workflows/pr-gate.yml'
-              - 'cli/cmd/**'
-              - 'cli/go.*'
-              - 'cli/internal/catalogbuild/**'
-              - 'cli/internal/commands/service*.go'
-              - 'cli/internal/commands/catalog_*.go'
-              - 'cli/internal/fleet/**'
-            site:
-              - 'site/**'
-              - 'cli/internal/sitetemplate/**'
-              - 'cli/internal/testdata/**'
-              - 'cli/internal/commands/catalog_site.go'
-              - 'docs/site-generator.md'
-              - '.github/workflows/pr-gate.yml'
-            integration:
-              - 'cli/**'
-              - 'clearcutt.yaml'
-              - 'schemas/**'
-              - 'Makefile'
-              - '.github/workflows/pr-gate.yml'
             go:
               - 'AGENTS.md'
               - 'README.md'
+              - 'Makefile'
               - 'docs/**'
-              - 'schemas/**'
+              - 'contract/**'
+              - 'examples/**'
               - 'scripts/**'
               - 'cli/**'
               - '.agents/**'
               - '.github/actions/**'
               - '.github/workflows/**'
               - '.github/copilot-instructions.md'
-
-  site-ci:
-    name: Catalog Site Service Fixture
-    needs: [changes]
-    if: ${{ needs.changes.outputs.site == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Setup Node
-        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v6.0.0
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: site/package-lock.json
-
-      - name: Install ClearCutt CLI
-        uses: ./.github/actions/install-clearcutt-verify
-        with:
-          mode: ${{ vars.CLEARCUTT_CLI_MODE || 'release' }}
-          version: ${{ vars.CLEARCUTT_CLI_VERSION || 'v0.17.0' }}
-          repo: ${{ vars.CLEARCUTT_CLI_REPO || 'northcutted/clearcutt-verify' }}
-
-      - name: Validate Mixed Runtime and Service Catalog
-        run: |
-          ./clearcutt-verify --catalog cli/internal/testdata/mixed-catalog catalog validate --schema-version clearcutt.catalog.index/v2
-          ./clearcutt-verify --catalog cli/internal/testdata/mixed-catalog catalog validate --schema-version clearcutt.catalog.image/v2
-
-      - name: Build Catalog Site From Mixed Fixture
-        run: |
-          ./clearcutt-verify catalog site build --catalog cli/internal/testdata/mixed-catalog --template site --output "$RUNNER_TEMP/service-site" --install
-          service_page="$RUNNER_TEMP/service-site/images/postgres16/index.html"
-          catalog_page="$RUNNER_TEMP/service-site/catalog/index.html"
-          test -f "$service_page"
-          test -f "$catalog_page"
-          grep -q "Service Images" "$catalog_page"
-          grep -q "Service Image Usage" "$service_page"
-          grep -q "postgres:5432/tcp" "$service_page"
-          grep -q "/var/lib/postgresql/data" "$service_page"
-          grep -q "Non-Prod Only" "$service_page"
-          grep -q "docker-compose.yml" "$service_page"
-          grep -q "pod.yaml" "$service_page"
-          if grep -q "Base Image Layering" "$service_page" || grep -q "Nix Shell" "$service_page" || grep -q "Runtime Security" "$service_page"; then
-            echo "service page still renders runtime-first copy" >&2
-            exit 1
-          fi
 
   go-ci:
     name: Go Lint, Build, Test & Drift Guard
@@ -181,24 +97,10 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-      - name: Run Schema Drift Guard
-        run: |
-          # Verify every catalog JSON compiles strictly against the Go data models
-          # with zero unmapped/unknown fields.
-          for fixture_catalog in cli/internal/testdata/catalog cli/internal/testdata/mixed-catalog; do
-            mapfile -t images < <(python3 -c 'import json, sys; catalog = json.load(open(sys.argv[1], encoding="utf-8")); print("\n".join(image["id"] for image in catalog.get("images", [])))' "$fixture_catalog/index.json")
-            for img in "${images[@]}"; do
-              echo "Checking strict catalog drift for $fixture_catalog/$img..."
-              ./clearcutt-verify --catalog "$fixture_catalog" inspect "$img" --strict >/dev/null
-            done
-          done
-          echo "Drift guard check PASSED!"
-
   pr-gate-summary:
     name: PR Gate Summary
     needs:
       - changes
-      - site-ci
       - go-ci
     if: ${{ always() }}
     runs-on: ubuntu-latest
@@ -221,7 +123,6 @@ jobs:
               return str(outputs.get(name, "")).lower() == "true"
 
           selected = {
-              "site-ci": enabled("site"),
               "go-ci": enabled("go"),
           }
 
@@ -233,7 +134,7 @@ jobs:
               "| Surface | Selected |",
               "| --- | --- |",
           ]
-          for name in ["fleet", "service", "site", "integration", "go"]:
+          for name in ["go"]:
               lines.append(f"| `{name}` | `{enabled(name)}` |")
 
           lines.extend([

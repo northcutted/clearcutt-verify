@@ -1,4 +1,4 @@
-# ClearCutt CLI Reference
+# ClearCutt Verify CLI Reference
 
 This page is a compact map of the current CLI surface. It is not a replacement
 for `clearcutt-verify --help`; use help output for the final flag contract.
@@ -10,22 +10,17 @@ The CLI distinguishes "the gate said no" from "the gate could not run":
 | Code | Meaning |
 | --- | --- |
 | `0` | Command succeeded; all requested checks passed. |
-| `1` | Operational error: bad flags or arguments, IO failure, missing catalog data, or required tooling not available. |
-| `2` | Policy gate failed: a verification, conformance, certification, exception, or threshold check evaluated and rejected the input. |
+| `1` | Operational error: bad flags or arguments, IO failure, or required tooling not available. |
+| `2` | Policy gate failed: a check evaluated and rejected the input. |
 
-Exit code 2 applies to the gating commands — `verify image`, `verify catalog`,
-`verify rebuild`, `verify release-evidence`,
-`conformance run`, `certify`, and `exceptions validate` — plus the other
-check-list gates (`catalog validate`, `overlay verify`, `platform status`,
-`runtime validate`, `service validate`, `app diff-base`, `app rebase`). CI
-`run:` steps fail on any non-zero code, so existing workflow gates keep working;
-scripts that need to branch on "policy failure vs broken pipeline" can now test
-the code directly:
+Exit code 2 comes from `estate verify --fail-on failed|unverified`,
+`graph build --fail-on-stale`, and `verify release-evidence`. Scripts can branch
+on the code:
 
 ```text
-clearcutt-verify verify image <id> ...; case $? in
-  0) deploy ;;
-  2) block release: policy gate rejected the image ;;
+clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --out dist/estate --fail-on failed; case $? in
+  0) publish the report ;;
+  2) an image falls short of the policy (the report says which and why) ;;
   *) investigate: verification could not run ;;
 esac
 ```
@@ -33,21 +28,14 @@ esac
 ## Output Formats
 
 The global `--format` flag accepts `table` (default), `json`, or `yaml`.
-Unknown values are rejected before the command runs. The gating commands above
-emit a common machine-readable shape for `--format json|yaml`: an overall
-`status` (`pass` or `fail`) plus a `checks` array of
-`{id, status, message}` objects, with data on stdout and human commentary on
-stderr.
+Unknown values are rejected before the command runs.
 
 ## Install
 
 Releases ship cross-compiled binaries (`clearcutt-verify-<os>-<arch>` for
 `darwin`/`linux`/`windows` on `amd64`/`arm64`), a keyless Sigstore signature
-bundle per binary (`<binary>.sig`), `clearcutt-cli-assets.json`, and a
-`SHA256SUMS.txt` manifest. The release workflow owns the release
-binary matrix, optional `cosign sign-blob` calls, and checksum manifest; GitHub
-Actions supplies the OIDC identity when the release workflow runs it with
-`--sign`. Download a binary and its `.sig` bundle from the
+bundle per binary (`<binary>.sig`), and a `SHA256SUMS.txt` manifest. Download a
+binary and its `.sig` bundle from the
 [latest release](https://github.com/northcutted/clearcutt-verify/releases/latest)
 and verify before use:
 
@@ -59,14 +47,9 @@ cosign verify-blob \
   clearcutt-verify-linux-amd64
 
 chmod +x clearcutt-verify-linux-amd64
-./clearcutt-linux-amd64 --catalog cli/internal/testdata/catalog list
 ```
 
-The identity is exact, not a pattern: releases run only from
-`refs/heads/main`, and the same string is pinned as
-`release.workflowIdentity` in `clearcutt.yaml` and passed to
-`clearcutt-verify verify release-evidence --workflow-identity`. Build from source
-(below) when contributing.
+In GitHub Actions, `.github/actions/install-clearcutt-verify` does the same.
 
 ## Build
 
@@ -74,58 +57,6 @@ The identity is exact, not a pattern: releases run only from
 go -C cli build -o ../clearcutt-verify ./cmd/clearcutt-verify
 ./clearcutt-verify --help
 ```
-
-Catalog-backed discovery commands need generated catalog data or a fixture:
-
-```bash
-./clearcutt-verify --catalog cli/internal/testdata/catalog list
-./clearcutt-verify --catalog cli/internal/testdata/catalog inspect java21-distroless
-```
-
-## App-Team Commands
-
-```bash
-./clearcutt-verify --catalog cli/internal/testdata/catalog list
-./clearcutt-verify --catalog cli/internal/testdata/catalog inspect java21-distroless
-
-## Catalog And Trust Commands
-
-```bash
-./clearcutt-verify catalog generate --config clearcutt.yaml --include-services --output dist/catalog
-./clearcutt-verify --catalog dist/catalog catalog validate
-./clearcutt-verify --catalog dist/catalog catalog summarize
-./clearcutt-verify --catalog dist/catalog catalog inspect java21-distroless
-./clearcutt-verify catalog diff --old previous/catalog --new dist/catalog
-./clearcutt-verify catalog site build --catalog dist/catalog --output dist/site --install
-./clearcutt-verify catalog workflow-params --github-output "$GITHUB_OUTPUT"
-./clearcutt-verify catalog vex-all --output-dir dist/site/vex
-./clearcutt-verify catalog build --core-dir core --update-db --include-services
-
-./clearcutt-verify --catalog cli/internal/testdata/catalog verify image java21-distroless \
-  --require-signature \
-  --require-sbom \
-  --require-provenance \
-  --allow-preview
-
-./clearcutt-verify verify release-evidence \
-  --ref ghcr.io/YOUR_ORG/YOUR_REPO/YOUR_IMAGE:TAG \
-  --repo YOUR_ORG/YOUR_REPO \
-  --workflow-identity 'https://github.com/YOUR_ORG/YOUR_REPO/.github/workflows/release.yml@refs/heads/main' \
-  --core-dir core
-
-./clearcutt-verify verify rebuild ghcr.io/YOUR_ORG/YOUR_REPO/clearcutt-java21:TAG-distroless \
-  --target java21-distroless \
-  --rebuild \
-  --pull-registry-archive \
-  --require-digest-match \
-  --require-layer-match \
-  --diffoscope-out rebuild.diff.txt \
-  --output-predicate
-
-
-For `verify release-evidence`, `--core-dir core` runs core-pinned verifier tools
-through the scaffolded Nix backend. The current backend supplies Cosign, GitHub
-CLI, and a flake-local SLSA verifier binary derivation.
 
 ## Estate Discovery Commands
 
@@ -208,53 +139,35 @@ every edge with the confidence that method earns. See
   --trusted-identity-regexp '^https://github\.com/acme/' \
   --trusted-issuer https://token.actions.githubusercontent.com \
   --out dist/estate --fail-on failed
+
+# The images proven to be built on a base, with their source repositories
+./clearcutt-verify estate dependents --report dist/estate/estate-report.json \
+  --base ghcr.io/acme/platform/run-python --format json
+
+# Keep the report next to the images, and read it back
+./clearcutt-verify estate push ghcr.io/acme/estate:latest --dir dist/estate \
+  --file estate-report.json --file estate-history.json
+./clearcutt-verify estate pull ghcr.io/acme/estate:latest --output dist/estate
 ```
 
 See [Verifying an estate](verify-estate.md) and the [report contract](../contract/README.md).
 
-## Scan Commands
+## One Image
 
 ```bash
-./clearcutt-verify scan refresh-kev
-
-./clearcutt-verify scan \
-  --mode remediation \
-  --sbom-dir site/src/data/sboms \
-  --out-dir site/src/data/vulnerabilities \
-  --depth 4 \
-  --kev-file core/build-outputs/security-intel/known_exploited_vulnerabilities.json \
-  --update-db
+./clearcutt-verify verify release-evidence \
+  --ref ghcr.io/YOUR_ORG/YOUR_REPO/YOUR_IMAGE:TAG \
+  --repo YOUR_ORG/YOUR_REPO \
+  --workflow-identity 'https://github.com/YOUR_ORG/YOUR_REPO/.github/workflows/release.yml@refs/heads/main'
 ```
 
-`scan refresh-kev` writes the CISA KEV catalog cache and a small status JSON
-under `core/build-outputs/security-intel/` by default. Refresh failures are
-non-fatal unless `--fail-on-unavailable` is set.
-
-`scan --update-db` refreshes the local Grype database before scanning. If the
-refresh fails, the CLI warns and continues with the active local database, which
-matches the scheduled remediation behavior without requiring a separate shell
-wrapper.
-
-## Policy And Exception Commands
-
-```bash
-./clearcutt-verify --catalog cli/internal/testdata/catalog policy java21-distroless --engine kyverno --environment production --namespace apps
-./clearcutt-verify exceptions validate exceptions.yaml --fail-on-expired-exceptions
-./clearcutt-verify vex --help
-```
-
-`policy` generates Kubernetes admission policy examples. `exceptions` governs
-time-boxed vulnerability exceptions. `vex` emits OpenVEX documents.
-
-ClearCutt reports and gates on vulnerabilities; it does not patch images. The
-`remediation` and `overlay` command groups, which drafted Nix overlay patches
-for the images ClearCutt built, were removed along with the fleet they served.
-`remediation.policy` in `clearcutt.yaml` still drives the severity
-thresholds `scan` and `verify` gate on.
+`verify release-evidence` checks one published image's Sigstore signature, its
+SBOM and test-result attestations, and its SLSA and GitHub provenance, matching
+the workflow identity exactly.
 
 ## Drift Check Scope
 
-The PR gate validates high-traffic command snippets that are expected to be
-executable from this checkout. Commands that require registry credentials,
-cluster access, or fork-specific values must be marked as examples and should
-use placeholders such as `YOUR_ORG`.
+The PR gate validates command snippets that are expected to be executable from
+this checkout. Commands that require registry credentials, cluster access, or
+organization-specific values must be marked as examples and should use
+placeholders such as `YOUR_ORG`.

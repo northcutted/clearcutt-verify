@@ -1,9 +1,0 @@
-{
-  "name": "clearcutt-template-java",
-  "image": "ghcr.io/northcutted/clearcutt/clearcutt-java21:dev",
-  "workspaceFolder": "/workspace",
-  "remoteUser": "10001",
-  "containerEnv": {
-    "CLEARCUTT_IMAGE_ID": "java21-dev"
-  }
-}

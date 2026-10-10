@@ -1,6 +1,6 @@
 ---
 name: clearcutt-release-triage
-description: Use for ClearCutt GitHub Actions, release, catalog publishing, Pages, scheduled scan, remediation, rebase, signing, SBOM, provenance, or CI failure diagnosis and monitoring.
+description: Use for clearcutt-verify GitHub Actions, release, signing, or CI failure diagnosis and monitoring.
 ---
 
 # ClearCutt Release Triage
@@ -12,7 +12,7 @@ Use this skill for CI/CD, release, and workflow failures.
 - Diagnose before patching.
 - Start from logs, workflow config, and local reproduction.
 - Keep fixes narrow and add regression coverage for bounded causes.
-- Do not dispatch release, scheduled scan, remediation, or rebase workflows without explicit user approval.
+- Do not dispatch or approve release workflows without explicit user approval.
 - Do not weaken signing, provenance, OIDC identity, evidence, or vulnerability gates to make CI pass.
 
 ## Workflow
@@ -31,7 +31,6 @@ gh run view --log
 gh run list --limit 10
 cd cli && go test ./...
 cd cli && go vet ./...
-cd core && python3 -m unittest tests/test_remediation_pipeline.py
 git diff --check
 ```
 

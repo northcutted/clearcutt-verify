@@ -9,14 +9,10 @@ import (
 	"time"
 )
 
-// The base-image dependency graph inverts the rebase-candidate question.
-//
-// DiscoverRebaseCandidates answers "is this app really on the base its owner told us
-// it was on?" — it needs a declared expectedBase. That is the wrong shape for an
-// estate nobody has inventoried: the whole problem is that nobody knows what is on
-// what. BuildGraph answers the discovery question instead — "given these observed
-// images, which ones are built on which?" — using the same evidence, ranked so that
-// the strongest signal wins:
+// The base-image dependency graph answers the discovery question for an estate
+// nobody has inventoried, where the whole problem is that nobody knows what is
+// on what: "given these observed images, which ones are built on which?" It
+// uses every signal available, ranked so that the strongest signal wins:
 //
 //	layer-prefix        proof. The consumer's leading layer digests ARE the base's
 //	                    layers. Needs no cooperation from whoever built the image and

@@ -11,9 +11,9 @@ product you do not ship is worse than none.
 
 ## 1. What ClearCutt does to your infrastructure
 
-**Reads, by default.** `registry scan`, `import observe`, `graph`, `scan` and
-`certify` list tags and fetch manifests, configs and — only when asked —
-attached SBOMs. They pull no image layers, mutate nothing, and publish nothing.
+**Reads, by default.** `registry scan`, `import observe`, `graph`, and
+`estate verify` list tags and fetch manifests, configs, and attached
+signatures and attestations (SBOMs only when asked, for `graph packages`). They pull no image layers, mutate nothing, and publish nothing.
 
 **Writes, only when told.** Three commands write to a registry, and each takes
 an explicit reference:
@@ -38,7 +38,7 @@ graph TD
     A["Your registry"] -->|manifests, configs, referrers| B["ClearCutt CLI"]
     B -->|reports and graphs| C["Local files you own"]
     B -->|estate snapshots, evidence| A
-    C -->|static site| D["Wherever you publish it"]
+    C -->|estate report| D["clearcutt-portal, wherever you publish it"]
 ```
 
 The load-bearing boundary is **between what ClearCutt proves and what it

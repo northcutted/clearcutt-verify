@@ -75,10 +75,10 @@ Type@12ms "# That's about 409MB of downloads to answer a question about metadata
 Enter
 Sleep 3s
 
-Type "clearcutt import images --refs refs.txt --output images.yaml"
+Type "clearcutt-verify import images --refs refs.txt --output images.yaml"
 Enter
 Sleep 2s
-Type "clearcutt import observe --images images.yaml --output observations.json"
+Type "clearcutt-verify import observe --images images.yaml --output observations.json"
 Enter
 Sleep 4s
 
@@ -103,7 +103,7 @@ Sleep 2.5s
 Type@12ms "# Before: read eight Dockerfiles you don't have, or trust a FROM label that may be wrong."
 Enter
 Sleep 3.5s
-Type "clearcutt graph build"
+Type "clearcutt-verify graph build"
 Enter
 Sleep 8s
 
@@ -128,7 +128,7 @@ Sleep 2.5s
 Type@12ms "# Before: pull all eight and run a scanner. That works - you just pay for it each time."
 Enter
 Sleep 3.5s
-Type "clearcutt graph packages --package openssl"
+Type "clearcutt-verify graph packages --package openssl"
 Enter
 Sleep 6s
 
@@ -151,7 +151,7 @@ Sleep 500ms
 Type@12ms "# And when the builder does record its packages, the same command answers for free:"
 Enter
 Sleep 1.5s
-Type "clearcutt graph packages --package openssl"
+Type "clearcutt-verify graph packages --package openssl"
 Enter
 Sleep 6s
 

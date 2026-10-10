@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/northcutted/clearcutt-verify/internal/estategraph"
 )
@@ -83,10 +85,18 @@ func TestGraphPackagesReportsTheCostBeforeSpendingIt(t *testing.T) {
 	}
 }
 
-type stubFetcher struct{ calls int }
+// stubFetcher counts fetches. It is slow enough that workers fetching the
+// same content concurrently would be counted, not hidden by timing.
+type stubFetcher struct {
+	mu    sync.Mutex
+	calls int
+}
 
 func (s *stubFetcher) FetchSBOM(context.Context, string) ([]byte, error) {
+	time.Sleep(20 * time.Millisecond)
+	s.mu.Lock()
 	s.calls++
+	s.mu.Unlock()
 	return []byte(`{"packages":[{"name":"openssl","versionInfo":"3.6.2"}]}`), nil
 }
 

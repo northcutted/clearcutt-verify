@@ -1,11 +1,11 @@
 # Imported Fleets
 
-ClearCutt does not need to create an image to govern it.
+ClearCutt Verify does not need to create an image to govern it.
 
-Imported-fleet mode builds on generic OCI mode. It lets a platform team point
-ClearCutt at existing OCI image references, catalog them, observe available
-metadata, report evidence gaps, and discover app/base rebase candidates without
-claiming ClearCutt built the images.
+Imported-fleet mode lets a platform team point clearcutt-verify at existing OCI
+image references, observe available metadata, map which images are built on
+which, and report evidence gaps, without claiming anything about how the images
+were built.
 
 ## What Imported-Fleet Mode Can Do
 
@@ -15,12 +15,12 @@ claiming ClearCutt built the images.
   declared `expectedBase` (`clearcutt-verify graph build`).
 - Inventory existing OCI image refs from a simple list.
 - Generate a ClearCutt-compatible `images.yaml`.
-- Generate catalog JSON and an evidence manifest.
 - Preserve missing signatures, SBOMs, provenance, scans, and tests honestly.
 - Report digest pinning and mutable tag visibility.
 - Report runtime contract gaps from available metadata.
-- Discover app/base relationships from layers, labels, history, and user hints.
-- Produce rebase candidate sets and auditable plans.
+- Discover base relationships from layers, labels, and history.
+- Verify whatever signatures and attestations the images do carry
+  (`estate verify`), and list a base's dependents (`estate dependents`).
 
 ## What Imported-Fleet Mode Cannot Claim
 
@@ -28,9 +28,8 @@ claiming ClearCutt built the images.
 - It cannot infer SLSA provenance.
 - It cannot prove the source or build workflow for an image ClearCutt did not
   build.
-- It cannot safely rebase every image.
-- It cannot fix CVEs without rebuild or rebase ownership.
-- It does not require Nix.
+- It cannot fix CVEs: rebuilding and rebasing belong to whoever builds the
+  images (for example clearcutt-factory).
 
 ## Golden Path
 
@@ -44,15 +43,6 @@ clearcutt-verify import images \
   --generated-at 2026-01-01T00:00:00Z \
   --force
 
-clearcutt-verify catalog generate \
-  --images /tmp/clearcutt-import/images.yaml \
-  --output /tmp/clearcutt-import/catalog \
-  --owner acme \
-  --repo imported-fleet \
-  --registry-base registry.acme.dev/platform
-
-clearcutt-verify --catalog /tmp/clearcutt-import/catalog catalog validate
-
 clearcutt-verify import observe \
   --images /tmp/clearcutt-import/images.yaml \
   --offline-fixtures examples/imported-fleet/observations.fixture.json \
@@ -62,18 +52,15 @@ clearcutt-verify import observe \
 clearcutt-verify import assess \
   --images /tmp/clearcutt-import/images.yaml \
   --observations /tmp/clearcutt-import/observations.json \
-  --catalog /tmp/clearcutt-import/catalog \
   --output /tmp/clearcutt-import/governance
 
 clearcutt-verify import report \
   --assessment /tmp/clearcutt-import/governance \
   --output /tmp/clearcutt-import/imported-fleet-report.md
 
-clearcutt-verify rebase discover \
-  --apps examples/imported-fleet/apps.yaml \
-  --bases /tmp/clearcutt-import/images.yaml \
+clearcutt-verify graph build \
   --observations /tmp/clearcutt-import/observations.json \
-  --output /tmp/clearcutt-import/rebase-candidates.json
+  --output /tmp/clearcutt-import/graph.json --report /tmp/clearcutt-import/inventory.md
 ```
 
 ## Offline Demo
@@ -85,10 +72,10 @@ clearcutt-verify rebase discover \
 The offline demo uses fake registry refs plus committed observation fixtures in
 `examples/imported-fleet/`. It is deterministic, safe for CI, and proves the
 command flow and governance semantics without contacting a registry. It proves
-that ClearCutt can import images it did not build, generate a governed catalog,
-preserve missing evidence honestly, produce assessment/report artifacts, and
-discover a verified rebase candidate from fixture metadata. It does not prove
-live registry observation.
+that clearcutt-verify can import images it did not build, preserve missing
+evidence honestly, produce assessment/report artifacts, and map base
+relationships from fixture metadata. It does not prove live registry
+observation.
 
 By default the script writes to a unique `/tmp/clearcutt-import-demo.*`
 directory and prints the actual path. Pass `OUT=/tmp/clearcutt-import-demo` when
@@ -97,13 +84,6 @@ you want a fixed directory for follow-up inspection.
 The generated report states that ClearCutt did not build the imported fleet and
 that No build provenance is inferred unless actual provenance evidence is
 verified.
-
-To render the generated catalog as a site, use the printed output directory:
-
-```bash
-./scripts/demo-imported-fleet-offline.sh
-clearcutt-verify catalog site build --catalog <OUT>/dist/catalog --output <OUT>/dist/site --install
-```
 
 ## Live Demo
 
@@ -121,19 +101,16 @@ SBOM references, labels, or scans are not build provenance.
 
 ## What This Proves
 
-- ClearCutt can catalog images it did not build.
-- ClearCutt can distinguish imported images from ClearCutt-built images.
-- ClearCutt can show missing evidence as governance gaps.
-- ClearCutt can produce assessment and report artifacts.
-- ClearCutt can discover rebase candidates when app/base relationships are
-  provable.
+- clearcutt-verify can govern images it did not build.
+- It shows missing evidence as governance gaps.
+- It produces assessment and report artifacts.
+- It proves base relationships by layer digest where they exist.
 
 ## What This Does Not Prove
 
 - ClearCutt cannot infer build provenance.
 - ClearCutt cannot prove source repository or build workflow for arbitrary
   imported images.
-- ClearCutt cannot safely rebase every app image.
 - ClearCutt does not make imported images trusted by default.
 
 ## Evidence Semantics
@@ -152,21 +129,6 @@ Missing evidence is not the same as insecure. It is a governance gap.
 Observed evidence is not the same as verified evidence. An observed SBOM is not
 build provenance.
 
-## Rebase Confidence
-
-- `verified`: exact layer prefix or trusted base digest labels match, old app
-  digest is known, old and new base digests are known, and runtime families are
-  compatible.
-- `assisted`: labels, history, names, or user-supplied hints identify a likely
-  base, but the base boundary is not mechanically proven.
-- `unsafe`: the image appears squashed or flattened, the base boundary cannot be
-  proven, architecture or runtime family is incompatible, a digest is unknown,
-  or runtime contracts are incompatible.
-
-Rebase discovery and planning do not publish images or mutate production tags.
-Any apply path must require explicit confirmation, tests, certification, and
-human approval.
-
 ## Agentic Use
 
 Imported-fleet mode emits structured JSON suitable for agents:
@@ -176,8 +138,7 @@ Imported-fleet mode emits structured JSON suitable for agents:
 - `evidence-gaps.json`
 - `policy-posture.json`
 - `runtime-contract-gaps.json`
-- `rebase-candidates.json`
-- `ImportedFleetRebasePlan` JSON
+- `graph.json`, and the estate report (`estate-report.json`)
 
 Agents may open pull requests with `images.yaml` or report updates. Agents must
 not publish production tags, relax policy, infer provenance, or mark imported

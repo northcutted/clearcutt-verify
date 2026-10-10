@@ -90,3 +90,28 @@ func readJSON(t *testing.T, path string, v any) {
 		t.Fatal(err)
 	}
 }
+
+func TestEstateDependents(t *testing.T) {
+	fixture := filepath.Join("..", "..", "..", "contract", "fixtures", "northcutted-images", "estate-report.json")
+	stdout, err := runCLI(t, "estate", "dependents", "--report", fixture, "--base", "debian:trixie-slim")
+	if err != nil || !strings.Contains(stdout, "debian-tools") || !strings.Contains(stdout, "stale, 17d behind") {
+		t.Fatalf("table: %v\n%s", err, stdout)
+	}
+	stdout, err = runCLI(t, "--format", "json", "estate", "dependents", "--report", fixture, "--base", "cgr.dev/chainguard/wolfi-base")
+	var res DependentsResult
+	if err != nil || json.Unmarshal([]byte(stdout), &res) != nil || len(res.Dependents) != 1 || res.Dependents[0].ImageID != "platform-tools" {
+		t.Fatalf("json: %v\n%s", err, stdout)
+	}
+	if stdout, err := runCLI(t, "estate", "dependents", "--report", fixture, "--base", "ghcr.io/acme/none"); err != nil || !strings.Contains(stdout, "no images") {
+		t.Errorf("none: %v\n%s", err, stdout)
+	}
+	for _, bad := range [][]string{
+		{"estate", "dependents", "--report", fixture},
+		{"estate", "dependents", "--report", fixture, "--base", "x", "--min-strength", "strong"},
+		{"estate", "dependents", "--report", filepath.Join(t.TempDir(), "missing.json"), "--base", "x"},
+	} {
+		if _, err := runCLI(t, bad...); err == nil {
+			t.Errorf("%v: want an error", bad[2:])
+		}
+	}
+}

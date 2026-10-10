@@ -75,33 +75,14 @@ if search_regex 'go-version:[[:space:]]' .github/workflows .github/actions; then
   flag "setup-go steps must use go-version-file: 'cli/go.mod' instead of a hardcoded go-version"
 fi
 
-deploy_site_block="$(
-  awk '
-    /^  deploy-site:/ {capture=1}
-    capture && /^  [[:alnum:]_-]+:/ && !/^  deploy-site:/ {exit}
-    capture {print}
-  ' .github/workflows/release.yml
-)"
-
-for required in \
-  "contents: read" \
-  "packages: read" \
-  "pages: write" \
-  "id-token: write"
-do
-  if ! grep -q "$required" <<<"$deploy_site_block"; then
-    flag "release.yml deploy-site caller is missing '$required'"
-  fi
-done
-
 for required in \
   "SHA256SUMS.txt" \
   "sha256sum -c -" \
   "cosign verify-blob" \
-  "--certificate-identity"
+  "--certificate-identity-regexp"
 do
-  if ! fixed_exists "$required" .github/actions/certify-app/action.yml; then
-    flag "certify-app action must verify downloaded ClearCutt CLI assets with '$required'"
+  if ! fixed_exists "$required" .github/actions/install-clearcutt-verify/action.yml; then
+    flag "install-clearcutt-verify action must verify downloaded release assets with '$required'"
   fi
 done
 

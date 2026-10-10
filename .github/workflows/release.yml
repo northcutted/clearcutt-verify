@@ -1,6 +1,6 @@
-# ClearCutt Hardened Fleets Unified Release Workflow
+# ClearCutt Verify release: signed CLI binaries.
 
-name: ClearCutt Release
+name: ClearCutt Verify Release
 
 on:
   push:
@@ -17,9 +17,9 @@ permissions:
   contents: read
   actions: read
 
-# Releases mutate GHCR tags + SLSA provenance. The release identity is pinned to
-# refs/heads/main in clearcutt.yaml and admission examples, so dispatches
-# from other refs are rejected before any mutable release work starts.
+# The release identity is pinned to refs/heads/main (the install action and the
+# documented cosign verify-blob commands require it), so dispatches from other
+# refs are rejected before any release work starts.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -35,7 +35,7 @@ jobs:
       - name: Enforce main release identity
         if: ${{ github.ref != 'refs/heads/main' }}
         run: |
-          echo "::error::ClearCutt release identity is pinned to refs/heads/main. Dispatch releases from main, or update fleet config, policies, and verifier commands together."
+          echo "::error::ClearCutt release identity is pinned to refs/heads/main. Dispatch releases from main."
           exit 1
 
       - name: Checkout Repository
@@ -198,14 +198,3 @@ jobs:
             gh release create "$VERSION" build-outputs/* \
               --title "$VERSION" --generate-notes
           fi
-
-  deploy-site:
-    name: Deploy Catalog Site
-    needs: finalize-release
-    permissions:
-      contents: read
-      packages: read
-      pages: write
-      id-token: write
-    uses: ./.github/workflows/publish-pages.yml
-    secrets: inherit
