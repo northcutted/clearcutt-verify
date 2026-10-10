@@ -1,0 +1,19 @@
+{
+  "apiVersion": "clearcutt.dev/v1",
+  "kind": "TrustPolicy",
+  "signers": [
+    {
+      "name": "factory-builds",
+      "identityRegexp": "^https://github\\.com/northcutted/clearcutt-factory/\\.github/workflows/(images|fleet)\\.yml@refs/tags/v\\d+\\.\\d+\\.\\d+$",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "sourceRepositoryOwner": "https://github.com/acme",
+      "sourceMatchesImage": true
+    },
+    {
+      "name": "platform-stacks",
+      "roles": ["stack"],
+      "identity": "https://github.com/acme/platform/.github/workflows/stacks.yml@refs/heads/main",
+      "issuer": "https://token.actions.githubusercontent.com"
+    }
+  ]
+}

@@ -3,6 +3,7 @@ package estateverify
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"sigs.k8s.io/yaml"
 
@@ -29,6 +30,9 @@ type PolicyFile struct {
 	FailOn        string          `json:"failOn"`
 	OnlyFixed     bool            `json:"onlyFixed"`
 	MaxDaysBehind int             `json:"maxDaysBehind"`
+	// TrustPolicy names a TrustPolicy file (relative to this one) whose
+	// image signers are trusted too, the same file clearcutt-factory reads.
+	TrustPolicy string `json:"trustPolicy"`
 }
 
 // ReadPolicy reads a VerificationPolicy file.
@@ -45,7 +49,44 @@ func ReadPolicy(path string) (report.Policy, error) {
 		return report.Policy{}, fmt.Errorf("%s: expected apiVersion %s and kind VerificationPolicy", path, report.APIVersion)
 	}
 	p := report.Policy{Required: f.Required, TrustedSigners: f.TrustedSigner, FailOn: f.FailOn, OnlyFixed: f.OnlyFixed, MaxDaysBehind: f.MaxDaysBehind}
+	if f.TrustPolicy != "" {
+		tp := f.TrustPolicy
+		if !filepath.IsAbs(tp) {
+			tp = filepath.Join(filepath.Dir(path), tp)
+		}
+		t, err := ReadTrustPolicy(tp)
+		if err != nil {
+			return report.Policy{}, err
+		}
+		p.TrustedSigners = append(p.TrustedSigners, t.For("image")...)
+	}
 	return p, ValidatePolicy(p)
+}
+
+// ReadTrustPolicy reads a TrustPolicy file (YAML or JSON).
+func ReadTrustPolicy(path string) (report.TrustPolicy, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return report.TrustPolicy{}, err
+	}
+	var t report.TrustPolicy
+	if err := yaml.UnmarshalStrict(raw, &t); err != nil {
+		return report.TrustPolicy{}, fmt.Errorf("%s: %w", path, err)
+	}
+	if t.APIVersion != report.APIVersion || t.Kind != report.KindTrustPolicy {
+		return report.TrustPolicy{}, fmt.Errorf("%s: expected apiVersion %s and kind %s", path, report.APIVersion, report.KindTrustPolicy)
+	}
+	for i, s := range t.Signers {
+		for _, r := range s.Roles {
+			if r != "image" && r != "stack" {
+				return report.TrustPolicy{}, fmt.Errorf("%s: signers[%d]: role %q must be image or stack", path, i, r)
+			}
+		}
+		if _, err := signerFlags(s.Signer()); err != nil {
+			return report.TrustPolicy{}, fmt.Errorf("%s: signers[%d] %s: %w", path, i, s.Name, err)
+		}
+	}
+	return t, nil
 }
 
 // ValidatePolicy checks the policy's requirements and signers.

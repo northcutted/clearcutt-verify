@@ -44,7 +44,7 @@ func TestContractSchemasCurrent(t *testing.T) {
 func TestContractDocuments(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	schemas := map[string]*jsonschema.Schema{}
-	for kind, file := range map[string]string{KindReport: "estate-report.v1.schema.json", KindHistory: "estate-history.v1.schema.json"} {
+	for kind, file := range map[string]string{KindReport: "estate-report.v1.schema.json", KindHistory: "estate-history.v1.schema.json", KindTrustPolicy: "trust-policy.v1.schema.json"} {
 		s, err := compiler.Compile(filepath.Join(contractDir, file))
 		if err != nil {
 			t.Fatal(err)
@@ -83,8 +83,11 @@ func TestContractDocuments(t *testing.T) {
 		// The types must read the document without unknown fields, and
 		// write it back the same (modulo formatting).
 		var v any = &Report{}
-		if head.Kind == KindHistory {
+		switch head.Kind {
+		case KindHistory:
 			v = &History{}
+		case KindTrustPolicy:
+			v = &TrustPolicy{}
 		}
 		dec := json.NewDecoder(bytes.NewReader(raw))
 		dec.DisallowUnknownFields()

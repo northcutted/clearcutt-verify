@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/northcutted/clearcutt-verify/internal/report"
 )
@@ -42,6 +43,9 @@ func (f FactoryReproducer) Reproduce(ctx context.Context, ref string, signer rep
 		return "", err
 	}
 	args := append([]string{"verify", "--image", ref}, flags...)
+	if repo := signer.SourceRepository; repo != "" {
+		args = append(args, "--certificate-github-workflow-repository", strings.TrimPrefix(repo, "https://github.com/"))
+	}
 	dir := f.Dir
 	if dir == "" {
 		cache, err := os.UserCacheDir()

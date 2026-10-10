@@ -1,0 +1,77 @@
+{
+  "$defs": {
+    "TrustedSigner": {
+      "additionalProperties": false,
+      "description": "TrustedSigner is one signer and what it may sign. Its identity fields mean what they mean in Signer.",
+      "properties": {
+        "identity": {
+          "type": "string"
+        },
+        "identityRegexp": {
+          "type": "string"
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "description": "Name labels the signer in reports and messages.",
+          "type": "string"
+        },
+        "roles": {
+          "description": "Roles is what the signer may sign: image (an image's signature and attestations; the default) and/or stack (a clearcutt-factory stack).",
+          "items": {
+            "enum": [
+              "image",
+              "stack"
+            ]
+          },
+          "type": "array"
+        },
+        "sourceMatchesImage": {
+          "type": "boolean"
+        },
+        "sourceRef": {
+          "type": "string"
+        },
+        "sourceRepository": {
+          "type": "string"
+        },
+        "sourceRepositoryOwner": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/northcutted/clearcutt-verify/main/contract/trust-policy.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "TrustPolicy says whose signatures an organization accepts, and for what. The ClearCutt tools share it: clearcutt-verify checks an estate's evidence against its image signers, and clearcutt-factory (signing.trustPolicy) checks images and stacks against it when building, publishing, and rebasing.",
+  "properties": {
+    "apiVersion": {
+      "const": "clearcutt.dev/v1",
+      "description": "Always clearcutt.dev/v1."
+    },
+    "kind": {
+      "const": "TrustPolicy",
+      "description": "Always TrustPolicy."
+    },
+    "signers": {
+      "description": "Signers are the trusted signers; evidence verifies if any applicable one vouches for it.",
+      "items": {
+        "$ref": "#/$defs/TrustedSigner"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "signers"
+  ],
+  "title": "ClearCutt trust policy",
+  "type": "object"
+}
