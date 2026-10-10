@@ -37,12 +37,42 @@
       ],
       "type": "object"
     },
+    "HistoryBase": {
+      "additionalProperties": false,
+      "description": "HistoryBase is an image's base in a history row.",
+      "properties": {
+        "digest": {
+          "type": "string"
+        },
+        "drift": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "strength": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "drift",
+        "strength"
+      ],
+      "type": "object"
+    },
     "HistoryEntry": {
       "additionalProperties": false,
       "description": "HistoryEntry is one past report's headline numbers.",
       "properties": {
         "generatedAt": {
           "type": "string"
+        },
+        "images": {
+          "description": "Images are one row per image in that run, so readers can show an image's own history (its verdicts, rebases, and findings over time).",
+          "items": {
+            "$ref": "#/$defs/HistoryImage"
+          },
+          "type": "array"
         },
         "ref": {
           "description": "Ref is where that report is stored (a registry reference or a path).",
@@ -55,6 +85,51 @@
       "required": [
         "generatedAt",
         "summary"
+      ],
+      "type": "object"
+    },
+    "HistoryImage": {
+      "additionalProperties": false,
+      "description": "HistoryImage is one image as one run saw it.",
+      "properties": {
+        "base": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/HistoryBase"
+            }
+          ],
+          "description": "Base is the base it was built on, when known."
+        },
+        "digest": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "rebaseStatus": {
+          "description": "RebaseStatus is the status of its rebase record.",
+          "type": "string"
+        },
+        "rebasedFrom": {
+          "description": "RebasedFrom is the image whose layers were rebased into this one.",
+          "type": "string"
+        },
+        "verdict": {
+          "type": "string"
+        },
+        "vulnerabilities": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SeverityCounts"
+            }
+          ],
+          "description": "Vulnerabilities are the counted findings; absent when unknown."
+        }
+      },
+      "required": [
+        "digest",
+        "id",
+        "verdict"
       ],
       "type": "object"
     },

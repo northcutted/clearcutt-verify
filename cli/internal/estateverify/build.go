@@ -189,6 +189,7 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 		pkgs = dedupePackages(data.packages)
 		n := len(pkgs)
 		img.Packages = &n
+		img.PackagesSource = &report.PackagesSource{Evidence: "sbom", Status: ev.SBOM.Status, Platforms: data.sbomPlatforms}
 	}
 	img.Reproducibility = reproduce(ctx, &img, data, opts)
 	return img, pkgs
@@ -267,6 +268,9 @@ func baseOf(img *report.Image, obs estategraph.Observation, graph estategraph.Gr
 			Drift: firstNonEmpty(e.Drift, "unknown"), VersionsBehind: e.VersionsBehind, DaysBehind: e.DaysBehind,
 			CurrentRef: e.CurrentBaseRef, CurrentDigest: e.CurrentBaseDigest,
 		}
+		if img.Base.Strength == "proof" {
+			img.Base.ProvenOn = observedPlatform(obs)
+		}
 		return
 	}
 	for _, root := range graph.Roots {
@@ -325,7 +329,7 @@ func claimedBase(ctx context.Context, img *report.Image, platforms []report.Plat
 		return
 	}
 	link := &report.BaseLink{
-		Repository: baseRepo, Ref: baseName, Digest: baseDigest,
+		Repository: baseRepo, Ref: baseName, Digest: baseDigest, Platform: p.Platform, ProvenOn: p.Platform,
 		Method: estategraph.MethodLayerPrefix, Strength: "proof", Drift: "unknown",
 		ImageID: ids[baseRepo+"@"+baseDigest],
 	}
@@ -484,7 +488,7 @@ func basesOf(images []report.Image) []report.Base {
 		}
 		versions[b.Repository][b.Digest] = true
 		if out.CurrentRef == "" {
-			out.CurrentRef, out.CurrentDigest = firstNonEmpty(b.CurrentRef, b.Ref), b.CurrentDigest
+			out.CurrentRef, out.CurrentDigest, out.CurrentPlatform = firstNonEmpty(b.CurrentRef, b.Ref), b.CurrentDigest, b.Platform
 		}
 	}
 	// The current version's creation time, when it is in the report.
@@ -503,6 +507,20 @@ func basesOf(images []report.Image) []report.Base {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Repository < out[j].Repository })
 	return out
+}
+
+// observedPlatform is the platform image an observation's layers came
+// from: the registry's default, linux/amd64, when the image has one.
+func observedPlatform(obs estategraph.Observation) string {
+	for _, p := range obs.Platforms {
+		if p == "linux/amd64" {
+			return p
+		}
+	}
+	if len(obs.Platforms) > 0 {
+		return obs.Platforms[0]
+	}
+	return ""
 }
 
 func strengthOf(method string) string {
@@ -532,6 +550,10 @@ type imageData struct {
 	rebaseVerified   bool
 	// claimedSource is the repository the image names as its source.
 	claimedSource string
+	// sbomPlatforms are the platform images whose SBOMs were read.
+	sbomPlatforms []string
+	// recipeTest describes the smoke test a verified recipe declares.
+	recipeTest string
 }
 
 // attachment is where a kind of evidence is expected.
@@ -597,6 +619,12 @@ func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platf
 	if items[KindRecipe].Status == "missing" {
 		items[KindRecipe].Detail = "No clearcutt-factory recipe."
 	}
+	if items[KindTests].Status == "missing" && data.recipeTest != "" {
+		// clearcutt-factory runs the declared smoke test on every platform
+		// and pushes nothing that fails it, but doesn't attest the result.
+		items[KindTests] = &report.EvidenceItem{Status: "present", Source: "recipe",
+			Detail: "The verified recipe declares a smoke test (" + data.recipeTest + ") that clearcutt-factory runs on every platform before it pushes; the result isn't separately attested."}
+	}
 	if items[KindTests].Status == "missing" {
 		items[KindTests].Detail = "No test attestation."
 	}
@@ -645,6 +673,9 @@ func verifyKind(ctx context.Context, repo, digest, kind, imageSource string, fou
 		if pkgs, ok := readSBOM(pred); ok {
 			data.packages = append(data.packages, pkgs...)
 			data.packagesKnown = true
+			if platform != "" {
+				data.sbomPlatforms = append(data.sbomPlatforms, platform)
+			}
 		}
 	case KindRecipe:
 		if fi, base, ok := readRecipe(pred); ok {
@@ -653,6 +684,7 @@ func verifyKind(ctx context.Context, repo, digest, kind, imageSource string, fou
 			data.recipeSigner = f.Signer
 			if status == "verified" {
 				data.lockBase = base
+				data.recipeTest = recipeTest(pred)
 			}
 		}
 	case KindRebase:

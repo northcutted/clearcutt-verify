@@ -17,6 +17,13 @@ Add an entry here in the same PR as any user-visible behavior change
 workflow archives this section into the release notes.
 -->
 
+- For estate report readers (clearcutt-portal's requests, #56–#59), all
+  additive: `base.platform` and `base.provenOn` (and `bases[].currentPlatform`)
+  say which platform image a base digest names and where the proof was made;
+  `packagesSource` says where an image's packages came from; history entries
+  carry a row per image; and clearcutt-factory images whose verified recipe
+  declares a smoke test show `tests: present` (source `recipe`). The
+  `northcutted-images` fixture is regenerated.
 - Estate reports list the clearcutt-factory registry stacks the estate's apps
   are built on (`stacks`): each version in use with its signature verified
   against the policy's stack signers (a trust policy's `stack` signers, or

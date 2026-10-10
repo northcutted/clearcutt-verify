@@ -65,6 +65,9 @@ func TestEstateVerify(t *testing.T) {
 	if len(h.Entries) != 2 || h.Entries[0].GeneratedAt != "2026-10-06T00:00:00Z" {
 		t.Errorf("history %+v", h.Entries)
 	}
+	if rows := h.Entries[0].Images; len(rows) != 2 || rows[0].Verdict != "failed" || rows[0].Digest == "" {
+		t.Errorf("history rows %+v", rows)
+	}
 
 	for _, bad := range [][]string{
 		{"estate", "verify", "--refs", refs},
@@ -94,7 +97,7 @@ func readJSON(t *testing.T, path string, v any) {
 func TestEstateDependents(t *testing.T) {
 	fixture := filepath.Join("..", "..", "..", "contract", "fixtures", "northcutted-images", "estate-report.json")
 	stdout, err := runCLI(t, "estate", "dependents", "--report", fixture, "--base", "debian:trixie-slim")
-	if err != nil || !strings.Contains(stdout, "debian-tools") || !strings.Contains(stdout, "stale, 17d behind") {
+	if err != nil || !strings.Contains(stdout, "debian-tools") || !strings.Contains(stdout, "current") || !strings.Contains(stdout, "proof") {
 		t.Fatalf("table: %v\n%s", err, stdout)
 	}
 	stdout, err = runCLI(t, "--format", "json", "estate", "dependents", "--report", fixture, "--base", "cgr.dev/chainguard/wolfi-base")

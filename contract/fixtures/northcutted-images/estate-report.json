@@ -3,7 +3,7 @@
   "kind": "EstateReport",
   "metadata": {
     "name": "northcutted-images",
-    "generatedAt": "2026-10-06T23:30:46Z",
+    "generatedAt": "2026-10-10T16:51:46Z",
     "generator": {
       "name": "clearcutt-verify",
       "version": "dev"
@@ -106,9 +106,9 @@
       },
       "tests": {
         "verified": 0,
-        "present": 0,
+        "present": 4,
         "failed": 0,
-        "missing": 8,
+        "missing": 4,
         "unknown": 0,
         "notApplicable": 0
       },
@@ -126,25 +126,25 @@
       "claimed": 0,
       "unresolved": 0,
       "roots": 4,
-      "current": 2,
-      "stale": 2
+      "current": 4,
+      "stale": 0
     },
     "vulnerabilities": {
       "counts": {
-        "critical": 24,
-        "high": 113,
-        "medium": 69,
-        "low": 15,
+        "critical": 25,
+        "high": 192,
+        "medium": 66,
+        "low": 13,
         "negligible": 97,
-        "unknown": 5
+        "unknown": 31
       },
       "fixable": {
         "critical": 0,
-        "high": 19,
+        "high": 88,
         "medium": 4,
         "low": 0,
         "negligible": 0,
-        "unknown": 1
+        "unknown": 25
       },
       "scanned": 4,
       "notScanned": 4
@@ -234,19 +234,19 @@
       "tags": [
         "latest"
       ],
-      "digest": "sha256:c5dc5b031a4f4476d6a0efacf34d9747c12a86630c8506975d617ade44bc03ec",
-      "created": "2026-10-04T00:00:00Z",
+      "digest": "sha256:d2f9195b3966d6beebc5ebbf83c22a92eb719399aca923473516ceed01f517f2",
+      "created": "2026-10-09T00:00:00Z",
       "platforms": [
         {
           "platform": "linux/amd64",
-          "digest": "sha256:840ad043d2484dde93bad977f2f60105c6eadfee71da5d8304f2ce9a78664d2b",
-          "size": 114685453,
+          "digest": "sha256:d762a56802e4025d8b6e166f915cd20d4f14d317fceef2e519e722fac5095520",
+          "size": 114685391,
           "layers": 3
         },
         {
           "platform": "linux/arm64",
-          "digest": "sha256:2ac436b819194afb8dcdd2aaf8e15094a7b6a9911aec3f1d6846d57c2b594276",
-          "size": 111857777,
+          "digest": "sha256:0b75c175e32399b45283c79af9c9ee3161ce24ddb00887fc42b5a839bec1dcee",
+          "size": 111857816,
           "layers": 3
         }
       ],
@@ -256,7 +256,7 @@
       },
       "source": {
         "url": "https://github.com/northcutted/clearcutt-factory",
-        "revision": "100a03087b8b0a7f0fe1da55ca07dfebc30ad149",
+        "revision": "38f488213c03f7a5673c2d05d0b69e46864c7e6d",
         "basis": "provenance"
       },
       "description": "Amazon Linux 2023 with git, jq, and kubectl",
@@ -265,6 +265,7 @@
         "repository": "docker.io/library/amazonlinux",
         "ref": "docker.io/library/amazonlinux:2023",
         "digest": "sha256:8ed3c0a996841537f75607e7d1de2114d8150391f75792e8da9268738547e73f",
+        "provenOn": "linux/amd64",
         "method": "layer-prefix",
         "strength": "proof",
         "drift": "current",
@@ -284,8 +285,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:0b3a0d0553bb5cdeb63a73051ae06ae47333556a257858a64326b804e5b77c9b",
-          "timestamp": "2026-10-06T00:46:24Z"
+          "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:43ab7f6b41eb030f43806beb2adbb3a3bcfa1021925a26455d529d21b9f6c1f7",
+          "timestamp": "2026-10-10T16:25:37Z"
         },
         "sbom": {
           "status": "verified",
@@ -297,8 +298,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:8a745be4794604b2b48159798c8ad18383c99258ffab9163805676ef395d2758",
-          "timestamp": "2026-10-06T00:46:43Z",
+          "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:94ce6d1ec0fbf7252b8404d80208049599106dabee28fcc44df5b26d0acd4194",
+          "timestamp": "2026-10-10T16:25:54Z",
           "platforms": {
             "linux/amd64": "verified",
             "linux/arm64": "verified"
@@ -314,8 +315,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:2d73b6aac73c6bd9293e397eca8ec92524853317e1587c43157f741749bdd8d0",
-          "timestamp": "2026-10-06T00:46:46Z",
+          "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:97d9fde67ffa76a2dabdd1bfdd086c2ba73234ff82bca34576d2efc47b3ba999",
+          "timestamp": "2026-10-10T16:25:59Z",
           "platforms": {
             "linux/amd64": "verified",
             "linux/arm64": "verified"
@@ -331,8 +332,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:a5735b7a30f4539f13b94d7c069834acc45b3747b13ea22090a1a50e3f299697",
-          "timestamp": "2026-10-06T00:47:05Z"
+          "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:fff6c1f299d61fa38f9dcdeeef2ba433a6246da3c600f381a7f937aa5bfb66ed",
+          "timestamp": "2026-10-10T16:49:45Z"
         },
         "recipe": {
           "status": "verified",
@@ -344,44 +345,303 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:a2a3a3262bd620f710c9b9c87e3589efac7e9aaf9aad313d853021d7e1e2da75",
-          "timestamp": "2026-10-06T00:46:38Z"
+          "ref": "ghcr.io/northcutted/images/amazonlinux-tools@sha256:17b4d2f7251274ccc96d36794cfef838150d1347bb565e0bcce36a816ffe0a52",
+          "timestamp": "2026-10-10T16:25:49Z"
         },
         "rebase": {
           "status": "not-applicable",
           "detail": "No rebase record: the image was built, not rebased."
         },
         "tests": {
-          "status": "missing",
-          "detail": "No test attestation."
+          "status": "present",
+          "source": "recipe",
+          "detail": "The verified recipe declares a smoke test (/usr/bin/jq --version) that clearcutt-factory runs on every platform before it pushes; the result isn't separately attested."
         }
       },
       "vulnerabilities": {
         "source": "attestation",
         "scanner": "grype 0.118.0",
-        "scannedAt": "2026-10-06T00:46:20Z",
+        "scannedAt": "2026-10-10T16:25:31Z",
         "counts": {
           "critical": 0,
-          "high": 0,
+          "high": 12,
           "medium": 0,
           "low": 1,
           "negligible": 0,
-          "unknown": 0
+          "unknown": 4
         },
         "fixable": {
           "critical": 0,
-          "high": 0,
+          "high": 12,
           "medium": 0,
           "low": 0,
           "negligible": 0,
-          "unknown": 0
+          "unknown": 4
         },
         "findings": [
+          {
+            "id": "GO-2026-6604",
+            "severity": "critical",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6612",
+            "severity": "critical",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6612",
+            "severity": "critical",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6603",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6603",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6605",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6607",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6608",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6609",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6610",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6610",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6611",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6611",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6613",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6629",
+            "severity": "high",
+            "package": "golang.org/x/text",
+            "version": "v0.40.0",
+            "fixedIn": [
+              "0.41.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
           {
             "id": "GO-2025-3547",
             "severity": "low",
             "package": "k8s.io/kubernetes",
             "version": "v1.37.1",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6599",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6600",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6617",
+            "severity": "unknown",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6617",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
             "platforms": [
               "linux/amd64",
               "linux/arm64"
@@ -392,14 +652,14 @@
       "reproducibility": {
         "status": "reproduced",
         "method": "recipe-rebuild",
-        "checkedAt": "2026-10-06T23:36:50Z",
-        "digest": "sha256:c5dc5b031a4f4476d6a0efacf34d9747c12a86630c8506975d617ade44bc03ec"
+        "checkedAt": "2026-10-10T16:53:29Z",
+        "digest": "sha256:d2f9195b3966d6beebc5ebbf83c22a92eb719399aca923473516ceed01f517f2"
       },
       "factory": {
         "kind": "Image",
         "name": "amazonlinux-tools",
-        "version": "v0.0.0-20261006004311-100a03087b8b",
-        "sourceDateEpoch": 1791072000,
+        "version": "e07953d",
+        "sourceDateEpoch": 1791504000,
         "inputs": {
           "packages": 89,
           "tools": 1,
@@ -407,6 +667,14 @@
         }
       },
       "packages": 313,
+      "packagesSource": {
+        "evidence": "sbom",
+        "status": "verified",
+        "platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ]
+      },
       "verdict": {
         "status": "verified",
         "reasons": []
@@ -419,19 +687,19 @@
       "tags": [
         "latest"
       ],
-      "digest": "sha256:7e01b47b2d360f1bb810429d25d0b7a46b8be3dbe878bc6d7543a1bf8f7d366e",
-      "created": "2026-10-02T00:00:00Z",
+      "digest": "sha256:867c6cbf7f445e6571356c30130010a4d1c60d3432000ce45cf394e59c03816c",
+      "created": "2026-10-09T00:00:00Z",
       "platforms": [
         {
           "platform": "linux/amd64",
-          "digest": "sha256:393e7831aaee924f910b314b220cc9bd88197a8e6e178ef6daf523f269b5ab7c",
-          "size": 108414047,
+          "digest": "sha256:c1587b91a07be66138e4ca8276098b4d7771dc54c667ec95cf26817219cff312",
+          "size": 105449115,
           "layers": 4
         },
         {
           "platform": "linux/arm64",
-          "digest": "sha256:413574dc70b9581a078525c4596e0500a26df42450b3337f45e26e342fee3a57",
-          "size": 107004042,
+          "digest": "sha256:50d9241a9a628d819c1faac3882579473b36f2b84906140b9354e49f49d98cf8",
+          "size": 103689325,
           "layers": 4
         }
       ],
@@ -441,21 +709,23 @@
       },
       "source": {
         "url": "https://github.com/northcutted/clearcutt-factory",
-        "revision": "100a03087b8b0a7f0fe1da55ca07dfebc30ad149",
+        "revision": "38f488213c03f7a5673c2d05d0b69e46864c7e6d",
         "basis": "provenance"
       },
       "description": "Debian trixie with git, curl, jq, ripgrep, and kubectl",
       "base": {
+        "imageId": "debian-trixie-slim",
         "repository": "docker.io/library/debian",
         "ref": "docker.io/library/debian:trixie-slim",
-        "digest": "sha256:7792b1f7702a86946cd518db72b6a407302c3e9bc1635634368b878189e8221c",
+        "digest": "sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f",
+        "provenOn": "linux/amd64",
         "method": "layer-prefix",
         "strength": "proof",
-        "drift": "stale",
-        "versionsBehind": 1,
-        "daysBehind": 17,
+        "drift": "current",
+        "versionsBehind": 0,
+        "daysBehind": 0,
         "currentRef": "docker.io/library/debian:trixie-slim",
-        "currentDigest": "sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483"
+        "currentDigest": "sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f"
       },
       "evidence": {
         "signature": {
@@ -468,8 +738,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/debian-tools@sha256:e74a36bbb21c6fc5075864e27231d0b8b946b31c8b0f28b680e79c4870dfc8ad",
-          "timestamp": "2026-10-06T00:47:35Z"
+          "ref": "ghcr.io/northcutted/images/debian-tools@sha256:42c8ce11a9455e81387b1fc280a2250edfa0ff02f588e5eca6ed55b93ba06955",
+          "timestamp": "2026-10-10T16:25:39Z"
         },
         "sbom": {
           "status": "verified",
@@ -481,8 +751,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/debian-tools@sha256:4d5933ac2012466b48886f8cc8a118b40c8317e718ddfbe765304b91dba53b29",
-          "timestamp": "2026-10-06T00:47:57Z",
+          "ref": "ghcr.io/northcutted/images/debian-tools@sha256:ad0d79a49657170589ff9c124e28e80e42c88939c82ee2327e16f54f2149da6e",
+          "timestamp": "2026-10-10T16:25:55Z",
           "platforms": {
             "linux/amd64": "verified",
             "linux/arm64": "verified"
@@ -498,8 +768,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/debian-tools@sha256:c47f3b30f065f48403fe87fd3b5a242d11d6f64056b33637c87576af5560782e",
-          "timestamp": "2026-10-06T00:48:03Z",
+          "ref": "ghcr.io/northcutted/images/debian-tools@sha256:1026d1e5d740ff429f2974821cfb9e581e8c64ffec473fb023b9c792b59ab079",
+          "timestamp": "2026-10-10T16:26:01Z",
           "platforms": {
             "linux/amd64": "verified",
             "linux/arm64": "verified"
@@ -515,8 +785,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/debian-tools@sha256:56c4542ec26cb7b6615860801874458714e43df04714f78a95eda2fa79da64f1",
-          "timestamp": "2026-10-06T00:48:20Z"
+          "ref": "ghcr.io/northcutted/images/debian-tools@sha256:72c2ac692e86cd510d7353402762aa32decb475822fa69eb5f0f753d027f3080",
+          "timestamp": "2026-10-10T16:50:31Z"
         },
         "recipe": {
           "status": "verified",
@@ -528,37 +798,38 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/debian-tools@sha256:7375d104421b126ac54c4cb45aa358656e87794b0102e021ba793eb69ed234b9",
-          "timestamp": "2026-10-06T00:47:49Z"
+          "ref": "ghcr.io/northcutted/images/debian-tools@sha256:51024b8badee851ad16d2da46504be97639519631d2b5575bf59e93dd656ba8a",
+          "timestamp": "2026-10-10T16:25:51Z"
         },
         "rebase": {
           "status": "not-applicable",
           "detail": "No rebase record: the image was built, not rebased."
         },
         "tests": {
-          "status": "missing",
-          "detail": "No test attestation."
+          "status": "present",
+          "source": "recipe",
+          "detail": "The verified recipe declares a smoke test (/usr/local/bin/rg --version) that clearcutt-factory runs on every platform before it pushes; the result isn't separately attested."
         }
       },
       "vulnerabilities": {
         "source": "attestation",
         "scanner": "grype 0.118.0",
-        "scannedAt": "2026-10-06T00:47:30Z",
+        "scannedAt": "2026-10-10T16:25:32Z",
         "counts": {
-          "critical": 24,
-          "high": 95,
+          "critical": 25,
+          "high": 116,
           "medium": 62,
           "low": 11,
           "negligible": 97,
-          "unknown": 0
+          "unknown": 6
         },
         "fixable": {
           "critical": 0,
-          "high": 1,
+          "high": 12,
           "medium": 0,
           "low": 0,
           "negligible": 0,
-          "unknown": 0
+          "unknown": 4
         },
         "findings": [
           {
@@ -800,6 +1071,59 @@
               "linux/amd64",
               "linux/arm64"
             ]
+          },
+          {
+            "id": "CVE-2026-95210",
+            "severity": "critical",
+            "package": "libgnutls30t64",
+            "version": "3.8.9-3+deb13u4",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6604",
+            "severity": "critical",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6612",
+            "severity": "critical",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6612",
+            "severity": "critical",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
           },
           {
             "id": "CVE-2025-69720",
@@ -862,13 +1186,60 @@
             ]
           },
           {
-            "id": "CVE-2026-103111",
+            "id": "CVE-2026-107161",
             "severity": "high",
-            "package": "libpcre2-8-0",
-            "version": "10.46-1~deb13u2",
-            "fixedIn": [
-              "10.46-1~deb13u3"
-            ],
+            "package": "libsasl2-2",
+            "version": "2.1.28+dfsg1-9",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "CVE-2026-107161",
+            "severity": "high",
+            "package": "libsasl2-modules-db",
+            "version": "2.1.28+dfsg1-9",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "CVE-2026-107778",
+            "severity": "high",
+            "package": "libgssapi-krb5-2",
+            "version": "1.21.3-5+deb13u1",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "CVE-2026-107778",
+            "severity": "high",
+            "package": "libk5crypto3",
+            "version": "1.21.3-5+deb13u1",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "CVE-2026-107778",
+            "severity": "high",
+            "package": "libkrb5-3",
+            "version": "1.21.3-5+deb13u1",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "CVE-2026-107778",
+            "severity": "high",
+            "package": "libkrb5support0",
+            "version": "1.21.3-5+deb13u1",
             "platforms": [
               "linux/amd64",
               "linux/arm64"
@@ -1005,6 +1376,16 @@
             ]
           },
           {
+            "id": "CVE-2026-67693",
+            "severity": "high",
+            "package": "libgnutls30t64",
+            "version": "3.8.9-3+deb13u4",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
             "id": "CVE-2026-76642",
             "severity": "high",
             "package": "bsdutils",
@@ -1106,6 +1487,16 @@
           },
           {
             "id": "CVE-2026-76957",
+            "severity": "high",
+            "package": "libexpat1",
+            "version": "2.8.3-1~deb13u1",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "CVE-2026-77214",
             "severity": "high",
             "package": "libexpat1",
             "version": "2.8.3-1~deb13u1",
@@ -1655,6 +2046,26 @@
             ]
           },
           {
+            "id": "CVE-2026-95184",
+            "severity": "high",
+            "package": "libgnutls30t64",
+            "version": "3.8.9-3+deb13u4",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "CVE-2026-95209",
+            "severity": "high",
+            "package": "libgnutls30t64",
+            "version": "3.8.9-3+deb13u4",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
             "id": "CVE-2026-9538",
             "severity": "high",
             "package": "libperl5.40",
@@ -1755,6 +2166,167 @@
             ]
           },
           {
+            "id": "GO-2026-6603",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6603",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6605",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6607",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6608",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6609",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6610",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6610",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6611",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6611",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6613",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6629",
+            "severity": "high",
+            "package": "golang.org/x/text",
+            "version": "v0.40.0",
+            "fixedIn": [
+              "0.41.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
             "id": "CVE-2025-6141",
             "severity": "medium",
             "package": "libtinfo6",
@@ -1799,6 +2371,46 @@
             "severity": "medium",
             "package": "libexpat1",
             "version": "2.8.3-1~deb13u1",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "CVE-2026-107708",
+            "severity": "medium",
+            "package": "libgssapi-krb5-2",
+            "version": "1.21.3-5+deb13u1",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "CVE-2026-107708",
+            "severity": "medium",
+            "package": "libk5crypto3",
+            "version": "1.21.3-5+deb13u1",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "CVE-2026-107708",
+            "severity": "medium",
+            "package": "libkrb5-3",
+            "version": "1.21.3-5+deb13u1",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "CVE-2026-107708",
+            "severity": "medium",
+            "package": "libkrb5support0",
+            "version": "1.21.3-5+deb13u1",
             "platforms": [
               "linux/amd64",
               "linux/arm64"
@@ -1939,46 +2551,6 @@
             "severity": "medium",
             "package": "libp11-kit0",
             "version": "0.25.5-3",
-            "platforms": [
-              "linux/amd64",
-              "linux/arm64"
-            ]
-          },
-          {
-            "id": "CVE-2026-19487",
-            "severity": "medium",
-            "package": "libperl5.40",
-            "version": "5.40.1-6+deb13u1",
-            "platforms": [
-              "linux/amd64",
-              "linux/arm64"
-            ]
-          },
-          {
-            "id": "CVE-2026-19487",
-            "severity": "medium",
-            "package": "perl-base",
-            "version": "5.40.1-6+deb13u1",
-            "platforms": [
-              "linux/amd64",
-              "linux/arm64"
-            ]
-          },
-          {
-            "id": "CVE-2026-19487",
-            "severity": "medium",
-            "package": "perl-modules-5.40",
-            "version": "5.40.1-6+deb13u1",
-            "platforms": [
-              "linux/amd64",
-              "linux/arm64"
-            ]
-          },
-          {
-            "id": "CVE-2026-19487",
-            "severity": "medium",
-            "package": "perl",
-            "version": "5.40.1-6+deb13u1",
             "platforms": [
               "linux/amd64",
               "linux/arm64"
@@ -3453,27 +4025,109 @@
               "linux/amd64",
               "linux/arm64"
             ]
+          },
+          {
+            "id": "CVE-2026-88647",
+            "severity": "unknown",
+            "package": "libgnutls30t64",
+            "version": "3.8.9-3+deb13u4",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "CVE-2026-88648",
+            "severity": "unknown",
+            "package": "libgnutls30t64",
+            "version": "3.8.9-3+deb13u4",
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6599",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6600",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6617",
+            "severity": "unknown",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6617",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
           }
         ]
       },
       "reproducibility": {
         "status": "reproduced",
         "method": "recipe-rebuild",
-        "checkedAt": "2026-10-06T23:34:53Z",
-        "digest": "sha256:7e01b47b2d360f1bb810429d25d0b7a46b8be3dbe878bc6d7543a1bf8f7d366e"
+        "checkedAt": "2026-10-10T16:54:56Z",
+        "digest": "sha256:867c6cbf7f445e6571356c30130010a4d1c60d3432000ce45cf394e59c03816c"
       },
       "factory": {
         "kind": "Image",
         "name": "debian-tools",
-        "version": "v0.0.0-20261006004311-100a03087b8b",
-        "sourceDateEpoch": 1790899200,
+        "version": "e07953d",
+        "sourceDateEpoch": 1791504000,
         "inputs": {
-          "packages": 42,
+          "packages": 40,
           "tools": 2,
           "images": 5
         }
       },
       "packages": 254,
+      "packagesSource": {
+        "evidence": "sbom",
+        "status": "verified",
+        "platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ]
+      },
       "verdict": {
         "status": "verified",
         "reasons": []
@@ -3500,7 +4154,7 @@
         "kind": "debuerreotype",
         "basis": "image metadata (history, labels, layer layout)"
       },
-      "root": "other images are proven to be built on versions of this repository",
+      "root": "other observed images were proven to be built on this image",
       "evidence": {
         "signature": {
           "status": "missing"
@@ -3553,19 +4207,19 @@
       "tags": [
         "latest"
       ],
-      "digest": "sha256:7cfade5b8fab4ba04eef23b1ff35dfc2d9af5402f91f22d8bb489cbc1405f30d",
-      "created": "2026-10-05T00:00:00Z",
+      "digest": "sha256:4350805faaa3691ff14c1e9edd5ff4cfb274c840f906bae0d05cf649ac18a0e5",
+      "created": "2026-10-09T00:00:00Z",
       "platforms": [
         {
           "platform": "linux/amd64",
-          "digest": "sha256:0e7594a0f053cb4f9baf79c6c04d6af7a3442197b2672b0460cf0e0b0c378563",
-          "size": 3119833,
+          "digest": "sha256:32e711ebdfc57f7cb55f821822f31bd385d2089747a692988b654869181e8c51",
+          "size": 3123276,
           "layers": 2
         },
         {
           "platform": "linux/arm64",
-          "digest": "sha256:473d74bdb17aeea2b39d326b3ff8a7470f1bbbb5b39f2b09be0fccbfbc49d97d",
-          "size": 2890898,
+          "digest": "sha256:fd10bf90f25a7468320fec913a837ec8c457f9bc9059657a579fdcd543dc519b",
+          "size": 2892854,
           "layers": 2
         }
       ],
@@ -3575,7 +4229,7 @@
       },
       "source": {
         "url": "https://github.com/northcutted/clearcutt-factory",
-        "revision": "100a03087b8b0a7f0fe1da55ca07dfebc30ad149",
+        "revision": "38f488213c03f7a5673c2d05d0b69e46864c7e6d",
         "basis": "provenance"
       },
       "description": "A tiny HTTP service built on the go stack",
@@ -3584,6 +4238,7 @@
         "repository": "cgr.dev/chainguard/static",
         "ref": "cgr.dev/chainguard/static:latest",
         "digest": "sha256:fe55470f22d3259488d9d3739168d8f04da67755f0b69382bc26eda4a7d3d327",
+        "provenOn": "linux/amd64",
         "method": "layer-prefix",
         "strength": "proof",
         "drift": "current",
@@ -3603,8 +4258,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/hello-app@sha256:de613e0f55e0f1d6b0f157431d77f81384b550a7b58a8aa6753a98dc9cac745e",
-          "timestamp": "2026-10-06T00:46:06Z"
+          "ref": "ghcr.io/northcutted/images/hello-app@sha256:0e74f75d845836e733a27f03d45cc2c49d289b9c5e78ce120f763e759fcaf6c0",
+          "timestamp": "2026-10-10T16:06:39Z"
         },
         "sbom": {
           "status": "verified",
@@ -3616,8 +4271,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/hello-app@sha256:d4a31e0b93e676e19836be1fc0d0eb298cbacfde5a84257e185d74548de3151b",
-          "timestamp": "2026-10-06T00:46:27Z",
+          "ref": "ghcr.io/northcutted/images/hello-app@sha256:99ff45cf12efe040f989f992b2c76f8b806a562778c4b2bf8e396c24c18684a9",
+          "timestamp": "2026-10-10T16:06:56Z",
           "platforms": {
             "linux/amd64": "verified",
             "linux/arm64": "verified"
@@ -3633,8 +4288,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/hello-app@sha256:3337acc063d6a897f83de11eebcc03b5161dddf8018ad8f1a29913e1bc6a0bc8",
-          "timestamp": "2026-10-06T00:46:34Z",
+          "ref": "ghcr.io/northcutted/images/hello-app@sha256:ff974072b4e2a18d75dd8966ff2e23b34aedb975cc529417dc93e1247a198205",
+          "timestamp": "2026-10-10T16:07:01Z",
           "platforms": {
             "linux/amd64": "verified",
             "linux/arm64": "verified"
@@ -3650,8 +4305,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/hello-app@sha256:85f479dd07cb2b73192f1f443be8ad85758f87b6dea72858d6fc9fff2eefb507",
-          "timestamp": "2026-10-06T00:46:50Z"
+          "ref": "ghcr.io/northcutted/images/hello-app@sha256:0cd07dbc57a30aa4d9018e9228040dc98306205404f98a6a16049c28b04826a3",
+          "timestamp": "2026-10-10T16:49:34Z"
         },
         "recipe": {
           "status": "verified",
@@ -3663,22 +4318,23 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/hello-app@sha256:89457f89822e7ba76086493e251d2705205e66cf1fbf7f71f580a1bf043670ec",
-          "timestamp": "2026-10-06T00:46:23Z"
+          "ref": "ghcr.io/northcutted/images/hello-app@sha256:69a6591a4f167abc4983db941d35c5493beb4bfa4d957e25e810a465a946d1aa",
+          "timestamp": "2026-10-10T16:06:51Z"
         },
         "rebase": {
           "status": "not-applicable",
           "detail": "No rebase record: the image was built, not rebased."
         },
         "tests": {
-          "status": "missing",
-          "detail": "No test attestation."
+          "status": "present",
+          "source": "recipe",
+          "detail": "The verified recipe declares a smoke test (GET :8080/) that clearcutt-factory runs on every platform before it pushes; the result isn't separately attested."
         }
       },
       "vulnerabilities": {
         "source": "attestation",
         "scanner": "grype 0.118.0",
-        "scannedAt": "2026-10-06T00:46:02Z",
+        "scannedAt": "2026-10-10T16:06:35Z",
         "counts": {
           "critical": 0,
           "high": 0,
@@ -3700,15 +4356,16 @@
       "reproducibility": {
         "status": "reproduced",
         "method": "recipe-rebuild",
-        "checkedAt": "2026-10-06T23:35:47Z",
-        "digest": "sha256:7cfade5b8fab4ba04eef23b1ff35dfc2d9af5402f91f22d8bb489cbc1405f30d"
+        "checkedAt": "2026-10-10T16:59:28Z",
+        "digest": "sha256:4350805faaa3691ff14c1e9edd5ff4cfb274c840f906bae0d05cf649ac18a0e5"
       },
       "factory": {
         "kind": "App",
         "name": "hello-app",
         "stack": "go",
-        "version": "v0.0.0-20261006004311-100a03087b8b",
-        "sourceDateEpoch": 1791158400,
+        "stackDigest": "sha256:cfdf348cb280bd00ac1307d8a82683b9bc0275987b1179ed676e065ab6756c7c",
+        "version": "eab2d08",
+        "sourceDateEpoch": 1791504000,
         "inputs": {
           "packages": 0,
           "tools": 0,
@@ -3716,6 +4373,14 @@
         }
       },
       "packages": 5,
+      "packagesSource": {
+        "evidence": "sbom",
+        "status": "verified",
+        "platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ]
+      },
       "verdict": {
         "status": "verified",
         "reasons": []
@@ -3728,19 +4393,19 @@
       "tags": [
         "latest"
       ],
-      "digest": "sha256:ef24c469db863fe33c4e149d2622477da57a03fba2feb11243905065f1ed0240",
-      "created": "2026-10-04T00:00:00Z",
+      "digest": "sha256:bf7990acf59ee88704a3a0b6fa280cb74ba771b86ccc1ce3a911e4122afc3591",
+      "created": "2026-10-09T00:00:00Z",
       "platforms": [
         {
           "platform": "linux/amd64",
-          "digest": "sha256:8743dc7d4dc8e2236601f51f75cb6e0699487bac06a6db05e5b72d3355835f6d",
-          "size": 160523822,
+          "digest": "sha256:ac39142c7f963a6ed11c538f5c8252eed440c162dc6652274dcbbcb00376bd0e",
+          "size": 156989915,
           "layers": 20
         },
         {
           "platform": "linux/arm64",
-          "digest": "sha256:8e4c8376f1903d75a8eff4d38b0a65a4fb339c3ab3d0253293f208acacdef8f0",
-          "size": 146508588,
+          "digest": "sha256:fc5621a3449740cb4065244aa81a07dc8acc4792744b24ce50b151105821ecbf",
+          "size": 143348744,
           "layers": 20
         }
       ],
@@ -3750,21 +4415,23 @@
       },
       "source": {
         "url": "https://github.com/northcutted/clearcutt-factory",
-        "revision": "100a03087b8b0a7f0fe1da55ca07dfebc30ad149",
+        "revision": "38f488213c03f7a5673c2d05d0b69e46864c7e6d",
         "basis": "provenance"
       },
       "description": "kubectl, helm, gh, cosign, crane, and yq on Wolfi",
       "base": {
+        "imageId": "wolfi-base",
         "repository": "cgr.dev/chainguard/wolfi-base",
         "ref": "cgr.dev/chainguard/wolfi-base:latest",
-        "digest": "sha256:fbcaceb3a1eedec23eb80df9328f9be4a438546836ec15a67df39a104096d44a",
+        "digest": "sha256:1c451d46a0d5c4e9f2b38e0e8d3e299564a1aa95c21973efcc1980a9d1d2e73e",
+        "provenOn": "linux/amd64",
         "method": "layer-prefix",
         "strength": "proof",
-        "drift": "stale",
-        "versionsBehind": 1,
-        "daysBehind": 3,
+        "drift": "current",
+        "versionsBehind": 0,
+        "daysBehind": 0,
         "currentRef": "cgr.dev/chainguard/wolfi-base:latest",
-        "currentDigest": "sha256:6f31b0949fe7d8133f3e632bfa654339845cfb7410f2ca55a0217c85d36baf6d"
+        "currentDigest": "sha256:1c451d46a0d5c4e9f2b38e0e8d3e299564a1aa95c21973efcc1980a9d1d2e73e"
       },
       "evidence": {
         "signature": {
@@ -3777,8 +4444,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/platform-tools@sha256:10c44eed55f0ac8d582a61a02d62c7eb7435000e033d2734d138788c074cfdab",
-          "timestamp": "2026-10-06T00:46:31Z"
+          "ref": "ghcr.io/northcutted/images/platform-tools@sha256:8df028e9c4a6a941d72f4268566c2e81b2af5dfa9231ee94eb9c8f283077c280",
+          "timestamp": "2026-10-10T16:26:30Z"
         },
         "sbom": {
           "status": "verified",
@@ -3790,8 +4457,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/platform-tools@sha256:f0feb3f559381236c2d5fe92b56545d64ba7e5cfe4a2bac2e6fc7fe64470e8b3",
-          "timestamp": "2026-10-06T00:46:53Z",
+          "ref": "ghcr.io/northcutted/images/platform-tools@sha256:a8af2c0cadee12f858eb9d8596e02116691bd141f03fd06b5465efd098940c63",
+          "timestamp": "2026-10-10T16:26:47Z",
           "platforms": {
             "linux/amd64": "verified",
             "linux/arm64": "verified"
@@ -3807,8 +4474,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/platform-tools@sha256:0b5bace8dd5c7da3cb01cd293882765414020ae37bc901406c73a860b379aee7",
-          "timestamp": "2026-10-06T00:47:00Z",
+          "ref": "ghcr.io/northcutted/images/platform-tools@sha256:b688335f2c539007fe45f112b3af08f0f356f478491309b44ad2ed263c41db77",
+          "timestamp": "2026-10-10T16:26:52Z",
           "platforms": {
             "linux/amd64": "verified",
             "linux/arm64": "verified"
@@ -3824,8 +4491,8 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/platform-tools@sha256:7f120872c3e6e2930450bf115ab8d0401099f611d3b7f96847b1869d1a68fc35",
-          "timestamp": "2026-10-06T00:47:20Z"
+          "ref": "ghcr.io/northcutted/images/platform-tools@sha256:9d07e61169a62590642349e757947a0ae14b5f32271175b0ca3fca392a987be5",
+          "timestamp": "2026-10-10T16:50:04Z"
         },
         "recipe": {
           "status": "verified",
@@ -3837,39 +4504,212 @@
             "sourceRepository": "https://github.com/northcutted/clearcutt-factory",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "ghcr.io/northcutted/images/platform-tools@sha256:53f46910f15e1fd532bf2471e25e6f19534462ee7c161e1b42487e75798bbddf",
-          "timestamp": "2026-10-06T00:46:49Z"
+          "ref": "ghcr.io/northcutted/images/platform-tools@sha256:b81110e0efaaea365294e76c094b1528ff48b87eca2a20adc41be32c6c9e3bb3",
+          "timestamp": "2026-10-10T16:26:43Z"
         },
         "rebase": {
           "status": "not-applicable",
           "detail": "No rebase record: the image was built, not rebased."
         },
         "tests": {
-          "status": "missing",
-          "detail": "No test attestation."
+          "status": "present",
+          "source": "recipe",
+          "detail": "The verified recipe declares a smoke test (/usr/local/bin/kubectl version --client) that clearcutt-factory runs on every platform before it pushes; the result isn't separately attested."
         }
       },
       "vulnerabilities": {
         "source": "attestation",
         "scanner": "grype 0.118.0",
-        "scannedAt": "2026-10-06T00:46:26Z",
+        "scannedAt": "2026-10-10T16:26:21Z",
         "counts": {
           "critical": 0,
-          "high": 18,
-          "medium": 7,
-          "low": 3,
+          "high": 64,
+          "medium": 4,
+          "low": 1,
           "negligible": 0,
-          "unknown": 5
+          "unknown": 21
         },
         "fixable": {
           "critical": 0,
-          "high": 18,
+          "high": 64,
           "medium": 4,
           "low": 0,
           "negligible": 0,
-          "unknown": 1
+          "unknown": 17
         },
         "findings": [
+          {
+            "id": "GO-2026-6604",
+            "severity": "critical",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6604",
+            "severity": "critical",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6604",
+            "severity": "critical",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6604",
+            "severity": "critical",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6612",
+            "severity": "critical",
+            "package": "golang.org/x/net",
+            "version": "v0.56.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6612",
+            "severity": "critical",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6612",
+            "severity": "critical",
+            "package": "golang.org/x/net",
+            "version": "v0.58.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6612",
+            "severity": "critical",
+            "package": "golang.org/x/net",
+            "version": "v0.59.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6612",
+            "severity": "critical",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6612",
+            "severity": "critical",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6612",
+            "severity": "critical",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
+          {
+            "id": "GO-2026-6612",
+            "severity": "critical",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ],
+            "suppressed": true
+          },
           {
             "id": "GHSA-2v4p-qf9q-27wj",
             "severity": "high",
@@ -4118,30 +4958,618 @@
             ]
           },
           {
-            "id": "CVE-2026-8674",
-            "severity": "medium",
-            "package": "glibc-2.44",
-            "version": "2.44-r7",
+            "id": "GO-2026-6603",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.56.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
             "platforms": [
               "linux/amd64",
               "linux/arm64"
             ]
           },
           {
-            "id": "CVE-2026-86805",
-            "severity": "medium",
-            "package": "glibc-2.44",
-            "version": "2.44-r7",
+            "id": "GO-2026-6603",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
             "platforms": [
               "linux/amd64",
               "linux/arm64"
             ]
           },
           {
-            "id": "CVE-2026-89092",
-            "severity": "medium",
-            "package": "glibc-2.44",
-            "version": "2.44-r7",
+            "id": "GO-2026-6603",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.58.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6603",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.59.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6603",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6603",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6603",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6603",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6605",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6605",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6605",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6605",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6607",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6607",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6607",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6607",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6608",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6608",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6608",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6608",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6609",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6609",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6609",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6609",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6610",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.56.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6610",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6610",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.58.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6610",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.59.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6610",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6610",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6610",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6610",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6611",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.56.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6611",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6611",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.58.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6611",
+            "severity": "high",
+            "package": "golang.org/x/net",
+            "version": "v0.59.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6611",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6611",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6611",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6611",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6613",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6613",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6613",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6613",
+            "severity": "high",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6629",
+            "severity": "high",
+            "package": "golang.org/x/text",
+            "version": "v0.38.0",
+            "fixedIn": [
+              "0.41.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6629",
+            "severity": "high",
+            "package": "golang.org/x/text",
+            "version": "v0.40.0",
+            "fixedIn": [
+              "0.41.0"
+            ],
             "platforms": [
               "linux/amd64",
               "linux/arm64"
@@ -4200,26 +5628,6 @@
               "1.26.6",
               "1.27.0-rc.3"
             ],
-            "platforms": [
-              "linux/amd64",
-              "linux/arm64"
-            ]
-          },
-          {
-            "id": "CVE-2026-95818",
-            "severity": "low",
-            "package": "glibc-2.44",
-            "version": "2.44-r7",
-            "platforms": [
-              "linux/amd64",
-              "linux/arm64"
-            ]
-          },
-          {
-            "id": "CVE-2026-97399",
-            "severity": "low",
-            "package": "glibc-2.44",
-            "version": "2.44-r7",
             "platforms": [
               "linux/amd64",
               "linux/arm64"
@@ -4287,27 +5695,251 @@
               "linux/amd64",
               "linux/arm64"
             ]
+          },
+          {
+            "id": "GO-2026-6599",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6599",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6599",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6599",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6600",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6600",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6600",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6600",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.26.9",
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6617",
+            "severity": "unknown",
+            "package": "golang.org/x/net",
+            "version": "v0.56.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6617",
+            "severity": "unknown",
+            "package": "golang.org/x/net",
+            "version": "v0.57.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6617",
+            "severity": "unknown",
+            "package": "golang.org/x/net",
+            "version": "v0.58.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6617",
+            "severity": "unknown",
+            "package": "golang.org/x/net",
+            "version": "v0.59.0",
+            "fixedIn": [
+              "0.60.0"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6617",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.4",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6617",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.6",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6617",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.26.8",
+            "fixedIn": [
+              "1.26.9"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
+          },
+          {
+            "id": "GO-2026-6617",
+            "severity": "unknown",
+            "package": "stdlib",
+            "version": "go1.27.1",
+            "fixedIn": [
+              "1.27.2"
+            ],
+            "platforms": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
           }
         ]
       },
       "reproducibility": {
         "status": "reproduced",
         "method": "recipe-rebuild",
-        "checkedAt": "2026-10-06T23:33:02Z",
-        "digest": "sha256:ef24c469db863fe33c4e149d2622477da57a03fba2feb11243905065f1ed0240"
+        "checkedAt": "2026-10-10T16:58:44Z",
+        "digest": "sha256:bf7990acf59ee88704a3a0b6fa280cb74ba771b86ccc1ce3a911e4122afc3591"
       },
       "factory": {
         "kind": "Image",
         "name": "platform-tools",
-        "version": "v0.0.0-20261006004311-100a03087b8b",
-        "sourceDateEpoch": 1791072000,
+        "version": "e07953d",
+        "sourceDateEpoch": 1791504000,
         "inputs": {
           "packages": 48,
           "tools": 6,
           "images": 6
         }
       },
-      "packages": 551,
+      "packages": 554,
+      "packagesSource": {
+        "evidence": "sbom",
+        "status": "verified",
+        "platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ]
+      },
       "verdict": {
         "status": "verified",
         "reasons": []
@@ -4410,6 +6042,14 @@
         "status": "no-recipe"
       },
       "packages": 12,
+      "packagesSource": {
+        "evidence": "sbom",
+        "status": "verified",
+        "platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ]
+      },
       "verdict": {
         "status": "unverified",
         "reasons": [
@@ -4424,19 +6064,19 @@
       "tags": [
         "latest"
       ],
-      "digest": "sha256:6f6d440fa7d30767525d2a561870a616193e9ed3442aea55d8d9d8aa413ab054",
-      "created": "2026-10-06T13:42:46Z",
+      "digest": "sha256:1c451d46a0d5c4e9f2b38e0e8d3e299564a1aa95c21973efcc1980a9d1d2e73e",
+      "created": "2026-10-09T23:27:48Z",
       "platforms": [
         {
           "platform": "linux/amd64",
-          "digest": "sha256:6f31b0949fe7d8133f3e632bfa654339845cfb7410f2ca55a0217c85d36baf6d",
-          "size": 7928581,
+          "digest": "sha256:4c1aea74ceda999336d0b681792c2b787d8d63f0f4e5ace586489c2d15fde6ce",
+          "size": 8159473,
           "layers": 11
         },
         {
           "platform": "linux/arm64",
-          "digest": "sha256:d209e6771f68ed5c8c295e9dbd08dd2eae8a0a32f95d35e216a67565ebad27ea",
-          "size": 6758629,
+          "digest": "sha256:74e1bcf7505648076546f2fe4735d243163e366d8f2ccd46b224adfadd48b5e3",
+          "size": 6995205,
           "layers": 11
         }
       ],
@@ -4448,7 +6088,7 @@
         "url": "https://github.com/chainguard-images/images/tree/main/images/wolfi-base",
         "basis": "label"
       },
-      "root": "other images are proven to be built on versions of this repository",
+      "root": "other observed images were proven to be built on this image",
       "evidence": {
         "signature": {
           "status": "verified",
@@ -4460,7 +6100,7 @@
             "sourceRepository": "https://github.com/chainguard-images/images",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "cgr.dev/chainguard/wolfi-base:sha256-6f6d440fa7d30767525d2a561870a616193e9ed3442aea55d8d9d8aa413ab054.sig"
+          "ref": "cgr.dev/chainguard/wolfi-base:sha256-1c451d46a0d5c4e9f2b38e0e8d3e299564a1aa95c21973efcc1980a9d1d2e73e.sig"
         },
         "sbom": {
           "status": "verified",
@@ -4472,7 +6112,7 @@
             "sourceRepository": "https://github.com/chainguard-images/images",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "cgr.dev/chainguard/wolfi-base:sha256-6f31b0949fe7d8133f3e632bfa654339845cfb7410f2ca55a0217c85d36baf6d.att",
+          "ref": "cgr.dev/chainguard/wolfi-base:sha256-4c1aea74ceda999336d0b681792c2b787d8d63f0f4e5ace586489c2d15fde6ce.att",
           "platforms": {
             "linux/amd64": "verified",
             "linux/arm64": "verified"
@@ -4495,7 +6135,7 @@
             "sourceRepository": "https://github.com/chainguard-images/images",
             "sourceRef": "refs/heads/main"
           },
-          "ref": "cgr.dev/chainguard/wolfi-base:sha256-6f6d440fa7d30767525d2a561870a616193e9ed3442aea55d8d9d8aa413ab054.att"
+          "ref": "cgr.dev/chainguard/wolfi-base:sha256-1c451d46a0d5c4e9f2b38e0e8d3e299564a1aa95c21973efcc1980a9d1d2e73e.att"
         },
         "recipe": {
           "status": "missing",
@@ -4513,7 +6153,15 @@
       "reproducibility": {
         "status": "no-recipe"
       },
-      "packages": 67,
+      "packages": 65,
+      "packagesSource": {
+        "evidence": "sbom",
+        "status": "verified",
+        "platforms": [
+          "linux/amd64",
+          "linux/arm64"
+        ]
+      },
       "verdict": {
         "status": "unverified",
         "reasons": [
@@ -4536,11 +6184,11 @@
     {
       "repository": "cgr.dev/chainguard/wolfi-base",
       "currentRef": "cgr.dev/chainguard/wolfi-base:latest",
-      "currentDigest": "sha256:6f31b0949fe7d8133f3e632bfa654339845cfb7410f2ca55a0217c85d36baf6d",
-      "currentCreated": "2026-10-06T13:42:46Z",
+      "currentDigest": "sha256:1c451d46a0d5c4e9f2b38e0e8d3e299564a1aa95c21973efcc1980a9d1d2e73e",
+      "currentCreated": "2026-10-09T23:27:48Z",
       "versions": 1,
       "consumers": 1,
-      "staleConsumers": 1
+      "staleConsumers": 0
     },
     {
       "repository": "docker.io/library/amazonlinux",
@@ -4554,11 +6202,11 @@
     {
       "repository": "docker.io/library/debian",
       "currentRef": "docker.io/library/debian:trixie-slim",
-      "currentDigest": "sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483",
+      "currentDigest": "sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f",
       "currentCreated": "2026-10-05T00:00:00Z",
       "versions": 1,
       "consumers": 1,
-      "staleConsumers": 1
+      "staleConsumers": 0
     }
   ],
   "packages": [
@@ -4701,9 +6349,9 @@
     },
     {
       "name": "bash",
-      "version": "5.3-r13",
+      "version": "5.3-r14",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/bash@5.3-r13",
+      "purl": "pkg:apk/wolfi/bash@5.3-r14",
       "images": [
         "platform-tools"
       ]
@@ -4755,9 +6403,9 @@
     },
     {
       "name": "busybox",
-      "version": "1.38.0-r2",
+      "version": "1.38.0-r3",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/busybox@1.38.0-r2",
+      "purl": "pkg:apk/wolfi/busybox@1.38.0-r3",
       "images": [
         "platform-tools",
         "wolfi-base"
@@ -4765,9 +6413,9 @@
     },
     {
       "name": "busybox.yaml",
-      "version": "71881f600839f8cdaced7ecf938b4efc90a09c33",
+      "version": "59d45eb49286129d8d21b2469befa3b55be4719b",
       "type": "github",
-      "purl": "pkg:github/chainguard-dev/stereo@71881f600839f8cdaced7ecf938b4efc90a09c33#busybox.yaml",
+      "purl": "pkg:github/chainguard-dev/stereo@59d45eb49286129d8d21b2469befa3b55be4719b#busybox.yaml",
       "images": [
         "wolfi-base"
       ]
@@ -4976,9 +6624,9 @@
     },
     {
       "name": "crane",
-      "version": "sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "version": "sha256:9162effd4c674ad2fa4e7170a894503ffff9114f15a57e75a0a32e111ad32d85",
       "type": "oci",
-      "purl": "pkg:oci/crane@sha256:1f968817b95790bed063f71175aa6b8ff879fa17064020415f3e18bb6e6a36e1",
+      "purl": "pkg:oci/crane@sha256:9162effd4c674ad2fa4e7170a894503ffff9114f15a57e75a0a32e111ad32d85",
       "images": [
         "platform-tools"
       ]
@@ -5282,9 +6930,9 @@
     },
     {
       "name": "gdbm",
-      "version": "1.26-r6",
+      "version": "1.26-r7",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/gdbm@1.26-r6",
+      "purl": "pkg:apk/wolfi/gdbm@1.26-r7",
       "images": [
         "platform-tools"
       ]
@@ -5363,9 +7011,9 @@
     },
     {
       "name": "git/glibc",
-      "version": "b4f51887c48ac82acfdb13f96d9eab5d120cb2b7",
+      "version": "34106fee698c83eb0af71d4d0381e66b399be746",
       "type": "generic",
-      "purl": "pkg:generic/git%2Fglibc@b4f51887c48ac82acfdb13f96d9eab5d120cb2b7",
+      "purl": "pkg:generic/git%2Fglibc@34106fee698c83eb0af71d4d0381e66b399be746",
       "images": [
         "wolfi-base"
       ]
@@ -6420,6 +8068,15 @@
       ]
     },
     {
+      "name": "github.com/docker/cli",
+      "version": "v29.8.2+incompatible",
+      "type": "golang",
+      "purl": "pkg:golang/github.com/docker/cli@v29.8.2%2Bincompatible",
+      "images": [
+        "platform-tools"
+      ]
+    },
+    {
       "name": "github.com/docker/docker-credential-helpers",
       "version": "v0.9.3",
       "type": "golang",
@@ -7338,9 +8995,18 @@
     },
     {
       "name": "github.com/google/go-containerregistry",
-      "version": "v0.0.0-20260904000721-8a72a424fdec+dirty",
+      "version": "v0.0.0-20261007205159-0d888fc956e8",
       "type": "golang",
-      "purl": "pkg:golang/github.com/google/go-containerregistry@v0.0.0-20260904000721-8a72a424fdec%2Bdirty",
+      "purl": "pkg:golang/github.com/google/go-containerregistry@v0.0.0-20261007205159-0d888fc956e8",
+      "images": [
+        "platform-tools"
+      ]
+    },
+    {
+      "name": "github.com/google/go-containerregistry",
+      "version": "v0.0.0-20261007205159-0d888fc956e8+dirty",
+      "type": "golang",
+      "purl": "pkg:golang/github.com/google/go-containerregistry@v0.0.0-20261007205159-0d888fc956e8%2Bdirty",
       "images": [
         "platform-tools"
       ]
@@ -7727,15 +9393,6 @@
       "version": "v1.18.6",
       "type": "golang",
       "purl": "pkg:golang/github.com/klauspost/compress@v1.18.6",
-      "images": [
-        "platform-tools"
-      ]
-    },
-    {
-      "name": "github.com/klauspost/compress",
-      "version": "v1.19.2",
-      "type": "golang",
-      "purl": "pkg:golang/github.com/klauspost/compress@v1.19.2",
       "images": [
         "platform-tools"
       ]
@@ -9037,18 +10694,18 @@
     },
     {
       "name": "glibc",
-      "version": "2.42-84",
+      "version": "2.42-100",
       "type": "nix",
-      "purl": "pkg:nix/glibc@2.42-84",
+      "purl": "pkg:nix/glibc@2.42-100",
       "images": [
         "debian-tools"
       ]
     },
     {
       "name": "glibc-2.44",
-      "version": "2.44-r7",
+      "version": "2.44-r8",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/glibc-2.44@2.44-r7",
+      "purl": "pkg:apk/wolfi/glibc-2.44@2.44-r8",
       "images": [
         "platform-tools",
         "wolfi-base"
@@ -9056,9 +10713,9 @@
     },
     {
       "name": "glibc-2.44-locale-posix",
-      "version": "2.44-r7",
+      "version": "2.44-r8",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/glibc-2.44-locale-posix@2.44-r7",
+      "purl": "pkg:apk/wolfi/glibc-2.44-locale-posix@2.44-r8",
       "images": [
         "platform-tools",
         "wolfi-base"
@@ -9066,9 +10723,9 @@
     },
     {
       "name": "glibc-2.44.yaml",
-      "version": "2f4fbb70b55156f2d4cabff471b50dab0e75aa89",
+      "version": "3f73ace7dd5a203b7d080fd633d056d763e6760c",
       "type": "github",
-      "purl": "pkg:github/chainguard-dev/stereo@2f4fbb70b55156f2d4cabff471b50dab0e75aa89#glibc-2.44.yaml",
+      "purl": "pkg:github/chainguard-dev/stereo@3f73ace7dd5a203b7d080fd633d056d763e6760c#glibc-2.44.yaml",
       "images": [
         "wolfi-base"
       ]
@@ -9742,9 +11399,9 @@
     },
     {
       "name": "heimdal-libs",
-      "version": "7.8.0-r52",
+      "version": "7.8.0-r53",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/heimdal-libs@7.8.0-r52",
+      "purl": "pkg:apk/wolfi/heimdal-libs@7.8.0-r53",
       "images": [
         "platform-tools"
       ]
@@ -9823,9 +11480,9 @@
     },
     {
       "name": "jq",
-      "version": "1.8.2-r2",
+      "version": "1.8.2-r3",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/jq@1.8.2-r2",
+      "purl": "pkg:apk/wolfi/jq@1.8.2-r3",
       "images": [
         "platform-tools"
       ]
@@ -10110,9 +11767,9 @@
     },
     {
       "name": "keyutils-libs",
-      "version": "1.6.3-r40",
+      "version": "1.6.3-r41",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/keyutils-libs@1.6.3-r40",
+      "purl": "pkg:apk/wolfi/keyutils-libs@1.6.3-r41",
       "images": [
         "platform-tools"
       ]
@@ -10157,9 +11814,9 @@
     },
     {
       "name": "ld-linux-2.44",
-      "version": "2.44-r7",
+      "version": "2.44-r8",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/ld-linux-2.44@2.44-r7",
+      "purl": "pkg:apk/wolfi/ld-linux-2.44@2.44-r8",
       "images": [
         "platform-tools",
         "wolfi-base"
@@ -10431,9 +12088,9 @@
     },
     {
       "name": "libcom_err",
-      "version": "1.47.4-r2",
+      "version": "1.47.4-r3",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/libcom_err@1.47.4-r2",
+      "purl": "pkg:apk/wolfi/libcom_err@1.47.4-r3",
       "images": [
         "platform-tools"
       ]
@@ -10467,9 +12124,9 @@
     },
     {
       "name": "libcrypt1-2.44",
-      "version": "2.44-r7",
+      "version": "2.44-r8",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/libcrypt1-2.44@2.44-r7",
+      "purl": "pkg:apk/wolfi/libcrypt1-2.44@2.44-r8",
       "images": [
         "platform-tools",
         "wolfi-base"
@@ -10477,9 +12134,9 @@
     },
     {
       "name": "libcrypto3",
-      "version": "3.6.5-r1",
+      "version": "3.6.5-r2",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/libcrypto3@3.6.5-r1",
+      "purl": "pkg:apk/wolfi/libcrypto3@3.6.5-r2",
       "images": [
         "platform-tools"
       ]
@@ -10594,9 +12251,9 @@
     },
     {
       "name": "libexpat1",
-      "version": "2.8.5-r0",
+      "version": "2.9.0-r0",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/libexpat1@2.8.5-r0",
+      "purl": "pkg:apk/wolfi/libexpat1@2.9.0-r0",
       "images": [
         "platform-tools"
       ]
@@ -10766,9 +12423,9 @@
     },
     {
       "name": "libidn2",
-      "version": "2.3.8-r9",
+      "version": "2.3.8-r10",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/libidn2@2.3.8-r9",
+      "purl": "pkg:apk/wolfi/libidn2@2.3.8-r10",
       "images": [
         "platform-tools"
       ]
@@ -11027,9 +12684,9 @@
     },
     {
       "name": "libpcre2-8-0",
-      "version": "10.46-1~deb13u2",
+      "version": "10.46-1~deb13u3",
       "type": "deb",
-      "purl": "pkg:deb/debian/libpcre2-8-0@10.46-1~deb13u2",
+      "purl": "pkg:deb/debian/libpcre2-8-0@10.46-1~deb13u3",
       "images": [
         "debian-tools"
       ]
@@ -11261,9 +12918,9 @@
     },
     {
       "name": "libssl3",
-      "version": "3.6.5-r1",
+      "version": "3.6.5-r2",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/libssl3@3.6.5-r1",
+      "purl": "pkg:apk/wolfi/libssl3@3.6.5-r2",
       "images": [
         "platform-tools"
       ]
@@ -11360,9 +13017,9 @@
     },
     {
       "name": "libunistring",
-      "version": "1.4.2-r3",
+      "version": "1.4.2-r4",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/libunistring@1.4.2-r3",
+      "purl": "pkg:apk/wolfi/libunistring@1.4.2-r4",
       "images": [
         "platform-tools"
       ]
@@ -11414,9 +13071,9 @@
     },
     {
       "name": "libverto",
-      "version": "0.3.2-r8",
+      "version": "0.3.2-r9",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/libverto@0.3.2-r8",
+      "purl": "pkg:apk/wolfi/libverto@0.3.2-r9",
       "images": [
         "platform-tools"
       ]
@@ -11432,9 +13089,9 @@
     },
     {
       "name": "libxcrypt",
-      "version": "4.5.2-r5",
+      "version": "4.5.2-r6",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/libxcrypt@4.5.2-r5",
+      "purl": "pkg:apk/wolfi/libxcrypt@4.5.2-r6",
       "images": [
         "platform-tools",
         "wolfi-base"
@@ -11451,9 +13108,9 @@
     },
     {
       "name": "libxcrypt.yaml",
-      "version": "e199a2ea58e2f64dce226ac5edb148fa8ff72664",
+      "version": "94bc25975ca5bfdca755b5b507276667124bdf1f",
       "type": "github",
-      "purl": "pkg:github/chainguard-dev/stereo@e199a2ea58e2f64dce226ac5edb148fa8ff72664#libxcrypt.yaml",
+      "purl": "pkg:github/chainguard-dev/stereo@94bc25975ca5bfdca755b5b507276667124bdf1f#libxcrypt.yaml",
       "images": [
         "wolfi-base"
       ]
@@ -11730,15 +13387,6 @@
     },
     {
       "name": "openssl",
-      "version": "openssl-4.0.2",
-      "type": "github",
-      "purl": "pkg:github/openssl/openssl@openssl-4.0.2",
-      "images": [
-        "wolfi-base"
-      ]
-    },
-    {
-      "name": "openssl",
       "version": "openssl-4.0.3",
       "type": "github",
       "purl": "pkg:github/openssl/openssl@openssl-4.0.3",
@@ -11748,54 +13396,29 @@
     },
     {
       "name": "openssl-4.0-libcrypto",
-      "version": "4.0.3-r3",
+      "version": "4.0.3-r6",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/openssl-4.0-libcrypto@4.0.3-r3",
+      "purl": "pkg:apk/wolfi/openssl-4.0-libcrypto@4.0.3-r6",
       "images": [
-        "platform-tools"
-      ]
-    },
-    {
-      "name": "openssl-4.0-libcrypto",
-      "version": "4.0.3-r4",
-      "type": "apk",
-      "purl": "pkg:apk/wolfi/openssl-4.0-libcrypto@4.0.3-r4",
-      "images": [
+        "platform-tools",
         "wolfi-base"
       ]
     },
     {
       "name": "openssl-4.0-libssl",
-      "version": "4.0.3-r3",
+      "version": "4.0.3-r6",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/openssl-4.0-libssl@4.0.3-r3",
+      "purl": "pkg:apk/wolfi/openssl-4.0-libssl@4.0.3-r6",
       "images": [
-        "platform-tools"
-      ]
-    },
-    {
-      "name": "openssl-4.0-libssl",
-      "version": "4.0.3-r4",
-      "type": "apk",
-      "purl": "pkg:apk/wolfi/openssl-4.0-libssl@4.0.3-r4",
-      "images": [
+        "platform-tools",
         "wolfi-base"
       ]
     },
     {
       "name": "openssl-4.0.yaml",
-      "version": "adf824a676cc900d2712e4dfef6170d03567213d",
+      "version": "5489124e360c92c42599091afb060af6fb317bb1",
       "type": "github",
-      "purl": "pkg:github/chainguard-dev/stereo@adf824a676cc900d2712e4dfef6170d03567213d#openssl-4.0.yaml",
-      "images": [
-        "wolfi-base"
-      ]
-    },
-    {
-      "name": "openssl-4.0.yaml",
-      "version": "bb66cad61bcdfbf4a3e3671a4ff656585a263759",
-      "type": "github",
-      "purl": "pkg:github/chainguard-dev/stereo@bb66cad61bcdfbf4a3e3671a4ff656585a263759#openssl-4.0.yaml",
+      "purl": "pkg:github/chainguard-dev/stereo@5489124e360c92c42599091afb060af6fb317bb1#openssl-4.0.yaml",
       "images": [
         "wolfi-base"
       ]
@@ -11829,9 +13452,9 @@
     },
     {
       "name": "openssl-provider-legacy-allowed",
-      "version": "4.0.2-r3",
+      "version": "4.0.3-r1",
       "type": "apk",
-      "purl": "pkg:apk/wolfi/openssl-provider-legacy-allowed@4.0.2-r3",
+      "purl": "pkg:apk/wolfi/openssl-provider-legacy-allowed@4.0.3-r1",
       "images": [
         "platform-tools",
         "wolfi-base"
@@ -11839,9 +13462,9 @@
     },
     {
       "name": "openssl-provider-legacy-allowed.yaml",
-      "version": "b8f04118437fbbf25bbaad575ccb9f2ed62b8503",
+      "version": "5489124e360c92c42599091afb060af6fb317bb1",
       "type": "github",
-      "purl": "pkg:github/chainguard-dev/stereo@b8f04118437fbbf25bbaad575ccb9f2ed62b8503#openssl-provider-legacy-allowed.yaml",
+      "purl": "pkg:github/chainguard-dev/stereo@5489124e360c92c42599091afb060af6fb317bb1#openssl-provider-legacy-allowed.yaml",
       "images": [
         "wolfi-base"
       ]
@@ -11911,9 +13534,9 @@
     },
     {
       "name": "pcre2",
-      "version": "10.48",
+      "version": "10.49",
       "type": "nix",
-      "purl": "pkg:nix/pcre2@10.48",
+      "purl": "pkg:nix/pcre2@10.49",
       "images": [
         "debian-tools"
       ]
@@ -13017,24 +14640,6 @@
       ]
     },
     {
-      "name": "sha256:009c34cb95ad7c6e77f9e954d5514318a469d74313b50fe95fb704adc7ec0281",
-      "version": "20230201",
-      "type": "oci",
-      "purl": "pkg:oci/image@sha256:009c34cb95ad7c6e77f9e954d5514318a469d74313b50fe95fb704adc7ec0281",
-      "images": [
-        "wolfi-base"
-      ]
-    },
-    {
-      "name": "sha256:0a153062968a79c64b469dd36a2e14fe4165db15c60498537d5598b329469667",
-      "version": "20230201",
-      "type": "oci",
-      "purl": "pkg:oci/image@sha256:0a153062968a79c64b469dd36a2e14fe4165db15c60498537d5598b329469667",
-      "images": [
-        "wolfi-base"
-      ]
-    },
-    {
       "name": "sha256:0e0d95cd11d9bc8775ae15b999b97b5a0d635976fda218a952d94954606fa728",
       "version": "20230201",
       "type": "oci",
@@ -13044,55 +14649,46 @@
       ]
     },
     {
-      "name": "sha256:0e3a84f7427f59342d7be4787e01fad97fb26e0f084e961d1527e7ed1810a0a5",
+      "name": "sha256:132878d5f84c6e44cb815c8b61923df95fc639f4e9b6260396e292cbd4f8ff88",
       "version": "20230201",
       "type": "oci",
-      "purl": "pkg:oci/image@sha256:0e3a84f7427f59342d7be4787e01fad97fb26e0f084e961d1527e7ed1810a0a5",
+      "purl": "pkg:oci/image@sha256:132878d5f84c6e44cb815c8b61923df95fc639f4e9b6260396e292cbd4f8ff88",
       "images": [
         "wolfi-base"
       ]
     },
     {
-      "name": "sha256:0fa0803f038ca5a66da9409bbc4f15d761a755e14264e1bcf5aa1d214aa40ab3",
+      "name": "sha256:303b8a16e2aa7550f8c95c6070db5921185cca92b0660d922ce71d181b0574e2",
       "version": "20230201",
       "type": "oci",
-      "purl": "pkg:oci/image@sha256:0fa0803f038ca5a66da9409bbc4f15d761a755e14264e1bcf5aa1d214aa40ab3",
+      "purl": "pkg:oci/image@sha256:303b8a16e2aa7550f8c95c6070db5921185cca92b0660d922ce71d181b0574e2",
       "images": [
         "wolfi-base"
       ]
     },
     {
-      "name": "sha256:15f51645cfc5d54b68c694d60cf99a96de85e1b2814fab381774882eaeeef9ca",
+      "name": "sha256:3ae05beb367c90d5265b27e44d4111d31a8129848b2bd9a6a90e3e640622f781",
       "version": "20230201",
       "type": "oci",
-      "purl": "pkg:oci/image@sha256:15f51645cfc5d54b68c694d60cf99a96de85e1b2814fab381774882eaeeef9ca",
+      "purl": "pkg:oci/image@sha256:3ae05beb367c90d5265b27e44d4111d31a8129848b2bd9a6a90e3e640622f781",
       "images": [
         "wolfi-base"
       ]
     },
     {
-      "name": "sha256:35d4108703105088a046ada0ba0ba6593be2a40a8ab9445631deec27df914461",
-      "version": "20230201",
+      "name": "sha256:4c1aea74ceda999336d0b681792c2b787d8d63f0f4e5ace586489c2d15fde6ce",
+      "version": "sha256:4c1aea74ceda999336d0b681792c2b787d8d63f0f4e5ace586489c2d15fde6ce",
       "type": "oci",
-      "purl": "pkg:oci/image@sha256:35d4108703105088a046ada0ba0ba6593be2a40a8ab9445631deec27df914461",
+      "purl": "pkg:oci/image@sha256:4c1aea74ceda999336d0b681792c2b787d8d63f0f4e5ace586489c2d15fde6ce",
       "images": [
         "wolfi-base"
       ]
     },
     {
-      "name": "sha256:392fc32e63fc5d1eec0fb45aee855ad4d0fdfa773ba098aaae620700f0ee579a",
+      "name": "sha256:4cbca11d11569143986f15360e9281a9c57bac270d537fe740b4da9c076ff2ab",
       "version": "20230201",
       "type": "oci",
-      "purl": "pkg:oci/image@sha256:392fc32e63fc5d1eec0fb45aee855ad4d0fdfa773ba098aaae620700f0ee579a",
-      "images": [
-        "wolfi-base"
-      ]
-    },
-    {
-      "name": "sha256:4b0055486fbde25deb49a0fcb7593c02c5e74baf445322443ff291202dca71e6",
-      "version": "20230201",
-      "type": "oci",
-      "purl": "pkg:oci/image@sha256:4b0055486fbde25deb49a0fcb7593c02c5e74baf445322443ff291202dca71e6",
+      "purl": "pkg:oci/image@sha256:4cbca11d11569143986f15360e9281a9c57bac270d537fe740b4da9c076ff2ab",
       "images": [
         "wolfi-base"
       ]
@@ -13134,28 +14730,82 @@
       ]
     },
     {
-      "name": "sha256:6a6a2ff4b9863b638747364bfac078bfbaca425b493262059ee7eddbb3d13180",
+      "name": "sha256:68ffc26cc254a859d29f42ed5d3af0a93015b3f2b26f574be3106ed23d24423f",
       "version": "20230201",
       "type": "oci",
-      "purl": "pkg:oci/image@sha256:6a6a2ff4b9863b638747364bfac078bfbaca425b493262059ee7eddbb3d13180",
+      "purl": "pkg:oci/image@sha256:68ffc26cc254a859d29f42ed5d3af0a93015b3f2b26f574be3106ed23d24423f",
       "images": [
         "wolfi-base"
       ]
     },
     {
-      "name": "sha256:6f31b0949fe7d8133f3e632bfa654339845cfb7410f2ca55a0217c85d36baf6d",
-      "version": "sha256:6f31b0949fe7d8133f3e632bfa654339845cfb7410f2ca55a0217c85d36baf6d",
+      "name": "sha256:6991dd3ea3c78373c81339ffcf88d992853f66339e55a268d009fe7536cf3473",
+      "version": "20230201",
       "type": "oci",
-      "purl": "pkg:oci/image@sha256:6f31b0949fe7d8133f3e632bfa654339845cfb7410f2ca55a0217c85d36baf6d",
+      "purl": "pkg:oci/image@sha256:6991dd3ea3c78373c81339ffcf88d992853f66339e55a268d009fe7536cf3473",
       "images": [
         "wolfi-base"
       ]
     },
     {
-      "name": "sha256:8278ec4c55c148f8346f4fe21b532c1b7d9764d760f7662baffbe21bc260dadf",
+      "name": "sha256:74e1bcf7505648076546f2fe4735d243163e366d8f2ccd46b224adfadd48b5e3",
+      "version": "sha256:74e1bcf7505648076546f2fe4735d243163e366d8f2ccd46b224adfadd48b5e3",
+      "type": "oci",
+      "purl": "pkg:oci/image@sha256:74e1bcf7505648076546f2fe4735d243163e366d8f2ccd46b224adfadd48b5e3",
+      "images": [
+        "wolfi-base"
+      ]
+    },
+    {
+      "name": "sha256:7638d538c8562bfda545ec45dc14d5c56a3618019b49226e888ec79c04f3ce88",
       "version": "20230201",
       "type": "oci",
-      "purl": "pkg:oci/image@sha256:8278ec4c55c148f8346f4fe21b532c1b7d9764d760f7662baffbe21bc260dadf",
+      "purl": "pkg:oci/image@sha256:7638d538c8562bfda545ec45dc14d5c56a3618019b49226e888ec79c04f3ce88",
+      "images": [
+        "wolfi-base"
+      ]
+    },
+    {
+      "name": "sha256:7749c648ff327dc829dbc92cade62552d611013055b3f05fc682f35253b0cdaa",
+      "version": "20230201",
+      "type": "oci",
+      "purl": "pkg:oci/image@sha256:7749c648ff327dc829dbc92cade62552d611013055b3f05fc682f35253b0cdaa",
+      "images": [
+        "wolfi-base"
+      ]
+    },
+    {
+      "name": "sha256:7e77629aa5197cf9996006b4f599e47bda7637044e7b31f7872f0f510372e884",
+      "version": "20230201",
+      "type": "oci",
+      "purl": "pkg:oci/image@sha256:7e77629aa5197cf9996006b4f599e47bda7637044e7b31f7872f0f510372e884",
+      "images": [
+        "wolfi-base"
+      ]
+    },
+    {
+      "name": "sha256:803385a6dffffcdb9be65d885d11657df8b2884888e37499a80dca3bc42913aa",
+      "version": "20230201",
+      "type": "oci",
+      "purl": "pkg:oci/image@sha256:803385a6dffffcdb9be65d885d11657df8b2884888e37499a80dca3bc42913aa",
+      "images": [
+        "wolfi-base"
+      ]
+    },
+    {
+      "name": "sha256:82eb1b27bce6473b2247ed3febc6fc875fd69906d79e71f538fba65b67ea0734",
+      "version": "20230201",
+      "type": "oci",
+      "purl": "pkg:oci/image@sha256:82eb1b27bce6473b2247ed3febc6fc875fd69906d79e71f538fba65b67ea0734",
+      "images": [
+        "wolfi-base"
+      ]
+    },
+    {
+      "name": "sha256:841091ee3f392aa0a52846eeda1ade872340d6bbeb1110b2273bb19fd90ca18a",
+      "version": "20230201",
+      "type": "oci",
+      "purl": "pkg:oci/image@sha256:841091ee3f392aa0a52846eeda1ade872340d6bbeb1110b2273bb19fd90ca18a",
       "images": [
         "wolfi-base"
       ]
@@ -13170,30 +14820,12 @@
       ]
     },
     {
-      "name": "sha256:9781345efcb1e97ef5bbe77aaf1a19a721252ed5ae11d42bcd21fdda18c3ebce",
-      "version": "20230201",
-      "type": "oci",
-      "purl": "pkg:oci/image@sha256:9781345efcb1e97ef5bbe77aaf1a19a721252ed5ae11d42bcd21fdda18c3ebce",
-      "images": [
-        "wolfi-base"
-      ]
-    },
-    {
       "name": "sha256:a40219f3b0c2719e4e4220310e80a2230a4b95881644292c130e3a8e8287fc6c",
       "version": "sha256:a40219f3b0c2719e4e4220310e80a2230a4b95881644292c130e3a8e8287fc6c",
       "type": "oci",
       "purl": "pkg:oci/image@sha256:a40219f3b0c2719e4e4220310e80a2230a4b95881644292c130e3a8e8287fc6c",
       "images": [
         "static"
-      ]
-    },
-    {
-      "name": "sha256:ac5779d72c0938f1cb3ee53a68135af2cbf78099632c31a6ab28484f0adcd315",
-      "version": "20230201",
-      "type": "oci",
-      "purl": "pkg:oci/image@sha256:ac5779d72c0938f1cb3ee53a68135af2cbf78099632c31a6ab28484f0adcd315",
-      "images": [
-        "wolfi-base"
       ]
     },
     {
@@ -13215,39 +14847,12 @@
       ]
     },
     {
-      "name": "sha256:c705f975f20663598deca5d83e04586e7fe43fa6248c411158f1b8ccb4998f47",
-      "version": "20230201",
-      "type": "oci",
-      "purl": "pkg:oci/image@sha256:c705f975f20663598deca5d83e04586e7fe43fa6248c411158f1b8ccb4998f47",
-      "images": [
-        "wolfi-base"
-      ]
-    },
-    {
-      "name": "sha256:d209e6771f68ed5c8c295e9dbd08dd2eae8a0a32f95d35e216a67565ebad27ea",
-      "version": "sha256:d209e6771f68ed5c8c295e9dbd08dd2eae8a0a32f95d35e216a67565ebad27ea",
-      "type": "oci",
-      "purl": "pkg:oci/image@sha256:d209e6771f68ed5c8c295e9dbd08dd2eae8a0a32f95d35e216a67565ebad27ea",
-      "images": [
-        "wolfi-base"
-      ]
-    },
-    {
       "name": "sha256:daed076c904e5dc26f5ff87d77aa4cea8b7ca76e906b561915dafe5b086377dc",
       "version": "sha256:daed076c904e5dc26f5ff87d77aa4cea8b7ca76e906b561915dafe5b086377dc",
       "type": "oci",
       "purl": "pkg:oci/image@sha256:daed076c904e5dc26f5ff87d77aa4cea8b7ca76e906b561915dafe5b086377dc",
       "images": [
         "static"
-      ]
-    },
-    {
-      "name": "sha256:dc7a704c954a8afed2a471c3a76ca42e648bad8c1891207c6a61832b97c0c55d",
-      "version": "20230201",
-      "type": "oci",
-      "purl": "pkg:oci/image@sha256:dc7a704c954a8afed2a471c3a76ca42e648bad8c1891207c6a61832b97c0c55d",
-      "images": [
-        "wolfi-base"
       ]
     },
     {
@@ -13264,6 +14869,24 @@
       "version": "20230201",
       "type": "oci",
       "purl": "pkg:oci/image@sha256:efe4e60cf28ec5c978e81d7517529a2976e1de91986e9eb4990109517052c68e",
+      "images": [
+        "wolfi-base"
+      ]
+    },
+    {
+      "name": "sha256:f38ff76eaa4d7b925f89582727e9c309cd7f089444c77a00118c88851f2bd897",
+      "version": "20230201",
+      "type": "oci",
+      "purl": "pkg:oci/image@sha256:f38ff76eaa4d7b925f89582727e9c309cd7f089444c77a00118c88851f2bd897",
+      "images": [
+        "wolfi-base"
+      ]
+    },
+    {
+      "name": "sha256:f53829540a90766dc673f2a4d258003b3d6d0644d4a71bb303e2ab9a006e0fb9",
+      "version": "20230201",
+      "type": "oci",
+      "purl": "pkg:oci/image@sha256:f53829540a90766dc673f2a4d258003b3d6d0644d4a71bb303e2ab9a006e0fb9",
       "images": [
         "wolfi-base"
       ]
@@ -13419,6 +15042,15 @@
     },
     {
       "name": "stdlib",
+      "version": "go1.26.6",
+      "type": "golang",
+      "purl": "pkg:golang/stdlib@1.26.6",
+      "images": [
+        "platform-tools"
+      ]
+    },
+    {
+      "name": "stdlib",
       "version": "go1.26.8",
       "type": "golang",
       "purl": "pkg:golang/stdlib@1.26.8",
@@ -13433,6 +15065,15 @@
       "version": "go1.27.1",
       "type": "golang",
       "purl": "pkg:golang/stdlib@1.27.1",
+      "images": [
+        "platform-tools"
+      ]
+    },
+    {
+      "name": "stdlib",
+      "version": "go1.27.2",
+      "type": "golang",
+      "purl": "pkg:golang/stdlib@1.27.2",
       "images": [
         "hello-app",
         "platform-tools"

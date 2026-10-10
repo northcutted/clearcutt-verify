@@ -342,7 +342,7 @@
         },
         "tests": {
           "status": "present",
-          "source": "catalog",
+          "source": "recipe",
           "detail": "The recipe records a smoke test (GET :8080/) that passed at build time; the result is not separately signed."
         }
       },
@@ -484,7 +484,7 @@
         },
         "tests": {
           "status": "present",
-          "source": "catalog"
+          "source": "recipe"
         }
       },
       "vulnerabilities": {

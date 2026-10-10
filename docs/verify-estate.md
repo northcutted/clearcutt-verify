@@ -175,6 +175,19 @@ A portal build pulls the same reference. The push prints the artifact's
 digest; sign it (`cosign sign ghcr.io/acme/estate@sha256:…`) so readers can
 tell the report came from your job.
 
+## Other fields readers use
+
+- `base.platform` says which platform image `base.digest` names when it isn't
+  the index the tag points at (a base an image claims is checked on one
+  platform image), and `base.provenOn` which platform's layers were compared.
+- `packagesSource` says where an image's packages were read from: its SBOM
+  evidence, and whether that verified.
+- `tests` is `present` (source `recipe`) for clearcutt-factory images whose
+  verified recipe declares a smoke test: factory runs it on every platform
+  before pushing, but doesn't attest the result.
+- Each history entry has a row per image (`images`): its digest, verdict, base,
+  rebase, and vulnerability counts in that run, for per-image history.
+
 ## Reproducibility
 
 `--reproduce` rebuilds every clearcutt-factory image from its verified recipe

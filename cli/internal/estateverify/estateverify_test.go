@@ -498,6 +498,9 @@ func TestBuild(t *testing.T) {
 	if a.Builder.Kind != "clearcutt-factory" || a.Factory == nil || a.Factory.Name != "hello" || a.Factory.Stack != "go" {
 		t.Errorf("app factory: %+v %+v", a.Builder, a.Factory)
 	}
+	if ps := a.PackagesSource; ps == nil || ps.Evidence != "sbom" || ps.Status != "verified" || strings.Join(ps.Platforms, ",") != "linux/amd64,linux/arm64" {
+		t.Errorf("app packages source: %+v", a.PackagesSource)
+	}
 	if a.Vulnerabilities == nil || a.Vulnerabilities.Counts.High != 1 || len(a.Vulnerabilities.Findings[0].Platforms) != 2 {
 		t.Errorf("app vulnerabilities: %+v", a.Vulnerabilities)
 	}
