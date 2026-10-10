@@ -149,9 +149,9 @@ jobs:
               -trimpath \
               -ldflags "-s -w -buildid= -X github.com/northcutted/clearcutt-verify/internal/commands.Version=${VERSION}" \
               -o "../${out}" ./cmd/clearcutt-verify
-            cosign sign-blob --yes "$out" \
-              --output-signature "${out}.sig" \
-              --output-certificate "${out}.pem"
+            # cosign v3 writes a Sigstore bundle (signature and certificate);
+            # the install action and README verify it as <binary>.sig.
+            cosign sign-blob --yes "$out" --bundle "${out}.sig"
           done
           ( cd build-outputs && sha256sum clearcutt-verify-* > SHA256SUMS.txt )
 
