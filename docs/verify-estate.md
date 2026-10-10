@@ -62,6 +62,7 @@ trustedSigners:
 failOn: critical      # vulnerabilities at or above this fail the image
 onlyFixed: true       # ...counting only those with a fix
 maxDaysBehind: 30     # a base more than 30 days behind its newest version fails
+maxScanAgeDays: 7     # a vulnerability scan older than 7 days leaves the image unverified
 ```
 
 ### Reusable workflows
@@ -121,7 +122,7 @@ own) are exempt.
 
 Without a file, the same policy can be given with `--require`,
 `--trusted-identity-regexp`, `--trusted-issuer`, `--vulnerabilities-fail-on`,
-and `--only-fixed`.
+`--only-fixed`, and `--max-scan-age-days`.
 
 ## Output
 

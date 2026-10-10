@@ -17,6 +17,9 @@ Add an entry here in the same PR as any user-visible behavior change
 workflow archives this section into the release notes.
 -->
 
+- `estate verify` policies can limit how old a vulnerability scan may be
+  (`maxScanAgeDays`, `--max-scan-age-days`). An older scan, or one with no
+  scan time, leaves the image unverified: what was found since is unknown.
 - New `TrustPolicy` contract (`contract/trust-policy.v1.schema.json`): one file
   that says whose signatures an organization accepts, with roles for images and
   clearcutt-factory stacks. `estate verify --trust-policy`, or `trustPolicy:` in

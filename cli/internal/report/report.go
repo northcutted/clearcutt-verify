@@ -91,6 +91,10 @@ type Policy struct {
 	// MaxDaysBehind fails images whose base is more than this many days
 	// behind its newest version; 0 never fails.
 	MaxDaysBehind int `json:"maxDaysBehind,omitempty"`
+	// MaxScanAgeDays leaves images unverified whose vulnerability scan is
+	// older than this many days at the time of the report (what was found
+	// since is unknown); 0 accepts any age.
+	MaxScanAgeDays int `json:"maxScanAgeDays,omitempty"`
 	// Reproduce reports whether this run rebuilt images to check them.
 	Reproduce bool `json:"reproduce"`
 }

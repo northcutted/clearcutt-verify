@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"sigs.k8s.io/yaml"
 
@@ -30,6 +31,9 @@ type PolicyFile struct {
 	FailOn        string          `json:"failOn"`
 	OnlyFixed     bool            `json:"onlyFixed"`
 	MaxDaysBehind int             `json:"maxDaysBehind"`
+	// MaxScanAgeDays leaves images whose vulnerability scan is older
+	// unverified.
+	MaxScanAgeDays int `json:"maxScanAgeDays"`
 	// TrustPolicy names a TrustPolicy file (relative to this one) whose
 	// image signers are trusted too, the same file clearcutt-factory reads.
 	TrustPolicy string `json:"trustPolicy"`
@@ -48,7 +52,7 @@ func ReadPolicy(path string) (report.Policy, error) {
 	if f.APIVersion != report.APIVersion || f.Kind != "VerificationPolicy" {
 		return report.Policy{}, fmt.Errorf("%s: expected apiVersion %s and kind VerificationPolicy", path, report.APIVersion)
 	}
-	p := report.Policy{Required: f.Required, TrustedSigners: f.TrustedSigner, FailOn: f.FailOn, OnlyFixed: f.OnlyFixed, MaxDaysBehind: f.MaxDaysBehind}
+	p := report.Policy{Required: f.Required, TrustedSigners: f.TrustedSigner, FailOn: f.FailOn, OnlyFixed: f.OnlyFixed, MaxDaysBehind: f.MaxDaysBehind, MaxScanAgeDays: f.MaxScanAgeDays}
 	if f.TrustPolicy != "" {
 		tp := f.TrustPolicy
 		if !filepath.IsAbs(tp) {
@@ -113,6 +117,12 @@ func ValidatePolicy(p report.Policy) error {
 // verdict decides whether an image meets the policy. A requirement that
 // can't be decided makes the image unverified, never verified.
 func verdict(img report.Image, p report.Policy) report.Verdict {
+	return verdictAt(img, p, time.Now())
+}
+
+// verdictAt decides the verdict as of now (the report's time), which
+// scan ages are measured against.
+func verdictAt(img report.Image, p report.Policy, now time.Time) report.Verdict {
 	var failed, unverified []string
 	for _, k := range p.Required {
 		item := evidenceItem(img.Evidence, k)
@@ -137,6 +147,16 @@ func verdict(img report.Image, p report.Policy) report.Verdict {
 				fixable = " fixable"
 			}
 			failed = append(failed, fmt.Sprintf("%d%s vulnerabilities at %s or above", n, fixable, p.FailOn))
+		}
+	}
+	if p.MaxScanAgeDays > 0 && img.Vulnerabilities != nil {
+		scanned, err := time.Parse(time.RFC3339, img.Vulnerabilities.ScannedAt)
+		switch {
+		case err != nil:
+			unverified = append(unverified, "the vulnerability scan's age is unknown (no scan time)")
+		case now.Sub(scanned) > time.Duration(p.MaxScanAgeDays)*24*time.Hour:
+			unverified = append(unverified, fmt.Sprintf("the vulnerability scan is %d days old (limit %d); what was found since is unknown",
+				int(now.Sub(scanned).Hours()/24), p.MaxScanAgeDays))
 		}
 	}
 	if p.MaxDaysBehind > 0 {
