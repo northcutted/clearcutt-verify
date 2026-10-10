@@ -27,6 +27,8 @@ estate is discovered, not declared.
   attestations against a trust policy, write the estate report
   ([contract](../contract/README.md)) a portal reads, list a base's dependents,
   and keep the report in the registry.
+- [Verifying an estate in GitHub Actions](github-actions.md): the scheduled
+  job, verified install, registry credentials, history, and exit codes.
 - [Imported fleets](imported-fleets.md): import existing OCI refs, observe
   evidence without provenance claims, and assess governance gaps.
 - [Registry-native evidence](registry-native-evidence.md): store evidence,

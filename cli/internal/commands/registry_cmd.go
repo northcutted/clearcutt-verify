@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,6 +31,8 @@ type registryScanFlags struct {
 	username     string
 	passwordEnv  string
 	force        bool
+	githubOrg    string
+	prefixes     []string
 }
 
 var registryScanOpts registryScanFlags
@@ -65,7 +68,9 @@ workload runs, and they outnumber real tags in most registries.
 
 Registries that do not implement the distribution _catalog endpoint (GHCR and Docker
 Hub among them) cannot be enumerated blindly. Name the repositories with
---repository, which can be repeated.`,
+--repository, which can be repeated. For GHCR, --github-org lists an
+organization's (or user's) container packages through the GitHub Packages API
+instead, with a GITHUB_TOKEN that can read packages.`,
 		Args: cobra.NoArgs,
 		Example: `  # Enumerate a namespace on a registry that supports _catalog
   clearcutt-verify registry scan --registry registry.acme.dev --namespace platform/base \
@@ -74,7 +79,11 @@ Hub among them) cannot be enumerated blindly. Name the repositories with
   # GHCR: name the repositories explicitly
   clearcutt-verify registry scan --registry ghcr.io --namespace acme/platform \
     --repository base-java21 --repository base-node22 \
-    --tag-pattern 'v*' --output dist/scan/images.yaml`,
+    --tag-pattern 'v*' --output dist/scan/images.yaml
+
+  # GHCR: every container package of an organization under apps/ and platform/
+  clearcutt-verify registry scan --github-org acme --package-prefix apps/ --package-prefix platform/ \
+    --output dist/scan/images.yaml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runRegistryScan(cmd.Context())
 		},
@@ -97,13 +106,28 @@ Hub among them) cannot be enumerated blindly. Name the repositories with
 	f.StringVar(&registryScanOpts.username, "username", "", "Registry username (default: ambient keychain)")
 	f.StringVar(&registryScanOpts.passwordEnv, "password-env", "", "Environment variable holding the registry password or token")
 	f.BoolVar(&registryScanOpts.force, "force", false, "Overwrite existing output files")
-	_ = cmd.MarkFlagRequired("registry")
+	f.StringVar(&registryScanOpts.githubOrg, "github-org", "", "List this GitHub organization's (or user's) ghcr.io container packages through the GitHub Packages API (GITHUB_TOKEN with packages: read)")
+	f.StringArrayVar(&registryScanOpts.prefixes, "package-prefix", nil, "With --github-org, keep only packages whose name starts with this (repeatable), e.g. apps/")
 	_ = cmd.MarkFlagRequired("output")
 	return cmd
 }
 
 func runRegistryScan(ctx context.Context) error {
 	opts := registryScanOpts
+	if opts.githubOrg != "" {
+		if opts.registry != "" && opts.registry != "ghcr.io" {
+			return fmt.Errorf("--github-org lists ghcr.io packages; --registry %s doesn't apply", opts.registry)
+		}
+		opts.registry = "ghcr.io"
+		if opts.namespace == "" {
+			opts.namespace = strings.ToLower(opts.githubOrg)
+		}
+	} else if len(opts.prefixes) > 0 {
+		return errors.New("--package-prefix needs --github-org")
+	}
+	if opts.registry == "" {
+		return errors.New("--registry (or --github-org) is required")
+	}
 	for _, path := range []string{opts.output, opts.refsOutput, opts.scanOutput} {
 		if path == "" || opts.force {
 			continue
@@ -192,6 +216,9 @@ func runRegistryScan(ctx context.Context) error {
 // The password is read from an environment variable rather than taken as a flag so a
 // registry token never lands in shell history or a process listing.
 func registryLister(opts registryScanFlags) (registryscan.Lister, error) {
+	if opts.githubOrg != "" {
+		return &registryscan.GitHubPackages{Owner: opts.githubOrg, Prefixes: opts.prefixes}, nil
+	}
 	if opts.username == "" && opts.passwordEnv == "" {
 		return registryscan.NewRemoteLister(), nil
 	}

@@ -57,6 +57,16 @@ clearcutt-verify registry scan --registry ghcr.io --namespace acme/platform \
 `--repository` is repeatable and accepts either a bare name (qualified against
 `--namespace`) or a full path.
 
+On GHCR, `--github-org` enumerates an organization's (or user's) container
+packages through the GitHub Packages API instead, so new repositories show up
+without anyone listing them. It needs a `GITHUB_TOKEN` that can read packages;
+`--package-prefix` (repeatable) keeps only some of them:
+
+```bash
+GITHUB_TOKEN=$(gh auth token) clearcutt-verify registry scan --github-org acme \
+  --package-prefix apps/ --package-prefix platform/ --output dist/scan/images.yaml
+```
+
 ### Sidecar Tags
 
 Cosign signatures, attestations, and SBOM references are published as tags shaped like
