@@ -525,6 +525,8 @@ type imageData struct {
 	rebaseSigner     *report.Signer
 	recipeVerified   bool
 	rebaseVerified   bool
+	// claimedSource is the repository the image names as its source.
+	claimedSource string
 }
 
 // attachment is where a kind of evidence is expected.
@@ -533,7 +535,7 @@ var perPlatform = map[string]bool{KindSBOM: true, KindVulnerabilityScan: true}
 // gatherEvidence discovers and verifies every kind of evidence on the image
 // (index-level kinds) and its platform images (SBOMs and scans).
 func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platforms []report.Platform, opts Options) (report.Evidence, imageData) {
-	data := imageData{vulns: map[string]vulnScan{}}
+	data := imageData{vulns: map[string]vulnScan{}, claimedSource: imageSource}
 	type subject struct{ platform, digest string }
 	subjects := []subject{{"", digest}}
 	for _, p := range platforms {
@@ -808,6 +810,10 @@ func reproduce(ctx context.Context, img *report.Image, data imageData, opts Opti
 		return report.Reproducibility{Status: "not-checked", Method: method, Detail: "Only verified recipes and rebase records are reproduced."}
 	}
 	trusted := trustedSignerFor(*signer, opts.Policy.TrustedSigners)
+	// The rebuild verifies the recipe again; bind it to the same repository.
+	if repo, err := resolveRepository(trusted, Subject{ImageSource: data.claimedSource, Signer: signer}); err == nil && repo != "" {
+		trusted.SourceRepository, trusted.SourceRepositoryOwner, trusted.SourceMatchesImage = repo, "", false
+	}
 	got, err := opts.Reproducer.Reproduce(ctx, img.Repository+"@"+img.Digest, trusted)
 	r := report.Reproducibility{Method: method, CheckedAt: time.Now().UTC().Format(time.RFC3339), Digest: got}
 	switch {

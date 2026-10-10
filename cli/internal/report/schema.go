@@ -37,6 +37,7 @@ func Schemas(srcDir string) ([]SchemaFile, error) {
 	}{
 		{"estate-report.v1.schema.json", KindReport, "ClearCutt estate report", reflect.TypeOf(Report{})},
 		{"estate-history.v1.schema.json", KindHistory, "ClearCutt estate history", reflect.TypeOf(History{})},
+		{"trust-policy.v1.schema.json", KindTrustPolicy, "ClearCutt trust policy", reflect.TypeOf(TrustPolicy{})},
 	} {
 		g.defs = map[string]any{}
 		root := g.object(s.typ)

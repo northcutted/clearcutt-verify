@@ -115,3 +115,23 @@ func TestEstateDependents(t *testing.T) {
 		}
 	}
 }
+
+func TestEstateVerifyTrustPolicyFlag(t *testing.T) {
+	dir := t.TempDir()
+	trust := filepath.Join(dir, "trust.yaml")
+	if err := os.WriteFile(trust, []byte("apiVersion: clearcutt.dev/v1\nkind: TrustPolicy\nsigners:\n  - identity: https://github.com/acme/images/.github/workflows/release.yml@refs/heads/main\n    issuer: https://token.actions.githubusercontent.com\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	saved := estateVerifyOpts
+	t.Cleanup(func() { estateVerifyOpts = saved })
+	estateVerifyOpts = saved
+	estateVerifyOpts.policy, estateVerifyOpts.trustPolicy, estateVerifyOpts.require = "", trust, []string{"signature"}
+	p, err := estatePolicy()
+	if err != nil || len(p.TrustedSigners) != 1 || p.TrustedSigners[0].Identity == "" {
+		t.Fatalf("policy %+v, %v", p, err)
+	}
+	estateVerifyOpts.trustPolicy = filepath.Join(dir, "missing.yaml")
+	if _, err := estatePolicy(); err == nil {
+		t.Error("read a missing trust policy")
+	}
+}

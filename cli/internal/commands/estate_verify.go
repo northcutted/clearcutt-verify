@@ -41,6 +41,7 @@ var estateVerifyOpts struct {
 	identityRegexp string
 	sourceOwner    string
 	sourceMatches  bool
+	trustPolicy    string
 	issuer         string
 	severity       string
 	onlyFixed      bool
@@ -95,6 +96,7 @@ references (--refs), which are imported and observed first.`,
 	f.StringVar(&o.issuer, "trusted-issuer", "", "Trusted signer OIDC issuer when there is no --policy")
 	f.StringVar(&o.sourceOwner, "trusted-source-owner", "", "Accept the trusted signer only from runs in this owner's repositories (e.g. https://github.com/acme); for reusable workflows")
 	f.BoolVar(&o.sourceMatches, "trusted-source-matches-image", false, "Accept the trusted signer only from runs in the repository each image names as its source")
+	f.StringVar(&o.trustPolicy, "trust-policy", "", "TrustPolicy file whose image signers are trusted too (shared with clearcutt-factory)")
 	f.StringVar(&o.severity, "vulnerabilities-fail-on", "", "Fail images with vulnerabilities at or above this severity when there is no --policy")
 	f.BoolVar(&o.onlyFixed, "only-fixed", false, "Count only fixable vulnerabilities toward --vulnerabilities-fail-on")
 	return cmd
@@ -192,15 +194,27 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 // estatePolicy reads --policy, or builds a policy from flags.
 func estatePolicy() (report.Policy, error) {
 	o := estateVerifyOpts
+	var p report.Policy
 	if o.policy != "" {
 		if len(o.require) > 0 || o.identityRegexp != "" || o.issuer != "" || o.sourceOwner != "" || o.sourceMatches || o.severity != "" {
 			return report.Policy{}, errors.New("--policy and the policy flags (--require, --trusted-*, --vulnerabilities-fail-on) are exclusive")
 		}
-		return estateverify.ReadPolicy(o.policy)
+		var err error
+		if p, err = estateverify.ReadPolicy(o.policy); err != nil {
+			return report.Policy{}, err
+		}
+	} else {
+		p = report.Policy{Required: o.require, FailOn: o.severity, OnlyFixed: o.onlyFixed}
+		if o.identityRegexp != "" || o.issuer != "" || o.sourceOwner != "" || o.sourceMatches {
+			p.TrustedSigners = []report.Signer{{IdentityRegexp: o.identityRegexp, Issuer: o.issuer, SourceRepositoryOwner: o.sourceOwner, SourceMatchesImage: o.sourceMatches}}
+		}
 	}
-	p := report.Policy{Required: o.require, FailOn: o.severity, OnlyFixed: o.onlyFixed}
-	if o.identityRegexp != "" || o.issuer != "" || o.sourceOwner != "" || o.sourceMatches {
-		p.TrustedSigners = []report.Signer{{IdentityRegexp: o.identityRegexp, Issuer: o.issuer, SourceRepositoryOwner: o.sourceOwner, SourceMatchesImage: o.sourceMatches}}
+	if o.trustPolicy != "" {
+		t, err := estateverify.ReadTrustPolicy(o.trustPolicy)
+		if err != nil {
+			return report.Policy{}, err
+		}
+		p.TrustedSigners = append(p.TrustedSigners, t.For("image")...)
 	}
 	return p, estateverify.ValidatePolicy(p)
 }

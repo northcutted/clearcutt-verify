@@ -88,6 +88,33 @@ as `present`, not `verified`, with the repository it was called from. The
 report records each signer's repository and ref (`signer.sourceRepository`,
 `signer.sourceRef`).
 
+### One trust policy for the organization
+
+The trusted signers can live in their own file, a `TrustPolicy`
+([schema](../contract/trust-policy.v1.schema.json)), which clearcutt-factory
+reads too (`signing.trustPolicy`), so the organization says once whose
+signatures count. Signers have roles: `image` (the default) signs images and
+their attestations, `stack` signs clearcutt-factory stacks.
+
+```yaml
+apiVersion: clearcutt.dev/v1
+kind: TrustPolicy
+signers:
+  - name: factory-builds
+    identityRegexp: ^https://github\.com/northcutted/clearcutt-factory/\.github/workflows/(images|fleet)\.yml@refs/tags/v
+    issuer: https://token.actions.githubusercontent.com
+    sourceRepositoryOwner: https://github.com/acme
+    sourceMatchesImage: true
+  - name: platform-stacks
+    roles: [stack]
+    identity: https://github.com/acme/platform/.github/workflows/stacks.yml@refs/heads/main
+    issuer: https://token.actions.githubusercontent.com
+```
+
+Name it from a verification policy (`trustPolicy: trust.yaml`, relative to the
+policy) or pass `--trust-policy trust.yaml`; its image signers join the
+policy's `trustedSigners`.
+
 With `maxDaysBehind`, an image whose base couldn't be placed is `unverified`:
 it might be behind. Roots (images others are built on, with no base of their
 own) are exempt.
@@ -140,8 +167,9 @@ tell the report came from your job.
 ## Reproducibility
 
 `--reproduce` rebuilds every clearcutt-factory image from its verified recipe
-(or repeats its verified rebase) with `clearcutt-factory verify --image`, and
-records whether the digest matched. It needs `clearcutt-factory` on `PATH` (or
+(or repeats its verified rebase) with `clearcutt-factory verify --image`, bound
+to the same repository its evidence was verified against, and records whether
+the digest matched. It needs `clearcutt-factory` on `PATH` (or
 `--factory-path`) and a container runtime, and takes as long as the builds do.
 Each rebuild works in its own directory under the user cache directory (on
 macOS, `~/Library/Caches/clearcutt-verify/reproduce/`), which is kept with its

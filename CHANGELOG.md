@@ -17,6 +17,12 @@ Add an entry here in the same PR as any user-visible behavior change
 workflow archives this section into the release notes.
 -->
 
+- New `TrustPolicy` contract (`contract/trust-policy.v1.schema.json`): one file
+  that says whose signatures an organization accepts, with roles for images and
+  clearcutt-factory stacks. `estate verify --trust-policy`, or `trustPolicy:` in
+  a VerificationPolicy, trusts its image signers; clearcutt-factory reads the
+  same file (`signing.trustPolicy`). `--reproduce` binds the rebuild to the
+  repository the evidence was verified against.
 - **ClearCutt Verify now does one job: verify estates and write the estate
   report.** Removed, with the hardened-image catalog they served (whose images
   stopped being built in #39): `catalog`, `list`, `inspect`, `diff`,

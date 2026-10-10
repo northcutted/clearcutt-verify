@@ -77,14 +77,32 @@ func (v *Verifier) Verify(ctx context.Context, subj Subject) (report.Signer, err
 // image's source, or the repository on the certificate found, when it is
 // one of the owner's.
 func callerFlags(s report.Signer, subj Subject) ([]string, error) {
+	repo, err := resolveRepository(s, subj)
+	if err != nil {
+		return nil, err
+	}
+	var flags []string
+	if repo != "" {
+		flags = append(flags, "--certificate-github-workflow-repository", strings.TrimPrefix(repo, "https://github.com/"))
+	}
+	if s.SourceRef != "" {
+		flags = append(flags, "--certificate-github-workflow-ref", s.SourceRef)
+	}
+	return flags, nil
+}
+
+// resolveRepository returns the one repository (https://github.com/OWNER/REPO)
+// whose workflow runs the signer accepts for this evidence, or "" when the
+// signer doesn't constrain the caller.
+func resolveRepository(s report.Signer, subj Subject) (string, error) {
 	repo := s.SourceRepository
 	if s.SourceMatchesImage {
 		src := strings.TrimSuffix(strings.TrimSuffix(subj.ImageSource, "/"), ".git")
 		switch {
 		case src == "":
-			return nil, errors.New("the image names no source repository (org.opencontainers.image.source), and the signer requires the run to be in it")
+			return "", errors.New("the image names no source repository (org.opencontainers.image.source), and the signer requires the run to be in it")
 		case repo != "" && repo != src:
-			return nil, fmt.Errorf("the image names %s as its source, not %s", src, repo)
+			return "", fmt.Errorf("the image names %s as its source, not %s", src, repo)
 		}
 		repo = src
 	}
@@ -93,21 +111,16 @@ func callerFlags(s report.Signer, subj Subject) ([]string, error) {
 			repo = subj.Signer.SourceRepository
 		}
 		if !strings.HasPrefix(repo, strings.TrimSuffix(s.SourceRepositoryOwner, "/")+"/") {
-			return nil, fmt.Errorf("signed in %q, not a repository of %s", repo, s.SourceRepositoryOwner)
+			return "", fmt.Errorf("signed in %q, not a repository of %s", repo, s.SourceRepositoryOwner)
 		}
 	}
-	var flags []string
 	if repo != "" {
 		name, ok := strings.CutPrefix(repo, "https://github.com/")
 		if !ok || strings.Count(name, "/") != 1 {
-			return nil, fmt.Errorf("source repository %q is not https://github.com/OWNER/REPO", repo)
+			return "", fmt.Errorf("source repository %q is not https://github.com/OWNER/REPO", repo)
 		}
-		flags = append(flags, "--certificate-github-workflow-repository", name)
 	}
-	if s.SourceRef != "" {
-		flags = append(flags, "--certificate-github-workflow-ref", s.SourceRef)
-	}
-	return flags, nil
+	return repo, nil
 }
 
 // constrainsCaller reports whether the signer says which runs may sign.
