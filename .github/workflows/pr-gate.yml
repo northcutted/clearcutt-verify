@@ -36,6 +36,7 @@ jobs:
           filters: |
             go:
               - 'AGENTS.md'
+              - 'action.yml'
               - 'README.md'
               - 'Makefile'
               - 'docs/**'
@@ -105,11 +106,40 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+  # The source build in go-ci covers the action's `version: source` path; this
+  # covers the default, which downloads the latest release and checks its
+  # checksum and Sigstore bundle, on the platforms users run it on.
+  action-install:
+    name: Install The Latest Release Through The Action (${{ matrix.os }})
+    needs: [changes]
+    if: ${{ needs.changes.outputs.go == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install Through The Action (Default)
+        id: install
+        uses: ./
+
+      - name: Check The Installed Release
+        env:
+          BIN: ${{ steps.install.outputs.path }}
+        run: |
+          "$BIN" --version
+          clearcutt-verify estate verify --help >/dev/null
+
   pr-gate-summary:
     name: PR Gate Summary
     needs:
       - changes
       - go-ci
+      - action-install
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -132,6 +162,7 @@ jobs:
 
           selected = {
               "go-ci": enabled("go"),
+              "action-install": enabled("go"),
           }
 
           lines = [
