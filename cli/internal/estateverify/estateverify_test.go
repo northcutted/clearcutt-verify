@@ -523,3 +523,23 @@ func TestBuild(t *testing.T) {
 
 	validateReport(t, r)
 }
+
+func TestVerdictScanAge(t *testing.T) {
+	now := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	img := report.Image{Vulnerabilities: &report.Vulnerabilities{ScannedAt: "2026-10-01T00:00:00Z"}}
+	p := report.Policy{MaxScanAgeDays: 7}
+	if v := verdictAt(img, p, now); v.Status != "unverified" || !strings.Contains(v.Reasons[0], "9 days old (limit 7)") {
+		t.Errorf("old scan: %+v", v)
+	}
+	p.MaxScanAgeDays = 14
+	if v := verdictAt(img, p, now); v.Status != "verified" {
+		t.Errorf("recent scan: %+v", v)
+	}
+	img.Vulnerabilities.ScannedAt = ""
+	if v := verdictAt(img, p, now); v.Status != "unverified" || !strings.Contains(v.Reasons[0], "age is unknown") {
+		t.Errorf("no scan time: %+v", v)
+	}
+	if v := verdictAt(report.Image{}, p, now); v.Status != "verified" {
+		t.Errorf("no scan and no failOn: %+v", v)
+	}
+}

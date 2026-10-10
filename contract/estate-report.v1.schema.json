@@ -665,6 +665,10 @@
           "description": "MaxDaysBehind fails images whose base is more than this many days behind its newest version; 0 never fails.",
           "type": "integer"
         },
+        "maxScanAgeDays": {
+          "description": "MaxScanAgeDays leaves images unverified whose vulnerability scan is older than this many days at the time of the report (what was found since is unknown); 0 accepts any age.",
+          "type": "integer"
+        },
         "onlyFixed": {
           "description": "OnlyFixed counts only vulnerabilities that have a fix toward FailOn.",
           "type": "boolean"

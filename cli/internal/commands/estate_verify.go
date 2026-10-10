@@ -45,6 +45,7 @@ var estateVerifyOpts struct {
 	issuer         string
 	severity       string
 	onlyFixed      bool
+	maxScanAge     int
 }
 
 // newEstateVerifyCmd verifies every image in an estate and writes the estate
@@ -99,6 +100,7 @@ references (--refs), which are imported and observed first.`,
 	f.StringVar(&o.trustPolicy, "trust-policy", "", "TrustPolicy file whose image signers are trusted too (shared with clearcutt-factory)")
 	f.StringVar(&o.severity, "vulnerabilities-fail-on", "", "Fail images with vulnerabilities at or above this severity when there is no --policy")
 	f.BoolVar(&o.onlyFixed, "only-fixed", false, "Count only fixable vulnerabilities toward --vulnerabilities-fail-on")
+	f.IntVar(&o.maxScanAge, "max-scan-age-days", 0, "Leave images unverified whose vulnerability scan is older than this, when there is no --policy")
 	return cmd
 }
 
@@ -196,7 +198,7 @@ func estatePolicy() (report.Policy, error) {
 	o := estateVerifyOpts
 	var p report.Policy
 	if o.policy != "" {
-		if len(o.require) > 0 || o.identityRegexp != "" || o.issuer != "" || o.sourceOwner != "" || o.sourceMatches || o.severity != "" {
+		if len(o.require) > 0 || o.identityRegexp != "" || o.issuer != "" || o.sourceOwner != "" || o.sourceMatches || o.severity != "" || o.maxScanAge != 0 {
 			return report.Policy{}, errors.New("--policy and the policy flags (--require, --trusted-*, --vulnerabilities-fail-on) are exclusive")
 		}
 		var err error
@@ -204,7 +206,7 @@ func estatePolicy() (report.Policy, error) {
 			return report.Policy{}, err
 		}
 	} else {
-		p = report.Policy{Required: o.require, FailOn: o.severity, OnlyFixed: o.onlyFixed}
+		p = report.Policy{Required: o.require, FailOn: o.severity, OnlyFixed: o.onlyFixed, MaxScanAgeDays: o.maxScanAge}
 		if o.identityRegexp != "" || o.issuer != "" || o.sourceOwner != "" || o.sourceMatches {
 			p.TrustedSigners = []report.Signer{{IdentityRegexp: o.identityRegexp, Issuer: o.issuer, SourceRepositoryOwner: o.sourceOwner, SourceMatchesImage: o.sourceMatches}}
 		}
