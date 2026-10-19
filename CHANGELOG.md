@@ -59,6 +59,25 @@ When a release is cut, move these entries under a heading for its version.
   - New, optional, additive: `metadata.platforms` records the `--platforms`
     selection, so a reader knows which platforms per-platform evidence
     describes.
+- **Credentials reach only their registry.** `estate push`, `pull`, and
+  `history` and the `evidence` commands sent whichever environment pair was
+  set (`REGISTRY_*`, `CLEARCUTT_REGISTRY_*`, or `GITHUB_ACTOR` and
+  `GITHUB_TOKEN`) as basic auth to any registry they were pointed at, so a
+  job's `GITHUB_TOKEN` reached a third-party registry as soon as one was
+  named, contradicting the docs. `GITHUB_TOKEN` now goes to `ghcr.io` only, as
+  everywhere else in the CLI; `REGISTRY_*` (or `CLEARCUTT_REGISTRY_*`) only to
+  the registries of the references the command was given; the Docker
+  keychain, each entry to its own registry. On `ghcr.io`, a `docker login`
+  now takes precedence over `GITHUB_TOKEN`, as it already did for `estate
+  verify`.
+- **`estate push --history` no longer resets the history on a read error.**
+  Any error reading the history index (401, 429, 5xx included) started an
+  empty index, which the push then wrote over the series. A new series now
+  starts only when the registry says nothing is there (404,
+  `MANIFEST_UNKNOWN`, `NAME_UNKNOWN`); any other error stops the push before
+  the index is written (the snapshot is stored, and the error names it). A
+  tag that holds an image, or an index that isn't an estate history, is
+  refused, not overwritten.
 
 ## v0.16.0
 

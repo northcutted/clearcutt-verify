@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/northcutted/clearcutt-verify/internal/estate"
+	"github.com/northcutted/clearcutt-verify/internal/registryauth"
 	"github.com/spf13/cobra"
 )
 
@@ -85,18 +86,16 @@ func newEstatePullCmd() *cobra.Command {
 	return cmd
 }
 
-func estateClient() *estate.Client {
+// estateClient reaches the registries refs name. Each credential goes only
+// to its registry: REGISTRY_USER/REGISTRY_TOKEN (or CLEARCUTT_REGISTRY_*) to
+// the registries refs name, GITHUB_TOKEN to ghcr.io, and the Docker
+// keychain's each to its own. A CI runner with only environment credentials
+// and a laptop with only a docker login both work without a flag.
+func estateClient(refs ...string) *estate.Client {
 	if estateOpts.insecure {
 		return estate.NewInsecureClient()
 	}
-	// Prefer explicit credentials from the environment, then fall back to the
-	// ambient keychain. A CI runner has REGISTRY_TOKEN or GITHUB_TOKEN and no
-	// docker config; a developer laptop has the reverse. Resolving in this order
-	// means the same command works in both without a flag.
-	if user, token := registryDestCredentialPair(); user != "" && token != "" {
-		return estate.NewBasicAuthClient(user, token)
-	}
-	return estate.NewClient()
+	return estate.NewKeychainClient(registryauth.ForRefs(refs...))
 }
 
 func runEstatePush(ref string) error {
@@ -136,7 +135,7 @@ func runEstatePush(ref string) error {
 		fprintf(out, "[estate] %s not present; pushing without it\n", fileName)
 	}
 
-	digest, historyDigest, err := estateClient().PushSnapshot(ref, estateOpts.history, snapshot)
+	digest, historyDigest, err := estateClient(ref, estateOpts.history).PushSnapshot(ref, estateOpts.history, snapshot)
 	if err != nil {
 		return err
 	}
@@ -178,7 +177,7 @@ are pulled. Pull an individual snapshot by digest to drill into a date.`,
 }
 
 func runEstateHistory(ref string) error {
-	history, err := estateClient().ReadHistory(ref)
+	history, err := estateClient(ref).ReadHistory(ref)
 	if err != nil {
 		return err
 	}
@@ -233,7 +232,7 @@ func runEstateHistory(ref string) error {
 }
 
 func runEstatePull(ref string) error {
-	snapshot, digest, err := estateClient().Pull(ref)
+	snapshot, digest, err := estateClient(ref).Pull(ref)
 	if err != nil {
 		// Nothing stored yet is the one failure a first run expects. Anything
 		// else (credentials, network, a foreign artifact) must stop a job that

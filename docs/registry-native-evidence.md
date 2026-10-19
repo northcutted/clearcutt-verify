@@ -147,6 +147,13 @@ and digest-addressed. Freezing the pointer would freeze the series at one entry.
 Reading a history trend costs one manifest fetch regardless of series length,
 because the metrics live in the index annotations rather than in the snapshots.
 
+`estate push --history` starts a new series only when the registry says
+nothing is stored at the history reference (404, `MANIFEST_UNKNOWN`,
+`NAME_UNKNOWN`). Any other failure to read it (credentials, a rate limit, an
+outage) stops the push before the index is written, and a tag holding an
+image, or an index that isn't an estate history, is never overwritten; the
+snapshot itself is already stored, and the error names its digest.
+
 ## Running it anywhere
 
 The governance path — `registry scan`, `import observe`, `graph`, `estate`,

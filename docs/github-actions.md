@@ -52,7 +52,9 @@ jobs:
   checkout instead.
 - **Registry credentials.** clearcutt-verify reads the Docker keychain, and for
   `ghcr.io` only, the job's `GITHUB_TOKEN`; the token is never sent to another
-  registry. cosign reads the Docker keychain, so private packages need the
+  registry. `estate push`, `pull`, and `history` also read `REGISTRY_USER` and
+  `REGISTRY_TOKEN` (or `CLEARCUTT_REGISTRY_*`), offered only to the registry
+  of the reference they are given. cosign reads the Docker keychain, so private packages need the
   `cosign login` step (or `docker/login-action`). Other registries need their
   own login step.
 - **History.** `estate pull` fetches the last bundle and `estate verify --out`

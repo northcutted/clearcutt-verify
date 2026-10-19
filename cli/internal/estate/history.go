@@ -86,9 +86,9 @@ func (c *Client) appendToHistory(historyRef string, img v1.Image, snapshot Snaps
 		return "", fmt.Errorf("parsing history reference %q: %w", historyRef, err)
 	}
 
-	base := v1.ImageIndex(mutate.IndexMediaType(empty.Index, types.OCIImageIndex))
-	if existing, err := remote.Index(target, c.remoteOpts...); err == nil {
-		base = existing
+	base, err := c.existingHistory(target)
+	if err != nil {
+		return "", err
 	}
 	// A re-push of identical content must not add a duplicate entry: the digest
 	// is the same, so the series would gain a row that says nothing happened.
@@ -149,6 +149,40 @@ func (c *Client) appendToHistory(historyRef string, img v1.Image, snapshot Snaps
 		return "", err
 	}
 	return indexDigest.String(), nil
+}
+
+// existingHistory reads the history index at target to append to. Only a
+// registry saying nothing is stored there (404, MANIFEST_UNKNOWN,
+// NAME_UNKNOWN) starts a new series: any other failure (credentials, rate
+// limits, an outage) stops the push, because writing a fresh index over a
+// series that couldn't be read would erase it. What is there must be a
+// history index: an index whose every entry is an estate snapshot this
+// command appended, carrying its metrics. An image, or another kind of index,
+// is never overwritten.
+func (c *Client) existingHistory(target name.Reference) (v1.ImageIndex, error) {
+	desc, err := remote.Get(target, c.remoteOpts...)
+	switch {
+	case err != nil && manifestNotFound(err):
+		return mutate.IndexMediaType(empty.Index, types.OCIImageIndex), nil
+	case err != nil:
+		return nil, fmt.Errorf("reading history index %s: %w (not starting a new history over one that couldn't be read)", target, err)
+	case !desc.MediaType.IsIndex():
+		return nil, fmt.Errorf("%s holds a %s, not an estate history index; refusing to overwrite it", target, desc.MediaType)
+	}
+	index, err := desc.ImageIndex()
+	if err != nil {
+		return nil, fmt.Errorf("reading history index %s: %w", target, err)
+	}
+	manifest, err := index.IndexManifest()
+	if err != nil {
+		return nil, fmt.Errorf("reading history index %s: %w", target, err)
+	}
+	for _, entry := range manifest.Manifests {
+		if _, ok := entry.Annotations[annImages]; !ok || entry.MediaType != types.OCIManifestSchema1 {
+			return nil, fmt.Errorf("%s is an index, but not an estate history (its entry %s is not an estate snapshot); refusing to overwrite it", target, entry.Digest)
+		}
+	}
+	return index, nil
 }
 
 // ReadHistory fetches a series. It reads the index only — no snapshot blobs —
