@@ -48,7 +48,9 @@ build mechanics without a governance layer on top.
   [clearcutt-factory](https://github.com/northcutted/clearcutt-factory) builds
   and rebases, and `estate dependents` tells it which images a new base affects.
 - **Not a scanner.** It reads the vulnerability attestations images carry and
-  gates on policy; it does not maintain a vulnerability database.
+  gates on policy; it does not maintain a vulnerability database. For now it
+  reads only grype's output (in cosign's vulnerability attestation); another
+  scanner's attestation verifies, but its findings are reported as unknown.
 - **Not hosted.** There is no service, no account, and no telemetry.
 
 ## What The Repo Proves Today

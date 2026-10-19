@@ -755,10 +755,12 @@ func verifyKind(ctx context.Context, repo, digest, kind, imageSource string, fou
 	}
 	switch kind {
 	case KindVulnerabilityScan:
-		if s, ok := readVulnPredicate(pred); ok {
+		if s, err := readVulnPredicate(pred); err == nil {
 			data.vulns[firstNonEmpty(platform, "default")] = s
 		} else {
+			// Verified, but not read: its findings are unknown, never zero.
 			data.unreadableScans = append(data.unreadableScans, firstNonEmpty(platform, "default"))
+			item.Detail = strings.TrimSpace(item.Detail + " Its findings weren't read: " + err.Error() + ".")
 		}
 	case KindSBOM:
 		if pkgs, ok := readSBOM(pred); ok {

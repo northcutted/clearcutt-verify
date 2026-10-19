@@ -2,6 +2,7 @@ package estateverify
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http/httptest"
@@ -152,4 +153,112 @@ func TestUntrustedRebaseRecordDoesNotExcuseTheRecipe(t *testing.T) {
 			validateReport(t, r)
 		})
 	}
+}
+
+// trivyPredicate is Trivy's cosign-vuln output (trivy image --format
+// cosign-vuln): the cosign vuln/v1 predicate around Trivy's own report,
+// which has no grype matches list. Its one finding is critical.
+func trivyPredicate(uri string) map[string]any {
+	return map[string]any{
+		"invocation": map[string]any{"parameters": nil, "uri": "", "event_id": "", "builder.id": ""},
+		"scanner": map[string]any{
+			"uri": uri, "version": "0.67.2", "db": map[string]string{"uri": "", "version": ""},
+			"result": map[string]any{
+				"SchemaVersion": 2, "ArtifactName": "ghcr.io/acme/app:1", "ArtifactType": "container_image",
+				"Results": []any{map[string]any{
+					"Target": "ghcr.io/acme/app:1 (wolfi 20230201)", "Class": "os-pkgs", "Type": "wolfi",
+					"Vulnerabilities": []any{map[string]any{"VulnerabilityID": "CVE-2026-1234", "PkgName": "openssl",
+						"InstalledVersion": "3.0.1", "FixedVersion": "3.0.2", "Severity": "CRITICAL"}},
+				}},
+			},
+		},
+		"metadata": map[string]string{"scanStartedOn": "2026-10-17T00:00:00Z", "scanFinishedOn": "2026-10-17T00:00:10Z"},
+	}
+}
+
+// TestOnlyGrypeOutputIsRead: a scan is read only when it says it is grype's
+// and has grype's matches list; anything else is unreadable, never clean.
+func TestOnlyGrypeOutputIsRead(t *testing.T) {
+	grype := vulnPredicate(nil, nil)
+	noURI := vulnPredicate(nil, nil)
+	noURI["scanner"].(map[string]any)["uri"] = ""
+	byURIOnly := vulnPredicate(nil, nil)
+	delete(byURIOnly["scanner"].(map[string]any)["result"].(map[string]any), "descriptor")
+	disguised := vulnPredicate(nil, nil)
+	disguised["scanner"].(map[string]any)["uri"] = "pkg:github/aquasecurity/trivy@0.67.2"
+	noMatches := vulnPredicate(nil, nil)
+	delete(noMatches["scanner"].(map[string]any)["result"].(map[string]any), "matches")
+	nullMatches := vulnPredicate(nil, nil)
+	nullMatches["scanner"].(map[string]any)["result"].(map[string]any)["matches"] = nil
+	anonymous := trivyPredicate("")
+	for _, tc := range []struct {
+		name string
+		pred any
+		want string // "" reads it
+	}{
+		{"grype", grype, ""},
+		{"grype, descriptor only", noURI, ""},
+		{"grype, URI only", byURIOnly, ""},
+		{"trivy", trivyPredicate("pkg:github/aquasecurity/trivy@0.67.2"), "aquasecurity/trivy"},
+		{"trivy, unnamed", anonymous, "doesn't name its scanner"},
+		{"grype's shape, trivy's URI", disguised, "trivy"},
+		{"no matches list", noMatches, "no list of matches"},
+		{"null matches", nullMatches, "no list of matches"},
+		{"no result", map[string]any{"scanner": map[string]any{"uri": "pkg:github/anchore/grype@0.1.0"}}, "no scanner result"},
+		{"result not an object", map[string]any{"scanner": map[string]any{"uri": "pkg:github/anchore/grype@0.1.0", "result": "[]"}}, "isn't grype's"},
+		{"not a predicate", []any{1}, "isn't a cosign vulnerability predicate"},
+	} {
+		raw, _ := json.Marshal(tc.pred)
+		s, err := readVulnPredicate(raw)
+		switch {
+		case tc.want == "" && err != nil:
+			t.Errorf("%s: unread: %v", tc.name, err)
+		case tc.want == "" && !strings.HasPrefix(s.Scanner, "grype"):
+			t.Errorf("%s: scanner %q", tc.name, s.Scanner)
+		case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+			t.Errorf("%s: got %+v, %v; want an error naming %q", tc.name, s, err, tc.want)
+		}
+	}
+}
+
+// TestTrivyScanIsNotACleanScan runs a verified Trivy vulnerability
+// attestation through the whole pipeline: its critical finding must not
+// vanish into a clean scan that passes failOn.
+func TestTrivyScanIsNotACleanScan(t *testing.T) {
+	srv := httptest.NewServer(ggcrregistry.New(ggcrregistry.Logger(log.New(io.Discard, "", 0)), ggcrregistry.WithReferrersSupport(true)))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	ours := fulcioCert(t, ourSigner, ghIssuer)
+	img := pushIndex(t, host+"/app:1", nil, built, nil)
+	desc := descriptorOf(t, img)
+	attach(t, host+"/app", desc, bundleJSON(t, PredicateCosignSign, desc.Digest.String(), map[string]any{}, ours))
+	im, _ := img.IndexManifest()
+	for _, d := range im.Manifests {
+		attach(t, host+"/app", d, bundleJSON(t, PredicateVuln, d.Digest.String(), trivyPredicate("pkg:github/aquasecurity/trivy@0.67.2"), ours))
+	}
+	verifier := acmeVerifier()
+	r, err := Build(context.Background(), observe(t, host, "app:1"), Options{
+		Name: "trivy", Version: "test", GeneratedAt: "2026-10-18T00:00:00Z", Verifier: verifier,
+		Policy: report.Policy{Required: []string{KindSignature, KindVulnerabilityScan}, TrustedSigners: verifier.Signers, FailOn: "critical", MaxScanAgeDays: 7},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := r.Images[0]
+	if a.Evidence.VulnerabilityScan.Status != "verified" || !strings.Contains(a.Evidence.VulnerabilityScan.Detail, "only grype's is read") {
+		t.Errorf("scan evidence: %+v", a.Evidence.VulnerabilityScan)
+	}
+	if a.Vulnerabilities != nil {
+		t.Errorf("a Trivy report read as grype's: %+v", a.Vulnerabilities)
+	}
+	if a.Verdict.Status != "unverified" || !strings.Contains(strings.Join(a.Verdict.Reasons, ";"), "vulnerabilities are unknown") {
+		t.Errorf("verdict %+v", a.Verdict)
+	}
+	if !strings.Contains(strings.Join(a.Warnings, ";"), "couldn't be read") {
+		t.Errorf("warnings %v", a.Warnings)
+	}
+	if r.Summary.Vulnerabilities.NotScanned != 1 || r.Summary.Vulnerabilities.Scanned != 0 {
+		t.Errorf("summary %+v", r.Summary.Vulnerabilities)
+	}
+	validateReport(t, r)
 }

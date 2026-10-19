@@ -28,6 +28,15 @@ When a release is cut, move these entries under a heading for its version.
   says why the record doesn't count. The verdict accepts `not-applicable`
   only for that recipe: a missing recipe beside a `present` or `unknown`
   rebase record is `unverified`, beside a `failed` one `failed`.
+- **Only grype's output is read as a vulnerability scan, for now.** Any JSON
+  in a cosign vulnerability attestation that unmarshalled into grype's shape
+  was read, so another scanner's report (Trivy's `cosign-vuln` format, for
+  one) read as grype output with no matches: a clean scan that passed
+  `failOn`. A scan is now read only when its predicate says it is grype's
+  (`scanner.uri` or the result's `descriptor.name`) and has grype's `matches`
+  list; otherwise it verifies but its findings are unknown (no
+  `vulnerabilities`, a warning, and the scan's `detail` says why), so
+  `failOn` and `maxScanAgeDays` leave the image `unverified`.
 
 ## v0.16.0
 

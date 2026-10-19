@@ -2,6 +2,7 @@ package estateverify
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"sort"
@@ -46,8 +47,15 @@ type vulnScan struct {
 	Result    grypeResult
 }
 
-// readVulnPredicate reads a cosign vuln/v1 predicate holding grype output.
-func readVulnPredicate(pred json.RawMessage) (vulnScan, bool) {
+// readVulnPredicate reads a cosign vuln/v1 predicate holding grype output,
+// the only scanner output read (for now). Other scanners write the same
+// predicate type around output of their own shape (Trivy's cosign-vuln
+// format, for one), which would read as grype output with no matches: a
+// clean scan. So a predicate is read only when it says it holds grype's
+// output (its scanner URI, or the result's descriptor, names grype, and
+// neither names another scanner) and the result has grype's matches list.
+// Otherwise the error says why, and its findings are unknown, never zero.
+func readVulnPredicate(pred json.RawMessage) (vulnScan, error) {
 	var p struct {
 		Scanner struct {
 			URI     string          `json:"uri"`
@@ -59,30 +67,53 @@ func readVulnPredicate(pred json.RawMessage) (vulnScan, bool) {
 			ScanStartedOn  string `json:"scanStartedOn"`
 		} `json:"metadata"`
 	}
-	if json.Unmarshal(pred, &p) != nil || len(p.Scanner.Result) == 0 {
-		return vulnScan{}, false
+	if err := json.Unmarshal(pred, &p); err != nil {
+		return vulnScan{}, fmt.Errorf("it isn't a cosign vulnerability predicate: %w", err)
+	}
+	if len(p.Scanner.Result) == 0 || string(p.Scanner.Result) == "null" {
+		return vulnScan{}, errors.New("it holds no scanner result")
 	}
 	var r grypeResult
-	if json.Unmarshal(p.Scanner.Result, &r) != nil {
-		return vulnScan{}, false
+	var keys map[string]json.RawMessage
+	if json.Unmarshal(p.Scanner.Result, &keys) != nil || json.Unmarshal(p.Scanner.Result, &r) != nil {
+		return vulnScan{}, errors.New("its scanner result isn't grype's JSON output")
 	}
-	name := r.Descriptor.Name
-	if name == "" {
-		name = scannerName(p.Scanner.URI)
+	byURI, byDescriptor := scannerName(p.Scanner.URI), strings.ToLower(strings.TrimSpace(r.Descriptor.Name))
+	switch {
+	case byURI == "" && byDescriptor == "":
+		return vulnScan{}, errors.New("it doesn't name its scanner, and only grype's output is read")
+	case byURI != "" && byURI != "grype", byDescriptor != "" && byDescriptor != "grype":
+		return vulnScan{}, fmt.Errorf("it is %s's output (scanner %s), and only grype's is read", firstNonEmpty(nonGrype(byURI), nonGrype(byDescriptor)), firstNonEmpty(p.Scanner.URI, r.Descriptor.Name))
+	}
+	if m, ok := keys["matches"]; !ok || !strings.HasPrefix(strings.TrimSpace(string(m)), "[") {
+		return vulnScan{}, errors.New("its scanner result has no list of matches, as grype's output does")
 	}
 	version := firstNonEmpty(r.Descriptor.Version, p.Scanner.Version)
 	return vulnScan{
-		Scanner:   strings.TrimSpace(name + " " + version),
+		Scanner:   strings.TrimSpace("grype " + version),
 		ScannedAt: firstNonEmpty(p.Metadata.ScanFinishedOn, p.Metadata.ScanStartedOn),
 		Result:    r,
-	}, true
+	}, nil
 }
 
+// nonGrype is name unless it is grype's.
+func nonGrype(name string) string {
+	if name == "grype" {
+		return ""
+	}
+	return name
+}
+
+// scannerName is the scanner a purl-style scanner URI names, lower-cased:
+// pkg:github/anchore/grype@0.118.0 → grype; "" when there is none.
 func scannerName(uri string) string {
-	// pkg:github/anchore/grype@0.118.0 → grype
+	uri = strings.TrimSpace(uri)
+	if uri == "" {
+		return ""
+	}
 	uri = strings.TrimPrefix(uri, "pkg:github/")
 	uri, _, _ = strings.Cut(uri, "@")
-	return uri[strings.LastIndex(uri, "/")+1:]
+	return strings.ToLower(uri[strings.LastIndex(uri, "/")+1:])
 }
 
 // mergeVulnerabilities combines per-platform scans into the image's

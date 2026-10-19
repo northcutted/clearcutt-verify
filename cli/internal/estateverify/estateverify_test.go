@@ -307,6 +307,9 @@ func grypeMatchJSON(id, sev, pkgName, version string, fix ...string) map[string]
 }
 
 func vulnPredicate(matches, ignored []map[string]any) map[string]any {
+	if matches == nil {
+		matches = []map[string]any{} // grype lists no matches as []
+	}
 	return map[string]any{
 		"scanner": map[string]any{"uri": "pkg:github/anchore/grype@0.118.0", "version": "0.118.0",
 			"result": map[string]any{"matches": matches, "ignoredMatches": ignored, "descriptor": map[string]string{"name": "grype", "version": "0.118.0"}}},
@@ -317,9 +320,9 @@ func vulnPredicate(matches, ignored []map[string]any) map[string]any {
 func TestMergeVulnerabilities(t *testing.T) {
 	read := func(p map[string]any) vulnScan {
 		b, _ := json.Marshal(p)
-		s, ok := readVulnPredicate(b)
-		if !ok {
-			t.Fatal("unreadable predicate")
+		s, err := readVulnPredicate(b)
+		if err != nil {
+			t.Fatalf("unreadable predicate: %v", err)
 		}
 		return s
 	}

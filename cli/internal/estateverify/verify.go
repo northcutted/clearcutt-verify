@@ -845,8 +845,8 @@ func signerKey(s *report.Signer) string {
 
 // scanTime is when a vulnerability attestation says its scan ran.
 func scanTime(f Found) time.Time {
-	s, ok := readVulnPredicate(f.Predicate())
-	if !ok {
+	s, err := readVulnPredicate(f.Predicate())
+	if err != nil {
 		return time.Time{}
 	}
 	t, err := time.Parse(time.RFC3339, s.ScannedAt)

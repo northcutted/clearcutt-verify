@@ -71,6 +71,9 @@ stale base whose `daysBehind` couldn't be measured: unknown, not zero.
 
 **Vulnerabilities.** An image without `vulnerabilities` has no vulnerability
 data: unknown, not clean. `summary.vulnerabilities.notScanned` counts those.
+Findings are read only from verified scans in grype's format, for now; an
+image whose verified scan is another scanner's has none either, and its
+`evidence.vulnerabilityScan.detail` says so.
 `scannedAt` says what day the findings describe.
 
 **Reproducibility.** `reproducibility.source` says how an image was found to
