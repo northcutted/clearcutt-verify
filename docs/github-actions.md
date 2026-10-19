@@ -13,6 +13,7 @@ on:
 permissions:
   contents: read
   packages: write   # estate push; read is enough without it
+  id-token: write   # sign the pushed bundle (keyless)
 concurrency: estate
 jobs:
   verify:
@@ -26,15 +27,22 @@ jobs:
       # Private packages: let cosign read them too (clearcutt-verify reads
       # GITHUB_TOKEN for ghcr.io by itself).
       - run: echo "$GITHUB_TOKEN" | cosign login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-      # The last report, so this run extends its history. Only "nothing there
-      # yet" (a first run) is allowed to pass; any other failure stops the job
+      # The last report, so this run extends its history, written only once
+      # cosign verified that this workflow signed it. Only "nothing there yet"
+      # (a first run) is allowed to pass; any other failure stops the job
       # before it could push a new history over the old one.
-      - run: clearcutt-verify estate pull ghcr.io/acme/estate:latest --output dist/estate --allow-missing
+      - run: >-
+          clearcutt-verify estate pull ghcr.io/acme/estate:latest --output dist/estate --allow-missing
+          --certificate-identity https://github.com/acme/estate/.github/workflows/estate.yml@refs/heads/main
+          --certificate-oidc-issuer https://token.actions.githubusercontent.com
       - id: verify
         run: clearcutt-verify estate verify --refs estate/refs.txt --policy estate/policy.yaml --name acme --out dist/estate --fail-on failed
       # Keep the report even when the gate fails: that is the run to look at.
+      # Sign it, so the next run (and any reader) can tell this job wrote it.
       - if: always() && hashFiles('dist/estate/estate-report.json') != ''
-        run: clearcutt-verify estate push ghcr.io/acme/estate:latest --dir dist/estate --file estate-report.json --file estate-history.json
+        run: |
+          clearcutt-verify estate push ghcr.io/acme/estate:latest --dir dist/estate --file estate-report.json --file estate-history.json | tee "$RUNNER_TEMP/push.out"
+          cosign sign --yes "ghcr.io/acme/estate@$(sed -n 's/^\[estate\] digest //p' "$RUNNER_TEMP/push.out")"
       - if: always() && hashFiles('dist/estate/estate-report.json') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with: {name: estate, path: dist/estate}
@@ -64,9 +72,13 @@ jobs:
   `NAME_UNKNOWN`): a first run. Any other failure (credentials, network, an
   artifact that isn't an estate bundle, a stored bundle whose files can't be
   read) fails the step, so the job never starts a fresh history and pushes it
-  over the one it couldn't read. Sign
-  the bundle if readers should be able to tell it came from this job:
-  `cosign sign ghcr.io/acme/estate@sha256:…` (needs `id-token: write`).
+  over the one it couldn't read. The job signs each bundle it pushes (needs
+  `id-token: write`), and `estate pull` writes the last one only once cosign
+  verified that signature against the job's identity
+  (`--certificate-identity`, with `--certificate-oidc-issuer`); a bundle anyone
+  else wrote, or one whose signature can't be checked, fails the step.
+  `--allow-unverified` (warned about loudly) skips that, for a bundle pushed
+  before the job signed them.
 - **Gate.** `--fail-on failed` (or `unverified`) exits **2** when an image falls
   short of the policy. Usage and runtime errors exit **1**, so a red policy
   result is distinguishable from a crash (`steps.verify.outcome` plus the exit

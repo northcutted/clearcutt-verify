@@ -63,7 +63,7 @@ func TestEstateRoundTripsTheRealPublicSnapshot(t *testing.T) {
 	}
 
 	outDir := t.TempDir()
-	pullOut, err := runCLI(t, "estate", "pull", ref, "--output", outDir, "--insecure")
+	pullOut, err := runCLI(t, "estate", "pull", ref, "--output", outDir, "--insecure", "--allow-unverified")
 	if err != nil {
 		t.Fatalf("estate pull: %v\n%s", err, pullOut)
 	}
@@ -92,10 +92,10 @@ func TestEstateRoundTripsTheRealPublicSnapshot(t *testing.T) {
 func TestEstatePullAllowMissing(t *testing.T) {
 	host := estateTestRegistry(t)
 	dir := t.TempDir()
-	if stdout, err := runCLI(t, "estate", "pull", host+"/acme/estate:latest", "--output", dir, "--insecure"); err == nil {
+	if stdout, err := runCLI(t, "estate", "pull", host+"/acme/estate:latest", "--output", dir, "--insecure", "--allow-unverified"); err == nil {
 		t.Fatalf("pulling nothing succeeded without --allow-missing:\n%s", stdout)
 	}
-	stdout, err := runCLI(t, "estate", "pull", host+"/acme/estate:latest", "--output", dir, "--insecure", "--allow-missing")
+	stdout, err := runCLI(t, "estate", "pull", host+"/acme/estate:latest", "--output", dir, "--insecure", "--allow-missing", "--allow-unverified")
 	if err != nil || !strings.Contains(stdout, "nothing at") {
 		t.Fatalf("--allow-missing on a first run: %v\n%s", err, stdout)
 	}
@@ -112,7 +112,7 @@ func TestEstatePullAllowMissing(t *testing.T) {
 	if err := remote.Write(ref, img); err != nil {
 		t.Fatal(err)
 	}
-	if stdout, err := runCLI(t, "estate", "pull", ref.String(), "--output", dir, "--insecure", "--allow-missing"); err == nil {
+	if stdout, err := runCLI(t, "estate", "pull", ref.String(), "--output", dir, "--insecure", "--allow-missing", "--allow-unverified"); err == nil {
 		t.Fatalf("a foreign artifact passed as missing:\n%s", stdout)
 	}
 	// So is a stored bundle whose files can't be read: its manifest is
@@ -138,11 +138,11 @@ func TestEstatePullAllowMissing(t *testing.T) {
 		t.Fatalf("estate push: %v\n%s", err, stdout)
 	}
 	blobsGone.Store(true)
-	if stdout, err := runCLI(t, "estate", "pull", stored, "--output", dir, "--insecure", "--allow-missing"); err == nil {
+	if stdout, err := runCLI(t, "estate", "pull", stored, "--output", dir, "--insecure", "--allow-missing", "--allow-unverified"); err == nil {
 		t.Fatalf("a bundle with unreadable files passed as missing:\n%s", stdout)
 	}
 	// So is a registry that can't be reached.
-	if stdout, err := runCLI(t, "estate", "pull", "127.0.0.1:1/acme/estate:latest", "--output", dir, "--insecure", "--allow-missing"); err == nil {
+	if stdout, err := runCLI(t, "estate", "pull", "127.0.0.1:1/acme/estate:latest", "--output", dir, "--insecure", "--allow-missing", "--allow-unverified"); err == nil {
 		t.Fatalf("an unreachable registry passed as missing:\n%s", stdout)
 	}
 }

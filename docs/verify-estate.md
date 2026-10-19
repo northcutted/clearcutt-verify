@@ -250,19 +250,27 @@ artifact (`clearcutt-verify estate push`). A scheduled job pulls the last bundle
 the new run extends its history, verifies, and pushes the result:
 
 ```bash
-clearcutt-verify estate pull ghcr.io/acme/estate:latest --output dist/estate --allow-missing  # nothing yet on the first run
+clearcutt-verify estate pull ghcr.io/acme/estate:latest --output dist/estate --allow-missing \
+  --certificate-identity https://github.com/acme/estate/.github/workflows/estate.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme --out dist/estate
 clearcutt-verify estate push ghcr.io/acme/estate:latest --dir dist/estate \
   --file estate-report.json --file estate-history.json \
   --generated-at "$(jq -r .metadata.generatedAt dist/estate/estate-report.json)"
+cosign sign --yes ghcr.io/acme/estate@sha256:…   # the digest push printed
 ```
 
 `--allow-missing` succeeds only when the registry has no manifest at the
-reference; any other failure fails, including a stored bundle whose files
-can't be read, so a run never starts a fresh history and pushes it over one it
-couldn't read. A portal build pulls the same reference. The push prints the
-artifact's digest; sign it (`cosign sign ghcr.io/acme/estate@sha256:…`) so readers can
-tell the report came from your job.
+reference (nothing yet on the first run); any other failure fails, including a
+stored bundle whose files can't be read, so a run never starts a fresh
+history and pushes it over one it couldn't read. The push prints the
+artifact's digest; the job signs it, and the next run's pull writes nothing
+until cosign has verified that signature against the job's identity
+(`--certificate-identity` or `--certificate-identity-regexp` with
+`--certificate-oidc-issuer`, or `--key`, as `cosign verify` takes them).
+Without it, anyone who can push to the repository could hand the next run a
+history of their making. `--allow-unverified` writes an unverified bundle
+anyway, and warns.
 
 ## Other fields readers use
 

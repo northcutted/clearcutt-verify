@@ -102,16 +102,22 @@ local files.
 ./clearcutt-verify graph build --observations dist/scan/observations.json \
   --output dist/scan/graph.json --min-confidence verified --fail-on-stale
 
-# Persist the snapshot where the images live, and read it back
+# Persist the snapshot where the images live, sign it, and read it back
 ./clearcutt-verify estate push ghcr.io/acme/clearcutt-estate:2026-08-31 \
   --dir dist/scan --generated-at 2026-08-31T00:00:00Z
-./clearcutt-verify estate pull ghcr.io/acme/clearcutt-estate:2026-08-31 --output ./snapshot
+cosign sign --key cosign.key ghcr.io/acme/clearcutt-estate@sha256:…   # the digest push printed
+./clearcutt-verify estate pull ghcr.io/acme/clearcutt-estate:2026-08-31 --output ./snapshot --key cosign.pub
 ```
 
 `estate push` stores observations and both graphs as a single OCI artifact. It is
 deterministic — identical content yields an identical digest — so a scheduled push of
 an unchanged estate does not create a new version, and drift is a diff between two
-tags. `estate pull` rejects any manifest that is not a ClearCutt estate artifact. See
+tags. `estate pull` rejects any manifest that is not a ClearCutt estate artifact,
+and writes nothing until cosign v3 has verified its signature against the signer
+named with `--certificate-identity` (or `--certificate-identity-regexp`) and
+`--certificate-oidc-issuer`, or `--key` (with `--insecure-ignore-tlog` for a key
+that signs without a transparency log), as `cosign verify` takes them; it exits 1
+when it refuses one. `--allow-unverified` writes it anyway, with a warning. See
 [registry-graph.md](registry-graph.md#persisting-a-snapshot).
 
 `registry scan --registry HOST` uses the distribution `_catalog` endpoint,
@@ -159,7 +165,9 @@ every edge with the confidence that method earns. See
 # Keep the report next to the images, and read it back
 ./clearcutt-verify estate push ghcr.io/acme/estate:latest --dir dist/estate \
   --file estate-report.json --file estate-history.json
-./clearcutt-verify estate pull ghcr.io/acme/estate:latest --output dist/estate
+./clearcutt-verify estate pull ghcr.io/acme/estate:latest --output dist/estate \
+  --certificate-identity https://github.com/acme/estate/.github/workflows/estate.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
 To verify a single image, give `--refs` a file holding just its reference: an

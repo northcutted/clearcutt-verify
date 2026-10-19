@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
 // CosignMajor is the cosign major version whose formats the verifier reads:
@@ -123,4 +125,22 @@ func (v *Verifier) CheckCosign(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("cosign %s (%s) is newer than this clearcutt-verify reads: it reads cosign v%d's bundles and output; use cosign v%d, or a clearcutt-verify release that supports cosign v%d", info.GitVersion, bin, CosignMajor, CosignMajor, major)
 	}
 	return info.GitVersion, nil
+}
+
+// VerifySignature verifies the signature over repo@digest (an artifact, not
+// an image in the estate) against v's signers, as estate verify checks an
+// image's: every attached copy whose certificate names an acceptable signer
+// is verified exactly, and only content cosign verified counts. The item's
+// status is verified only for a signature cosign verified; anything else
+// (missing, failed, present, unknown) says why in its detail.
+func VerifySignature(ctx context.Context, v *Verifier, d *Discoverer, repo, digest string) report.EvidenceItem {
+	found, err := d.Discover(ctx, repo, digest)
+	if err != nil {
+		return report.EvidenceItem{Status: "unknown", Detail: "The registry couldn't be read: " + err.Error()}
+	}
+	item, _ := verifyEvidence(ctx, v, repo, digest, KindSignature, "", found)
+	if item.Status == "missing" {
+		item.Detail = "It carries no signature."
+	}
+	return item
 }

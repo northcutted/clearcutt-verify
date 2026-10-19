@@ -18,6 +18,30 @@ commands and flags, the estate report contract, the action, release assets).
 When a release is cut, move these entries under a heading for its version.
 -->
 
+### Breaking
+
+- **`estate pull` verifies the signature of what it pulls.** It checked only
+  the artifact's media type, so anyone who could push to the repository could
+  hand the next scheduled run a history of their making. It now writes
+  nothing until cosign v3 has verified the artifact's signature against the
+  signer named on the command line, as `cosign verify` takes it:
+  `--certificate-identity` (or `--certificate-identity-regexp`, anchored, as a
+  trust policy's) with `--certificate-oidc-issuer`, optionally
+  `--certificate-github-workflow-repository OWNER/REPO`; or `--key` (with
+  `--insecure-ignore-tlog` for a key that signs without a transparency log).
+  One of those is required. A bundle that is unsigned, signed by someone else,
+  or whose signature cosign couldn't check is refused (exit 1).
+  `--allow-unverified` writes it anyway and prints a warning (a GitHub Actions
+  `::warning` annotation too); without a signer it checks nothing. Callers
+  must add the signer flags: for a job that signs with `cosign sign --yes`,
+  its workflow identity, e.g. `--certificate-identity
+  https://github.com/OWNER/REPO/.github/workflows/estate.yml@refs/heads/main
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com`. A
+  bundle pushed before the job signed them needs signing once (or one run with
+  `--allow-unverified`).
+
+### Changed
+
 - **An untrusted rebase record no longer satisfies a required `recipe`.** Any
   rebase record that wasn't `missing` (one signed by someone else, `failed`;
   one no trusted signer applied to, `present`) made the recipe

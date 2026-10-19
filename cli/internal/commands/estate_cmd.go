@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,9 +10,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/northcutted/clearcutt-verify/internal/estate"
-	"github.com/northcutted/clearcutt-verify/internal/registryauth"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
+
+	"github.com/northcutted/clearcutt-verify/internal/estate"
+	"github.com/northcutted/clearcutt-verify/internal/estateverify"
+	"github.com/northcutted/clearcutt-verify/internal/registryauth"
+	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
 type estateFlags struct {
@@ -22,6 +28,10 @@ type estateFlags struct {
 	output       string
 	history      string
 	allowMissing bool
+	// Who must have signed what estate pull reads (cosign's flags).
+	identity, identityRegexp, issuer, workflowRepo, key string
+	ignoreTlog, allowUnverified                         bool
+	cosignPath                                          string
 }
 
 var estateOpts estateFlags
@@ -74,16 +84,82 @@ func newEstatePushCmd() *cobra.Command {
 func newEstatePullCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pull <reference>",
-		Short: "Pull an estate snapshot out of a registry",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return runEstatePull(args[0])
+		Short: "Pull an estate snapshot or report bundle out of a registry, verifying its signature",
+		Long: `Pulls an estate snapshot or report bundle that estate push stored, and writes
+its files, once cosign has verified its signature against the signer named
+with --certificate-identity (or --certificate-identity-regexp) and
+--certificate-oidc-issuer, or --key, as cosign verify takes them. A bundle
+that isn't signed by that signer, or whose signature can't be checked, is
+refused, and nothing is written: anyone who can push to the repository could
+have written it. --allow-unverified writes it anyway, with a warning.
+
+It needs cosign v3 (on PATH, or --cosign-path), which reads the registry
+with the Docker keychain: log cosign in to private registries.`,
+		Example: `  clearcutt-verify estate pull ghcr.io/acme/estate:latest --output dist/estate --allow-missing \
+    --certificate-identity https://github.com/acme/estate/.github/workflows/estate.yml@refs/heads/main \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runEstatePull(cmd.Context(), args[0])
 		},
 	}
-	cmd.Flags().StringVar(&estateOpts.output, "output", ".", "Directory to write the snapshot files into")
-	cmd.Flags().BoolVar(&estateOpts.insecure, "insecure", false, "Use plain HTTP without auth (test registries only)")
-	cmd.Flags().BoolVar(&estateOpts.allowMissing, "allow-missing", false, "Succeed, writing nothing, when the registry has nothing at the reference yet (a first run); any other failure still fails")
+	f := cmd.Flags()
+	f.StringVar(&estateOpts.output, "output", ".", "Directory to write the snapshot files into")
+	f.BoolVar(&estateOpts.insecure, "insecure", false, "Use plain HTTP without auth (test registries only)")
+	f.BoolVar(&estateOpts.allowMissing, "allow-missing", false, "Succeed, writing nothing, when the registry has nothing at the reference yet (a first run); any other failure still fails")
+	f.StringVar(&estateOpts.identity, "certificate-identity", "", "The signer's certificate identity, exactly (as cosign verify takes it)")
+	f.StringVar(&estateOpts.identityRegexp, "certificate-identity-regexp", "", "The signer's certificate identity, as an anchored regular expression")
+	f.StringVar(&estateOpts.issuer, "certificate-oidc-issuer", "", "The signer's OIDC issuer, e.g. https://token.actions.githubusercontent.com")
+	f.StringVar(&estateOpts.workflowRepo, "certificate-github-workflow-repository", "", "OWNER/REPO the signing GitHub Actions run must be in (for a reusable workflow, the calling repository)")
+	f.StringVar(&estateOpts.key, "key", "", "Public key (file or KMS URI) the bundle is signed with, instead of a certificate identity")
+	f.BoolVar(&estateOpts.ignoreTlog, "insecure-ignore-tlog", false, "With --key: accept a signature with no transparency log entry (cosign --insecure-ignore-tlog)")
+	f.BoolVar(&estateOpts.allowUnverified, "allow-unverified", false, "Write the bundle even when its signature isn't verified (prints a warning); without a signer, it isn't checked at all")
+	f.StringVar(&estateOpts.cosignPath, "cosign-path", "cosign", "cosign v3 binary")
 	return cmd
+}
+
+// pullSigner is who must have signed what estate pull reads, from its
+// flags; ok is false when no signer is named.
+func pullSigner() (report.Signer, bool, error) {
+	o := estateOpts
+	keyless := o.identity != "" || o.identityRegexp != "" || o.issuer != "" || o.workflowRepo != ""
+	switch {
+	case !keyless && o.key == "":
+		if o.ignoreTlog {
+			return report.Signer{}, false, errors.New("--insecure-ignore-tlog applies to --key")
+		}
+		return report.Signer{}, false, nil
+	case keyless && o.key != "":
+		return report.Signer{}, false, errors.New("name the signer with --key, or with --certificate-identity(-regexp) and --certificate-oidc-issuer, not both")
+	case o.identity != "" && o.identityRegexp != "":
+		return report.Signer{}, false, errors.New("--certificate-identity and --certificate-identity-regexp are exclusive")
+	case keyless && (o.identity == "" && o.identityRegexp == "" || o.issuer == ""):
+		return report.Signer{}, false, errors.New("a keyless signer needs --certificate-identity (or --certificate-identity-regexp) and --certificate-oidc-issuer")
+	case keyless && o.ignoreTlog:
+		return report.Signer{}, false, errors.New("--insecure-ignore-tlog applies to --key: a keyless certificate is valid only when the transparency log shows it was used in time")
+	}
+	s := report.Signer{Identity: o.identity, IdentityRegexp: o.identityRegexp, Issuer: o.issuer, Key: o.key}
+	if o.workflowRepo != "" {
+		s.SourceRepository = "https://github.com/" + strings.TrimPrefix(strings.TrimSuffix(o.workflowRepo, "/"), "https://github.com/")
+	}
+	if o.ignoreTlog {
+		off := false
+		s.Tlog = &off
+	}
+	if err := estateverify.ValidatePolicy(report.Policy{TrustedSigners: []report.Signer{s}}); err != nil {
+		return report.Signer{}, false, err
+	}
+	return s, true, nil
+}
+
+// warnUnverified says, where it can't be missed, that what was pulled is
+// trusted on nobody's word.
+func warnUnverified(ref, why string) {
+	msg := fmt.Sprintf("--allow-unverified: the signature of %s was NOT verified (%s). Anyone who can push to the repository could have written these files; nothing shows they come from your estate job.", ref, why)
+	fprintf(errOut, "[estate] WARNING: %s\n", msg)
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		fprintf(out, "::warning title=estate pull: unverified bundle::%s\n", msg)
+	}
 }
 
 // estateClient reaches the registries refs name. Each credential goes only
@@ -231,7 +307,23 @@ func runEstateHistory(ref string) error {
 	return nil
 }
 
-func runEstatePull(ref string) error {
+func runEstatePull(ctx context.Context, ref string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	signer, verify, err := pullSigner()
+	if err != nil {
+		return err
+	}
+	if !verify && !estateOpts.allowUnverified {
+		return errors.New("estate pull verifies the signature of what it pulls: name its signer with --certificate-identity (or --certificate-identity-regexp) and --certificate-oidc-issuer, or --key, as cosign verify takes them (or pass --allow-unverified to write it unverified)")
+	}
+	verifier := &estateverify.Verifier{Signers: []report.Signer{signer}, Cosign: estateOpts.cosignPath, Run: cosignRunner}
+	if verify {
+		if _, err := verifier.CheckCosign(ctx); err != nil {
+			return err
+		}
+	}
 	snapshot, digest, err := estateClient(ref).Pull(ref)
 	if err != nil {
 		// Nothing stored yet is the one failure a first run expects. Anything
@@ -242,6 +334,30 @@ func runEstatePull(ref string) error {
 			return nil
 		}
 		return err
+	}
+	pinned, err := pinnedRef(ref, digest)
+	if err != nil {
+		return err
+	}
+	switch {
+	case !verify:
+		warnUnverified(pinned, "no signer was named")
+	default:
+		repo, _, _ := strings.Cut(pinned, "@")
+		var ropts []remote.Option
+		if !estateOpts.insecure {
+			ropts = append(ropts, remote.WithAuthFromKeychain(registryauth.ForRefs(ref)))
+		}
+		item := estateverify.VerifySignature(ctx, verifier, &estateverify.Discoverer{Options: ropts}, repo, digest)
+		if item.Status != "verified" {
+			why := fmt.Sprintf("its signature is %s: %s", item.Status, item.Detail)
+			if !estateOpts.allowUnverified {
+				return fmt.Errorf("refusing %s, so nothing was written: %s", pinned, why)
+			}
+			warnUnverified(pinned, why)
+			break
+		}
+		fprintf(out, "[estate] signature verified: %s\n", signerDescription(item.Signer))
 	}
 	if err := os.MkdirAll(estateOpts.output, 0o755); err != nil {
 		return err
@@ -270,4 +386,30 @@ func runEstatePull(ref string) error {
 	}
 	fprintf(out, "[estate] pulled %s\n", digest)
 	return nil
+}
+
+// pinnedRef is ref's repository at digest: what was pulled.
+func pinnedRef(ref, digest string) (string, error) {
+	opts := []name.Option{name.WeakValidation}
+	if estateOpts.insecure {
+		opts = append(opts, name.Insecure)
+	}
+	r, err := name.ParseReference(ref, opts...)
+	if err != nil {
+		return "", err
+	}
+	return r.Context().Name() + "@" + digest, nil
+}
+
+// signerDescription names a verified signer.
+func signerDescription(s *report.Signer) string {
+	switch {
+	case s == nil:
+		return "a trusted signer"
+	case s.Key != "":
+		return "key " + s.Key
+	case s.SourceRepository != "":
+		return s.Identity + " (" + s.Issuer + "), in " + s.SourceRepository
+	}
+	return s.Identity + " (" + s.Issuer + ")"
 }
