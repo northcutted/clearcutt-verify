@@ -104,6 +104,10 @@ When a release is cut, move these entries under a heading for its version.
   a platform makes it `failed`, and one silent about a platform `present`.
   Records without `test`, and records that aren't verified, leave it
   `missing`.
+- `estate verify` honours the global output flags it ignored: `--verbose`
+  lists why each image that isn't verified isn't, `--quiet` prints nothing
+  but errors and the `--fail-on` result, and `--format json|yaml` prints the
+  report itself instead of the table.
 - **`estate push --history` no longer resets the history on a read error.**
   Any error reading the history index (401, 429, 5xx included) started an
   empty index, which the push then wrote over the series. A new series now

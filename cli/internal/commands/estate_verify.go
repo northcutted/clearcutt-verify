@@ -23,6 +23,7 @@ import (
 
 	"github.com/northcutted/clearcutt-verify/internal/estategraph"
 	"github.com/northcutted/clearcutt-verify/internal/estateverify"
+	"github.com/northcutted/clearcutt-verify/internal/output"
 	"github.com/northcutted/clearcutt-verify/internal/registryauth"
 	"github.com/northcutted/clearcutt-verify/internal/report"
 )
@@ -79,7 +80,11 @@ recipe or rebase record, shows an image reproduced without rebuilding it. With
 recipes (clearcutt-factory on PATH).
 
 Images come from an observations file (clearcutt-verify import observe) or a list of
-references (--refs), which are imported and observed first.`,
+references (--refs), which are imported and observed first.
+
+It prints a summary table; --verbose adds why each image that isn't verified
+isn't, --quiet prints nothing but errors and the --fail-on result, and
+--format json or yaml prints the report itself instead of the table.`,
 		Example: `  clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme --out dist/estate
   clearcutt-verify estate verify --observations dist/scan/observations.json \
     --require signature,sbom,vulnerabilityScan \
@@ -216,8 +221,24 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	printEstateSummary(stdout, r)
-	fprintf(stdout, "\nwrote %s and %s\n", filepath.Join(o.out, report.ReportFile), filepath.Join(o.out, report.HistoryFile))
+	wrote := fmt.Sprintf("wrote %s and %s", filepath.Join(o.out, report.ReportFile), filepath.Join(o.out, report.HistoryFile))
+	switch {
+	case structuredFormat():
+		// The report itself, for a pipeline; what was written goes to stderr.
+		if err := printReport(stdout, r); err != nil {
+			return err
+		}
+		if !GlobalOpts.Quiet {
+			fprintf(stderr, "[verify-estate] %s\n", wrote)
+		}
+	case GlobalOpts.Quiet:
+	default:
+		printEstateSummary(stdout, r)
+		if GlobalOpts.Verbose {
+			printVerdictReasons(stdout, r)
+		}
+		fprintf(stdout, "\n%s\n", wrote)
+	}
 	s := r.Summary.Verdicts
 	if (o.failOn == "failed" && s.Failed > 0) || (o.failOn == "unverified" && s.Failed+s.Unverified > 0) {
 		fprintf(stderr, "[verify-estate] %d failed, %d unverified (--fail-on %s)\n", s.Failed, s.Unverified, o.failOn)
@@ -401,6 +422,31 @@ func printEstateSummary(w io.Writer, r *report.Report) {
 		fprintf(w, "%-28s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %s\n", truncate(img.ID, 28),
 			e.Signature.Status, e.SBOM.Status, e.VulnerabilityScan.Status, e.Provenance.Status, e.Recipe.Status, e.Rebase.Status,
 			img.Reproducibility.Status, img.Verdict.Status)
+	}
+}
+
+// printReport writes the report in the structured --format.
+func printReport(w io.Writer, r *report.Report) error {
+	if strings.EqualFold(GlobalOpts.Format, "json") {
+		return output.PrintJSON(w, r)
+	}
+	return output.PrintYAML(w, r)
+}
+
+// printVerdictReasons lists why each image that isn't verified isn't
+// (--verbose).
+func printVerdictReasons(w io.Writer, r *report.Report) {
+	for _, img := range r.Images {
+		if img.Verdict.Status == "verified" {
+			continue
+		}
+		fprintf(w, "\n%s: %s\n", img.ID, img.Verdict.Status)
+		for _, reason := range img.Verdict.Reasons {
+			fprintf(w, "  - %s\n", reason)
+		}
+		for _, warning := range img.Warnings {
+			fprintf(w, "  ! %s\n", warning)
+		}
 	}
 }
 

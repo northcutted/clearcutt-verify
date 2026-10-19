@@ -73,6 +73,23 @@ func TestEstateVerify(t *testing.T) {
 		t.Errorf("history rows %+v", rows)
 	}
 
+	// --verbose says why; --quiet says nothing; --format prints the report.
+	stdout, err = runCLI(t, append(args, "--fail-on", "never", "--generated-at", "2026-10-06T00:00:00Z", "--verbose")...)
+	if err != nil || !strings.Contains(stdout, "signature is missing") || !strings.Contains(stdout, "IMAGE") {
+		t.Errorf("--verbose: %v\n%s", err, stdout)
+	}
+	if stdout, err = runCLI(t, append(args, "--fail-on", "never", "--generated-at", "2026-10-06T00:00:00Z", "--quiet")...); err != nil || strings.TrimSpace(stdout) != "" {
+		t.Errorf("--quiet printed %q (%v)", stdout, err)
+	}
+	stdout, err = runCLI(t, append(args, "--fail-on", "never", "--generated-at", "2026-10-06T00:00:00Z", "--format", "json", "--quiet")...)
+	var printed report.Report
+	if err != nil || json.Unmarshal([]byte(stdout), &printed) != nil || printed.Kind != report.KindReport || len(printed.Images) != 2 {
+		t.Errorf("--format json: %v\n%s", err, stdout)
+	}
+	if stdout, err = runCLI(t, append(args, "--fail-on", "never", "--generated-at", "2026-10-06T00:00:00Z", "--format", "yaml", "--quiet")...); err != nil || !strings.Contains(stdout, "kind: EstateReport") {
+		t.Errorf("--format yaml: %v\n%s", err, stdout)
+	}
+
 	for _, bad := range [][]string{
 		{"estate", "verify", "--refs", refs},
 		{"estate", "verify", "--out", out},

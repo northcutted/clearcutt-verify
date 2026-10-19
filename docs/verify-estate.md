@@ -209,8 +209,11 @@ Without a file, the same policy can be given with `--require`,
 
 `--out DIR` receives a bundle: `estate-report.json` and `estate-history.json`.
 The history gains an entry per run; pass `--history` to extend a history kept
-elsewhere. The command prints a summary table, and `--fail-on failed` (or
-`unverified`) makes it exit 2 when any image falls short, for CI.
+elsewhere. The command prints a summary table (`--verbose` adds why each
+image that isn't verified isn't; `--quiet` prints nothing but errors and the
+`--fail-on` result; `--format json` or `yaml` prints the report itself
+instead), and `--fail-on failed` (or `unverified`) makes it exit 2 when any
+image falls short, for CI.
 
 ### Stacks
 
