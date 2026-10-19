@@ -63,6 +63,12 @@ type Metadata struct {
 	Generator   Generator `json:"generator"`
 	// Sources are the registries and repositories that were read.
 	Sources []Source `json:"sources"`
+	// Platforms, when set, are the only platform images this run read
+	// (estate verify --platforms), e.g. linux/amd64: evidence attached to an
+	// image's other platform images (SBOMs and vulnerability reports) wasn't
+	// looked at, so per-platform evidence, findings, and packages describe
+	// these platforms only. Absent, every platform image was read.
+	Platforms []string `json:"platforms,omitempty"`
 }
 
 // Generator is the tool that wrote the report.
@@ -363,8 +369,11 @@ type Evidence struct {
 	// Rebase is a clearcutt-factory rebase record, for images whose layers
 	// were moved onto a newer base without a rebuild.
 	Rebase EvidenceItem `json:"rebase"`
-	// Tests is evidence that the image was tested (a smoke test or test
-	// attestation).
+	// Tests is evidence that the image was tested: a test-result
+	// attestation; the smoke test a verified clearcutt-factory rebase record
+	// says passed on every platform (it then names that record:
+	// predicateType, ref, signer); or, present with source recipe, the smoke
+	// test a verified recipe declares.
 	Tests EvidenceItem `json:"tests"`
 }
 
@@ -373,8 +382,9 @@ type EvidenceItem struct {
 	// Status is verified (found and checked against a trusted signer),
 	// present (found but not checked: no trusted signer applies, or it
 	// can't be checked), failed (found, and the check failed), missing
-	// (looked for, none), unknown (couldn't be looked for), or
-	// not-applicable (e.g. a rebase record for an image never rebased).
+	// (looked for, none), unknown (couldn't be looked for or checked), or
+	// not-applicable (a rebase record for an image never rebased, or the
+	// recipe of a rebased image whose rebase record is verified).
 	Status string `json:"status" enum:"verified,present,failed,missing,unknown,not-applicable"`
 	// Source is where it was found: cosign-signature, cosign-attestation,
 	// github-attestation, or oci-referrer (an unsigned document). Open: new

@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -22,9 +23,13 @@ import (
 
 	"github.com/northcutted/clearcutt-verify/internal/estategraph"
 	"github.com/northcutted/clearcutt-verify/internal/estateverify"
+	"github.com/northcutted/clearcutt-verify/internal/output"
 	"github.com/northcutted/clearcutt-verify/internal/registryauth"
 	"github.com/northcutted/clearcutt-verify/internal/report"
 )
+
+// cosignRunner, when set, runs cosign instead of the binary (tests).
+var cosignRunner func(ctx context.Context, bin string, args ...string) ([]byte, error)
 
 var estateVerifyOpts struct {
 	observations string
@@ -75,7 +80,11 @@ recipe or rebase record, shows an image reproduced without rebuilding it. With
 recipes (clearcutt-factory on PATH).
 
 Images come from an observations file (clearcutt-verify import observe) or a list of
-references (--refs), which are imported and observed first.`,
+references (--refs), which are imported and observed first.
+
+It prints a summary table; --verbose adds why each image that isn't verified
+isn't, --quiet prints nothing but errors and the --fail-on result, and
+--format json or yaml prints the report itself instead of the table.`,
 		Example: `  clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme --out dist/estate
   clearcutt-verify estate verify --observations dist/scan/observations.json \
     --require signature,sbom,vulnerabilityScan \
@@ -95,7 +104,7 @@ references (--refs), which are imported and observed first.`,
 	f.StringVar(&o.history, "history", "", "Previous estate-history.json to extend (default: the one in --out, if any)")
 	f.BoolVar(&o.reproduce, "reproduce", false, "Rebuild clearcutt-factory images from their signed recipes and compare digests (images with a verified reproduction attestation aren't rebuilt)")
 	f.StringVar(&o.factoryPath, "factory-path", "clearcutt-factory", "clearcutt-factory binary, for --reproduce")
-	f.StringVar(&o.cosignPath, "cosign-path", "cosign", "cosign binary")
+	f.StringVar(&o.cosignPath, "cosign-path", "cosign", "cosign v3 binary (checked before the run; missing or another major version exits 1)")
 	f.StringVar(&o.generatedAt, "generated-at", "", "Deterministic report timestamp (RFC 3339)")
 	f.IntVar(&o.concurrency, "concurrency", 4, "Images to verify at once")
 	f.StringSliceVar(&o.platforms, "platforms", nil, "Read only these platform images (e.g. linux/amd64,linux/arm64); default all. Cuts requests for bases published for many architectures")
@@ -135,6 +144,22 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	}
 	policy.Reproduce = o.reproduce
 
+	// The tools come first: without them every piece of evidence would come
+	// out failed or unknown for a reason that has nothing to do with the
+	// estate. A missing or unusable tool is an operational error (exit 1),
+	// never a policy result.
+	verifier := &estateverify.Verifier{Signers: policy.TrustedSigners, Cosign: o.cosignPath, Run: cosignRunner}
+	if len(policy.TrustedSigners)+len(policy.StackSigners) > 0 {
+		if _, err := verifier.CheckCosign(ctx); err != nil {
+			return err
+		}
+	}
+	if o.reproduce {
+		if _, err := exec.LookPath(o.factoryPath); err != nil {
+			return fmt.Errorf("--reproduce rebuilds images with clearcutt-factory, which is not available (%s): install it, or name it with --factory-path: %w", o.factoryPath, err)
+		}
+	}
+
 	// One cache for the run: the observer, the verifier, and base checks read
 	// many of the same manifests, and registries count each read.
 	ropts := []remote.Option{
@@ -171,7 +196,7 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		Name: o.name, Version: Version, Policy: policy, Sources: sourcesOf(observations),
 		GeneratedAt: o.generatedAt, Concurrency: o.concurrency, Platforms: o.platforms, RemoteOptions: ropts,
 		Discoverer: &estateverify.Discoverer{Options: ropts},
-		Verifier:   &estateverify.Verifier{Signers: policy.TrustedSigners, Cosign: o.cosignPath},
+		Verifier:   verifier,
 		Log:        stderr,
 	}
 	if o.reproduce {
@@ -196,8 +221,24 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	printEstateSummary(stdout, r)
-	fprintf(stdout, "\nwrote %s and %s\n", filepath.Join(o.out, report.ReportFile), filepath.Join(o.out, report.HistoryFile))
+	wrote := fmt.Sprintf("wrote %s and %s", filepath.Join(o.out, report.ReportFile), filepath.Join(o.out, report.HistoryFile))
+	switch {
+	case structuredFormat():
+		// The report itself, for a pipeline; what was written goes to stderr.
+		if err := printReport(stdout, r); err != nil {
+			return err
+		}
+		if !GlobalOpts.Quiet {
+			fprintf(stderr, "[verify-estate] %s\n", wrote)
+		}
+	case GlobalOpts.Quiet:
+	default:
+		printEstateSummary(stdout, r)
+		if GlobalOpts.Verbose {
+			printVerdictReasons(stdout, r)
+		}
+		fprintf(stdout, "\n%s\n", wrote)
+	}
 	s := r.Summary.Verdicts
 	if (o.failOn == "failed" && s.Failed > 0) || (o.failOn == "unverified" && s.Failed+s.Unverified > 0) {
 		fprintf(stderr, "[verify-estate] %d failed, %d unverified (--fail-on %s)\n", s.Failed, s.Unverified, o.failOn)
@@ -381,6 +422,31 @@ func printEstateSummary(w io.Writer, r *report.Report) {
 		fprintf(w, "%-28s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %s\n", truncate(img.ID, 28),
 			e.Signature.Status, e.SBOM.Status, e.VulnerabilityScan.Status, e.Provenance.Status, e.Recipe.Status, e.Rebase.Status,
 			img.Reproducibility.Status, img.Verdict.Status)
+	}
+}
+
+// printReport writes the report in the structured --format.
+func printReport(w io.Writer, r *report.Report) error {
+	if strings.EqualFold(GlobalOpts.Format, "json") {
+		return output.PrintJSON(w, r)
+	}
+	return output.PrintYAML(w, r)
+}
+
+// printVerdictReasons lists why each image that isn't verified isn't
+// (--verbose).
+func printVerdictReasons(w io.Writer, r *report.Report) {
+	for _, img := range r.Images {
+		if img.Verdict.Status == "verified" {
+			continue
+		}
+		fprintf(w, "\n%s: %s\n", img.ID, img.Verdict.Status)
+		for _, reason := range img.Verdict.Reasons {
+			fprintf(w, "  - %s\n", reason)
+		}
+		for _, warning := range img.Warnings {
+			fprintf(w, "  ! %s\n", warning)
+		}
 	}
 }
 

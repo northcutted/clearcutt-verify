@@ -28,14 +28,21 @@ instead.
    bundles as plain signatures.
 2. **Verification.** Each piece of evidence is verified with cosign against
    the policy's trusted signers. Anything not signed by one of them is
-   `failed`, never quietly accepted. cosign is asked for exactly the signer
+   `failed`, never quietly accepted. Evidence cosign couldn't check (it
+   couldn't reach the registry or the transparency log, the registry refused
+   it, or cosign couldn't run) is `unknown`, not `failed`, and its `detail`
+   says what went wrong; whether a trusted signer signed it is undecided.
+   Before reading anything, the run checks that cosign is there and is cosign
+   v3 (the version whose bundles and output it reads), and stops with exit 1
+   if not. cosign is asked for exactly the signer
    the evidence's certificate names (its identity and issuer, and for GitHub
    Actions the repository and ref of the run), once a trusted signer accepts
    that signer, so the signer the report shows on verified evidence is the
    one cosign checked.
 3. **Contents.** Only what cosign verified is read: vulnerability findings
    from verified vulnerability attestations (deduplicated across platforms;
-   VEX-suppressed findings are kept but not counted), packages from verified
+   VEX-suppressed findings are kept but not counted; grype output only, for
+   now, see Limits), packages from verified
    SBOM attestations, the source commit from verified SLSA provenance, and
    clearcutt-factory details from verified recipes and rebase records.
    Evidence that is `present` or `failed` is reported, but nothing in it is
@@ -63,6 +70,11 @@ instead.
    every image is `unverified`, and so is an image none of whose evidence
    verified, whatever else the policy checks. Checks that read no evidence
    (`maxDaysBehind`, `--reproduce`) can't verify an image on their own.
+   Only `verified` evidence meets a requirement. A rebased image needs no
+   recipe of its own (`recipe: not-applicable`) only when its rebase record
+   is `verified`; a missing recipe beside a rebase record that is `present`
+   or `unknown` leaves the image `unverified`, and beside one that `failed`,
+   `failed`.
 
 ## The policy
 
@@ -197,8 +209,11 @@ Without a file, the same policy can be given with `--require`,
 
 `--out DIR` receives a bundle: `estate-report.json` and `estate-history.json`.
 The history gains an entry per run; pass `--history` to extend a history kept
-elsewhere. The command prints a summary table, and `--fail-on failed` (or
-`unverified`) makes it exit 2 when any image falls short, for CI.
+elsewhere. The command prints a summary table (`--verbose` adds why each
+image that isn't verified isn't; `--quiet` prints nothing but errors and the
+`--fail-on` result; `--format json` or `yaml` prints the report itself
+instead), and `--fail-on failed` (or `unverified`) makes it exit 2 when any
+image falls short, for CI.
 
 ### Stacks
 
@@ -238,19 +253,27 @@ artifact (`clearcutt-verify estate push`). A scheduled job pulls the last bundle
 the new run extends its history, verifies, and pushes the result:
 
 ```bash
-clearcutt-verify estate pull ghcr.io/acme/estate:latest --output dist/estate --allow-missing  # nothing yet on the first run
+clearcutt-verify estate pull ghcr.io/acme/estate:latest --output dist/estate --allow-missing \
+  --certificate-identity https://github.com/acme/estate/.github/workflows/estate.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme --out dist/estate
 clearcutt-verify estate push ghcr.io/acme/estate:latest --dir dist/estate \
   --file estate-report.json --file estate-history.json \
   --generated-at "$(jq -r .metadata.generatedAt dist/estate/estate-report.json)"
+cosign sign --yes ghcr.io/acme/estate@sha256:…   # the digest push printed
 ```
 
 `--allow-missing` succeeds only when the registry has no manifest at the
-reference; any other failure fails, including a stored bundle whose files
-can't be read, so a run never starts a fresh history and pushes it over one it
-couldn't read. A portal build pulls the same reference. The push prints the
-artifact's digest; sign it (`cosign sign ghcr.io/acme/estate@sha256:…`) so readers can
-tell the report came from your job.
+reference (nothing yet on the first run); any other failure fails, including a
+stored bundle whose files can't be read, so a run never starts a fresh
+history and pushes it over one it couldn't read. The push prints the
+artifact's digest; the job signs it, and the next run's pull writes nothing
+until cosign has verified that signature against the job's identity
+(`--certificate-identity` or `--certificate-identity-regexp` with
+`--certificate-oidc-issuer`, or `--key`, as `cosign verify` takes them).
+Without it, anyone who can push to the repository could hand the next run a
+history of their making. `--allow-unverified` writes an unverified bundle
+anyway, and warns.
 
 ## Other fields readers use
 
@@ -272,10 +295,16 @@ tell the report came from your job.
   `signer.sourceRepository`.
 - `tests` is `present` (source `recipe`) for clearcutt-factory images whose
   verified recipe declares a smoke test: factory runs it on every platform
-  before pushing, but doesn't attest the result. A rebased image's stays
-  `missing`: its rebase record doesn't say whether a smoke test ran
-  (`rebase -f app.yaml` runs the app's; `rebase --image` and `--no-test`
-  don't), and its `detail` names the test the original's recipe declares.
+  before pushing, but doesn't attest the result. A rebased image's comes from
+  its verified rebase record, which (clearcutt-factory v0.2.0 and later)
+  names the smoke test the rebase ran and each platform's result: `verified`
+  when it passed on every platform the rebase built and every platform image
+  read, `failed` when the record says it didn't pass on one, `present` when
+  it says nothing about one. The item points at the rebase record
+  (`predicateType`, `ref`, `signer`), so checking the record checks it. A
+  record that names no test (`rebase --image`, `--no-test`, or an earlier
+  clearcutt-factory) leaves it `missing`, and its `detail` names the test the
+  original's recipe declares.
 - Each history entry has a row per image (`images`): its digest, verdict, base,
   rebase, and vulnerability counts in that run, for per-image history. Rows
   also list the IDs of the image's fixable high and critical findings
@@ -334,10 +363,25 @@ attestation are `not-checked`.
 - **Registry rate limits.** Docker Hub limits anonymous manifest reads (100 an
   hour). A run reads each manifest once, but bases published for many
   architectures cost a read per platform image; `--platforms
-  linux/amd64,linux/arm64` reads only those. Lookups the registry refuses are
-  reported as `unknown`, not `missing`. Logging in (`docker login`) raises the
+  linux/amd64,linux/arm64` reads only those, and the report records the
+  selection (`metadata.platforms`): SBOMs, scans, findings, and packages then
+  describe those platforms only. An image none of whose platform images is
+  selected, or whose platform images couldn't all be read, has its SBOM and
+  vulnerability scan `unknown`, not judged on the platforms that happened to
+  be read. Lookups the registry refuses are reported as `unknown`, not
+  `missing`. Logging in (`docker login`) raises the
   limit; `clearcutt-verify` reads the same credentials.
-- **Tests.** Test evidence counts only as a test-result attestation
+- **Scanners: grype only, for now.** Vulnerability findings are read from
+  cosign vulnerability attestations (`https://cosign.sigstore.dev/attestation/vuln/v1`)
+  holding grype's JSON output: the predicate's `scanner.uri` (or the result's
+  `descriptor.name`) names grype, and the result has grype's `matches` list.
+  Another scanner's attestation (Trivy's `--format cosign-vuln`, for one) is
+  still verified, but its findings aren't read: the image's vulnerabilities
+  are unknown (no `vulnerabilities`, a warning, and the scan's `detail` says
+  why), never zero, so `failOn` and `maxScanAgeDays` leave it `unverified`.
+- **Tests.** Test evidence counts as a test-result attestation, or as the
+  smoke test a verified clearcutt-factory rebase record says passed (a
+  recipe's declared test is only `present`): a test-result attestation
   (`https://in-toto.io/attestation/test-result/…`).
 - **Speed.** Each signer of each kind of evidence on an image is one cosign
   verification; when copies name more than one signer, one more per trusted

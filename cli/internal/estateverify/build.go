@@ -68,6 +68,7 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 	if conc <= 0 {
 		conc = 4
 	}
+	opts.Platforms = platformSelection(opts.Platforms)
 
 	r := &report.Report{
 		APIVersion: report.APIVersion,
@@ -76,6 +77,7 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 			Name: opts.Name, GeneratedAt: generatedAt,
 			Generator: report.Generator{Name: "clearcutt-verify", Version: opts.Version},
 			Sources:   opts.Sources,
+			Platforms: opts.Platforms,
 		},
 		Policy:   opts.Policy,
 		Images:   make([]report.Image, len(observations.Images)),
@@ -150,6 +152,19 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 	return r, nil
 }
 
+// platformSelection is the --platforms selection as the report records it:
+// sorted, each once; nil when every platform is read.
+func platformSelection(only []string) []string {
+	var out []string
+	for _, p := range only {
+		if p = strings.TrimSpace(p); p != "" {
+			out = appendUnique(out, p)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // buildImage verifies one image; Build decides its verdict. named says
 // whether the image names a base of its own (in its annotations or its
 // recipe's lock), which makes it no root.
@@ -176,9 +191,17 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 		return img, nil, false
 	}
 
-	platforms, err := platformImages(ctx, repo, img.Digest, obs, opts.RemoteOptions, opts.Platforms)
-	if err != nil {
-		img.Warnings = append(img.Warnings, "platform images could not be read: "+err.Error())
+	platforms, platformsErr := platformImages(ctx, repo, img.Digest, obs, opts.RemoteOptions, opts.Platforms)
+	if platformsErr != nil {
+		img.Warnings = append(img.Warnings, "platform images could not be read: "+platformsErr.Error())
+	} else if len(platforms) == 0 && len(opts.Platforms) > 0 {
+		// None of them was read: their evidence isn't missing, it wasn't
+		// looked for.
+		platformsErr = fmt.Errorf("none of its platform images is one this run reads (--platforms %s)", strings.Join(opts.Platforms, ","))
+		img.Warnings = append(img.Warnings, platformsErr.Error())
+	}
+	if platforms == nil {
+		platforms = []report.Platform{}
 	}
 	img.Platforms = platforms
 
@@ -186,16 +209,28 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 	// signed to be in.
 	claimedSource := firstNonEmpty(obs.Labels["org.opencontainers.image.source"], obs.Annotations["org.opencontainers.image.source"])
 	ev, data := gatherEvidence(ctx, repo, img.Digest, claimedSource, platforms, opts)
+	if platformsErr != nil {
+		// Evidence attached to each platform image is known only for the
+		// ones that were read: judged on those, an image would pass on the
+		// platforms that happened to be readable. It is unknown, and so is
+		// what it would have told (findings, packages).
+		detail := fmt.Sprintf("Not every platform image could be read (%v), so this evidence is unknown for the image, not judged on the %d that were.", platformsErr, len(platforms))
+		for _, item := range []*report.EvidenceItem{&ev.SBOM, &ev.VulnerabilityScan} {
+			item.Status, item.Detail = "unknown", detail
+		}
+		data.vulns, data.unreadableScans = nil, nil
+		data.packages, data.packagesKnown, data.sbomPlatforms = nil, false, nil
+	}
 	if f := data.factory; f != nil && f.Kind == "" && f.RebasedFrom != "" && data.rebaseVerified {
 		test, err := originalRecipe(ctx, f, claimedSource, opts)
 		if err != nil {
 			img.Warnings = append(img.Warnings, "the recipe of the image it was rebased from couldn't be read: "+err.Error())
 		}
 		if test != "" && ev.Tests.Status == "missing" {
-			// The rebase record doesn't say whether a smoke test ran, so the
+			// The rebase record names no smoke test that ran, so the
 			// original's declared test can't stand for the rebased image.
 			ev.Tests.Detail = "No test attestation. The recipe of the image it was rebased from declares a smoke test (" + test +
-				"), but the rebase record doesn't say whether the rebase ran it: clearcutt-factory runs the app's smoke test when it rebases from the app manifest (rebase -f, as its fleet workflow does), not when it rebases --image or with --no-test."
+				"), but the verified rebase record names no smoke test that ran: clearcutt-factory (v0.2.0 and later) records the test it runs when it rebases from the app manifest (rebase -f, as its fleet workflow does); it runs none with rebase --image or --no-test, and earlier versions don't record it."
 		}
 	}
 	baseOf(&img, obs, graph, ids, created)
@@ -621,6 +656,8 @@ type imageData struct {
 	sbomPlatforms []string
 	// recipeTest describes the smoke test a verified recipe declares.
 	recipeTest string
+	// rebaseTest is the smoke test a verified rebase record says ran.
+	rebaseTest *rebaseTest
 	// unreadableScans are platforms whose verified vulnerability scan
 	// couldn't be read.
 	unreadableScans []string
@@ -689,13 +726,21 @@ func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platf
 	}
 
 	// A rebased image carries a rebase record instead of a recipe and build
-	// provenance: it was never built, its layers were moved.
-	if items[KindRebase].Status == "missing" {
+	// provenance: it was never built, its layers were moved. Only a rebase
+	// record a trusted signer verified (and that names the image it was
+	// rebased from) stands in for the recipe: one that is present, failed,
+	// or unknown is no reason to excuse a missing recipe.
+	switch rebase := items[KindRebase].Status; {
+	case rebase == "missing":
 		items[KindRebase] = &report.EvidenceItem{Status: "not-applicable", Detail: "No rebase record: the image was built, not rebased."}
-	} else if items[KindRecipe].Status == "missing" {
-		items[KindRecipe] = &report.EvidenceItem{Status: "not-applicable", Detail: "Rebased: the rebase record names the image that was built from a recipe."}
+	case items[KindRecipe].Status != "missing":
+	case rebase == "verified" && data.rebaseVerified:
+		items[KindRecipe] = &report.EvidenceItem{Status: "not-applicable", Detail: "Rebased: the verified rebase record names the image that was built from a recipe."}
+	default:
+		items[KindRecipe].Detail = "No clearcutt-factory recipe. A rebase record is attached, but it is " + rebase +
+			" (not a verified record naming the image it was rebased from), so it doesn't stand in for one."
 	}
-	if items[KindRecipe].Status == "missing" {
+	if items[KindRecipe].Status == "missing" && items[KindRecipe].Detail == "" {
 		items[KindRecipe].Detail = "No clearcutt-factory recipe."
 	}
 	if items[KindTests].Status == "missing" && data.recipeTest != "" {
@@ -703,6 +748,10 @@ func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platf
 		// and pushes nothing that fails it, but doesn't attest the result.
 		items[KindTests] = &report.EvidenceItem{Status: "present", Source: "recipe",
 			Detail: "The verified recipe declares a smoke test (" + data.recipeTest + ") that clearcutt-factory runs on every platform before it pushes; the result isn't separately attested."}
+	}
+	if items[KindTests].Status == "missing" && data.rebaseVerified && data.rebaseTest != nil && items[KindRebase].Status == "verified" {
+		tests := testsFromRebase(data.rebaseTest, *items[KindRebase], platforms)
+		items[KindTests] = &tests
 	}
 	if items[KindTests].Status == "missing" {
 		items[KindTests].Detail = "No test attestation."
@@ -714,6 +763,51 @@ func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platf
 		Signature: *items[KindSignature], SBOM: *items[KindSBOM], VulnerabilityScan: *items[KindVulnerabilityScan],
 		Provenance: *items[KindProvenance], Recipe: *items[KindRecipe], Rebase: *items[KindRebase], Tests: *items[KindTests],
 	}, data
+}
+
+// testsFromRebase is what a verified rebase record says about the smoke
+// test that ran on the rebased image: clearcutt-factory runs the app's test
+// on every platform before it publishes a rebase, and records each result in
+// the signed record. It is verified only when the record says the test
+// passed on every platform the rebase built and every platform image read;
+// failed when it says one didn't pass; present when it says nothing about
+// one. It is stored where the record is, so checking the record checks it.
+func testsFromRebase(t *rebaseTest, rebase report.EvidenceItem, platforms []report.Platform) report.EvidenceItem {
+	item := report.EvidenceItem{Source: rebase.Source, PredicateType: rebase.PredicateType, Ref: rebase.Ref, Timestamp: rebase.Timestamp,
+		Signer: rebase.Signer, SignerWorkflow: rebase.SignerWorkflow}
+	want := append([]string{}, t.Built...)
+	for p := range t.Platforms {
+		want = appendUnique(want, p)
+	}
+	for _, p := range platforms {
+		if p.Platform != "" && p.Platform != "unknown" {
+			want = appendUnique(want, p.Platform)
+		}
+	}
+	sort.Strings(want)
+	var passed, failed, unsaid []string
+	for _, p := range want {
+		switch r := t.Platforms[p]; r {
+		case "passed":
+			passed = append(passed, p)
+		case "":
+			unsaid = append(unsaid, p)
+		default:
+			failed = append(failed, p+" ("+r+")")
+		}
+	}
+	test := "The verified rebase record says the smoke test (" + t.describe() + ")"
+	switch {
+	case len(failed) > 0:
+		item.Status, item.Detail = "failed", test+" didn't pass on "+strings.Join(failed, ", ")+"."
+	case len(passed) == 0:
+		item.Status, item.Detail = "present", test+" ran, but gives no result for any platform."
+	case len(unsaid) > 0:
+		item.Status, item.Detail = "present", test+" passed on "+strings.Join(passed, ", ")+", and says nothing about "+strings.Join(unsaid, ", ")+"."
+	default:
+		item.Status, item.Detail = "verified", test+" passed on "+strings.Join(passed, ", ")+" before clearcutt-factory published the rebased image."
+	}
+	return item
 }
 
 // verifyKind verifies kind on one subject, records what the verified
@@ -747,10 +841,12 @@ func verifyKind(ctx context.Context, repo, digest, kind, imageSource string, fou
 	}
 	switch kind {
 	case KindVulnerabilityScan:
-		if s, ok := readVulnPredicate(pred); ok {
+		if s, err := readVulnPredicate(pred); err == nil {
 			data.vulns[firstNonEmpty(platform, "default")] = s
 		} else {
+			// Verified, but not read: its findings are unknown, never zero.
 			data.unreadableScans = append(data.unreadableScans, firstNonEmpty(platform, "default"))
+			item.Detail = strings.TrimSpace(item.Detail + " Its findings weren't read: " + err.Error() + ".")
 		}
 	case KindSBOM:
 		if pkgs, ok := readSBOM(pred); ok {
@@ -777,6 +873,7 @@ func verifyKind(ctx context.Context, repo, digest, kind, imageSource string, fou
 			}
 			data.rebaseVerified = true
 			data.rebaseSigner = &signer
+			data.rebaseTest = readRebaseTest(pred)
 		}
 	case KindProvenance:
 		if s, ok := readProvenanceSource(pred); ok {

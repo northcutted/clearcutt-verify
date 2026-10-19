@@ -26,9 +26,14 @@ an explicit reference:
 
 Nothing else in the CLI writes to a registry.
 
-**Credentials.** Explicit environment credentials are preferred
-(`REGISTRY_USER`/`REGISTRY_TOKEN`, then `CLEARCUTT_REGISTRY_*`, then
-`GITHUB_*`), falling back to the ambient Docker keychain. ClearCutt never
+**Credentials.** Each credential is offered only to its own registry. The
+commands that name a registry reference (`estate push`, `pull`, `history`,
+and `evidence`) offer the explicit environment credentials
+(`REGISTRY_USER`/`REGISTRY_TOKEN`, else `CLEARCUTT_REGISTRY_USER`/
+`CLEARCUTT_REGISTRY_TOKEN`) to the registries those references name, and no
+other. Every command reads the ambient Docker keychain (`docker login`,
+credential helpers), each entry for its registry, and a GitHub Actions job's
+`GITHUB_TOKEN` (with `GITHUB_ACTOR`) for `ghcr.io` only. ClearCutt never
 persists credentials and never writes them into reports.
 
 ## 2. Trust boundaries

@@ -18,6 +18,112 @@ commands and flags, the estate report contract, the action, release assets).
 When a release is cut, move these entries under a heading for its version.
 -->
 
+### Breaking
+
+- **`estate pull` verifies the signature of what it pulls.** It checked only
+  the artifact's media type, so anyone who could push to the repository could
+  hand the next scheduled run a history of their making. It now writes
+  nothing until cosign v3 has verified the artifact's signature against the
+  signer named on the command line, as `cosign verify` takes it:
+  `--certificate-identity` (or `--certificate-identity-regexp`, anchored, as a
+  trust policy's) with `--certificate-oidc-issuer`, optionally
+  `--certificate-github-workflow-repository OWNER/REPO`; or `--key` (with
+  `--insecure-ignore-tlog` for a key that signs without a transparency log).
+  One of those is required. A bundle that is unsigned, signed by someone else,
+  or whose signature cosign couldn't check is refused (exit 1).
+  `--allow-unverified` writes it anyway and prints a warning (a GitHub Actions
+  `::warning` annotation too); without a signer it checks nothing. Callers
+  must add the signer flags: for a job that signs with `cosign sign --yes`,
+  its workflow identity, e.g. `--certificate-identity
+  https://github.com/OWNER/REPO/.github/workflows/estate.yml@refs/heads/main
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com`. A
+  bundle pushed before the job signed them needs signing once (or one run with
+  `--allow-unverified`).
+
+### Changed
+
+- **An untrusted rebase record no longer satisfies a required `recipe`.** Any
+  rebase record that wasn't `missing` (one signed by someone else, `failed`;
+  one no trusted signer applied to, `present`) made the recipe
+  `not-applicable`, and `not-applicable` met `required: [recipe]`, so an image
+  could be `verified` on evidence nobody trusted. The recipe is now
+  `not-applicable` only when the rebase record is `verified` and names the
+  image it was rebased from; otherwise it stays `missing`, and its `detail`
+  says why the record doesn't count. The verdict accepts `not-applicable`
+  only for that recipe: a missing recipe beside a `present` or `unknown`
+  rebase record is `unverified`, beside a `failed` one `failed`.
+- **Only grype's output is read as a vulnerability scan, for now.** Any JSON
+  in a cosign vulnerability attestation that unmarshalled into grype's shape
+  was read, so another scanner's report (Trivy's `cosign-vuln` format, for
+  one) read as grype output with no matches: a clean scan that passed
+  `failOn`. A scan is now read only when its predicate says it is grype's
+  (`scanner.uri` or the result's `descriptor.name`) and has grype's `matches`
+  list; otherwise it verifies but its findings are unknown (no
+  `vulnerabilities`, a warning, and the scan's `detail` says why), so
+  `failOn` and `maxScanAgeDays` leave the image `unverified`.
+- **"Couldn't check" is no longer reported as "failed".**
+  - `estate verify` checks its tools before reading anything: cosign must be
+    on `PATH` (or `--cosign-path`) and be cosign v3 whenever the policy trusts
+    a signer, and `--reproduce` needs `clearcutt-factory`. A missing tool, or
+    a cosign v2 (which reports cosign v3's bundles as unsigned) or v4, exits 1
+    (operational error) and writes no report. Before, every piece of evidence
+    came out `failed`, "not signed by a trusted signer", and `--fail-on
+    failed` exited 2 as if the estate had failed its policy.
+  - Evidence cosign couldn't check (a registry or the transparency log
+    unreachable, refusing, or throttling; cosign not running; its output
+    unreadable) is `unknown`, with a `detail` saying so, not `failed`. With
+    several trusted keys, evidence is `unknown` when any key couldn't be
+    checked and none verified. An `unknown` copy outranks `failed` ones anyone
+    could attach.
+  - An image whose platform images couldn't all be read, or none of whose
+    platform images is among `--platforms`, has its SBOM and vulnerability
+    scan `unknown` (no findings, no packages), not judged on the platform
+    images that were read. `platforms` is `[]`, never `null`, when the image's
+    platform list can't be read.
+  - New, optional, additive: `metadata.platforms` records the `--platforms`
+    selection, so a reader knows which platforms per-platform evidence
+    describes.
+- **Credentials reach only their registry.** `estate push`, `pull`, and
+  `history` and the `evidence` commands sent whichever environment pair was
+  set (`REGISTRY_*`, `CLEARCUTT_REGISTRY_*`, or `GITHUB_ACTOR` and
+  `GITHUB_TOKEN`) as basic auth to any registry they were pointed at, so a
+  job's `GITHUB_TOKEN` reached a third-party registry as soon as one was
+  named, contradicting the docs. `GITHUB_TOKEN` now goes to `ghcr.io` only, as
+  everywhere else in the CLI; `REGISTRY_*` (or `CLEARCUTT_REGISTRY_*`) only to
+  the registries of the references the command was given; the Docker
+  keychain, each entry to its own registry. On `ghcr.io`, a `docker login`
+  now takes precedence over `GITHUB_TOKEN`, as it already did for `estate
+  verify`.
+- **Rebased images read their smoke test from the rebase record.**
+  clearcutt-factory v0.2.0 and later record in the signed rebase record the
+  smoke test a rebase ran (`test`: the app's `spec.test` and each platform's
+  result), but rebased images still showed `tests: missing`. A verified
+  rebase record whose test passed on every platform the rebase built and
+  every platform image read now makes `tests` `verified`, pointing at the
+  record (`predicateType`, `ref`, `signer`); one that says it didn't pass on
+  a platform makes it `failed`, and one silent about a platform `present`.
+  Records without `test`, and records that aren't verified, leave it
+  `missing`.
+- `estate verify` honours the global output flags it ignored: `--verbose`
+  lists why each image that isn't verified isn't, `--quiet` prints nothing
+  but errors and the `--fail-on` result, and `--format json|yaml` prints the
+  report itself instead of the table.
+- CI runs the real cosign: a new required job (`cosign-e2e`, in the PR Gate
+  Summary) signs and attests two-platform images with cosign v3 key pairs in
+  `registry:2` (no Referrers API: the referrers tag) and `registry:3` (the
+  Referrers API), and checks the verdicts `estate verify` reaches (a
+  verified image, one signed by another key, a Trivy scan, an unsigned one)
+  and that `estate pull` reads a signed bundle back only for the key that
+  signed it. Every other test fakes cosign.
+- **`estate push --history` no longer resets the history on a read error.**
+  Any error reading the history index (401, 429, 5xx included) started an
+  empty index, which the push then wrote over the series. A new series now
+  starts only when the registry says nothing is there (404,
+  `MANIFEST_UNKNOWN`, `NAME_UNKNOWN`); any other error stops the push before
+  the index is written (the snapshot is stored, and the error names it). A
+  tag that holds an image, or an index that isn't an estate history, is
+  refused, not overwritten.
+
 ## v0.16.0
 
 Released 2026-10-16.

@@ -23,6 +23,7 @@ import (
 )
 
 func TestEstateVerify(t *testing.T) {
+	withCosign(t, "", nil)
 	srv := httptest.NewServer(registry.New(registry.Logger(log.New(io.Discard, "", 0)), registry.WithReferrersSupport(true)))
 	defer srv.Close()
 	host := strings.TrimPrefix(srv.URL, "http://")
@@ -70,6 +71,23 @@ func TestEstateVerify(t *testing.T) {
 	}
 	if rows := h.Entries[0].Images; len(rows) != 2 || rows[0].Verdict != "failed" || rows[0].Digest == "" {
 		t.Errorf("history rows %+v", rows)
+	}
+
+	// --verbose says why; --quiet says nothing; --format prints the report.
+	stdout, err = runCLI(t, append(args, "--fail-on", "never", "--generated-at", "2026-10-06T00:00:00Z", "--verbose")...)
+	if err != nil || !strings.Contains(stdout, "signature is missing") || !strings.Contains(stdout, "IMAGE") {
+		t.Errorf("--verbose: %v\n%s", err, stdout)
+	}
+	if stdout, err = runCLI(t, append(args, "--fail-on", "never", "--generated-at", "2026-10-06T00:00:00Z", "--quiet")...); err != nil || strings.TrimSpace(stdout) != "" {
+		t.Errorf("--quiet printed %q (%v)", stdout, err)
+	}
+	stdout, err = runCLI(t, append(args, "--fail-on", "never", "--generated-at", "2026-10-06T00:00:00Z", "--format", "json", "--quiet")...)
+	var printed report.Report
+	if err != nil || json.Unmarshal([]byte(stdout), &printed) != nil || printed.Kind != report.KindReport || len(printed.Images) != 2 {
+		t.Errorf("--format json: %v\n%s", err, stdout)
+	}
+	if stdout, err = runCLI(t, append(args, "--fail-on", "never", "--generated-at", "2026-10-06T00:00:00Z", "--format", "yaml", "--quiet")...); err != nil || !strings.Contains(stdout, "kind: EstateReport") {
+		t.Errorf("--format yaml: %v\n%s", err, stdout)
 	}
 
 	for _, bad := range [][]string{
@@ -132,6 +150,7 @@ func TestEstateVerifyTrustPolicyFlag(t *testing.T) {
 	t.Cleanup(func() { estateVerifyOpts = saved })
 	estateVerifyOpts = saved
 	estateVerifyOpts.policy, estateVerifyOpts.trustPolicy, estateVerifyOpts.require = "", trust, []string{"signature"}
+	estateVerifyOpts.identityRegexp, estateVerifyOpts.issuer, estateVerifyOpts.sourceOwner, estateVerifyOpts.sourceMatches = "", "", "", false
 	p, err := estatePolicy()
 	if err != nil || len(p.TrustedSigners) != 1 || p.TrustedSigners[0].Identity == "" {
 		t.Fatalf("policy %+v, %v", p, err)
@@ -200,4 +219,39 @@ func TestPackagesDigest(t *testing.T) {
 func sha256Hex(s string) string {
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:])
+}
+
+// TestEstateVerifyNeedsItsTools: a missing or unusable cosign (or, with
+// --reproduce, clearcutt-factory) stops the run before anything is read, as
+// an operational error (exit 1), never as images that failed the policy
+// (exit 2).
+func TestEstateVerifyNeedsItsTools(t *testing.T) {
+	dir := t.TempDir()
+	refs := filepath.Join(dir, "refs.txt")
+	if err := os.WriteFile(refs, []byte("127.0.0.1:1/acme/app:1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"estate", "verify", "--refs", refs, "--out", filepath.Join(dir, "estate"), "--require", "signature", "--fail-on", "failed",
+		"--trusted-identity-regexp", `^https://github\.com/acme/`, "--trusted-issuer", "https://token.actions.githubusercontent.com"}
+	check := func(name, want string, extra ...string) {
+		t.Helper()
+		stdout, err := runCLI(t, append(append([]string{}, args...), extra...)...)
+		if err == nil || errors.Is(err, ErrCheckFailed) || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: got %v, want an operational error saying %q\n%s", name, err, want, stdout)
+		}
+		if _, statErr := os.Stat(filepath.Join(dir, "estate", report.ReportFile)); statErr == nil {
+			t.Errorf("%s: wrote a report", name)
+		}
+	}
+	check("no cosign", "cosign is not available", "--cosign-path", filepath.Join(dir, "no-such-cosign"))
+
+	withCosign(t, "v2.5.2", nil)
+	check("cosign v2", "too old")
+	withCosign(t, "v4.0.0", nil)
+	check("cosign v4", "newer than this clearcutt-verify reads")
+	withCosign(t, "devel", nil)
+	check("unversioned cosign", "couldn't tell which cosign")
+
+	withCosign(t, "v3.1.3", nil)
+	check("no clearcutt-factory", "clearcutt-factory, which is not available", "--reproduce", "--factory-path", filepath.Join(dir, "no-such-factory"))
 }

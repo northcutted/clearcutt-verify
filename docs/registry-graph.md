@@ -400,9 +400,19 @@ registry as an OCI artifact, and `estate pull` reads it back.
 ```bash
 clearcutt-verify estate push ghcr.io/acme/clearcutt-estate:$(date +%F) \
   --dir . --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+cosign sign --yes ghcr.io/acme/clearcutt-estate@sha256:…   # the digest push printed
 
-clearcutt-verify estate pull ghcr.io/acme/clearcutt-estate:2026-08-31 --output ./snapshot
+clearcutt-verify estate pull ghcr.io/acme/clearcutt-estate:2026-08-31 --output ./snapshot \
+  --certificate-identity https://github.com/acme/estate/.github/workflows/estate.yml@refs/heads/main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
+
+`estate pull` writes nothing until cosign has verified the snapshot's
+signature against the signer you name, the way `cosign verify` takes it
+(`--certificate-identity` or `--certificate-identity-regexp` with
+`--certificate-oidc-issuer`, or `--key`): anyone who can push to the
+repository could have written an unsigned one. `--allow-unverified` writes an
+unverified snapshot anyway, with a warning.
 
 The registry is a deliberate backing store rather than a convenient one. The evidence
 lives under the same auth boundary, replication and retention policy as the images it

@@ -32,6 +32,9 @@ import (
 const later = 1791300000
 
 func vulnPredicateAt(finished string, matches ...map[string]any) map[string]any {
+	if matches == nil {
+		matches = []map[string]any{} // grype lists no matches as []
+	}
 	return map[string]any{
 		"scanner":  map[string]any{"uri": "pkg:github/anchore/grype@0.118.0", "version": "0.118.0", "result": map[string]any{"matches": matches, "descriptor": map[string]string{"name": "grype", "version": "0.118.0"}}},
 		"metadata": map[string]string{"scanFinishedOn": finished},

@@ -7,14 +7,6 @@ import (
 	"strings"
 )
 
-// registryDestCredentialPair reads registry credentials from the environment
-// (REGISTRY_*, CLEARCUTT_REGISTRY_*, or GitHub Actions' own).
-func registryDestCredentialPair() (string, string) {
-	user := firstNonEmptyString(os.Getenv("REGISTRY_USER"), os.Getenv("CLEARCUTT_REGISTRY_USER"), os.Getenv("GITHUB_ACTOR"))
-	token := firstNonEmptyString(os.Getenv("REGISTRY_TOKEN"), os.Getenv("CLEARCUTT_REGISTRY_TOKEN"), os.Getenv("GITHUB_TOKEN"))
-	return user, token
-}
-
 func firstNonEmptyString(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {

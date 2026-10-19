@@ -36,6 +36,15 @@ go vet ./...
 go build -o ../clearcutt-verify ./cmd/clearcutt-verify
 ```
 
+Every test fakes cosign except one, which signs and attests images with the
+real cosign v3 in a registry you name, and runs `estate verify` and `estate
+pull` on them (CI runs it against `registry:2` and `registry:3`):
+
+```bash
+crane registry serve --address 127.0.0.1:5055 &   # or: docker run -p 5055:5000 registry:2
+CLEARCUTT_E2E_REGISTRY=127.0.0.1:5055 go -C cli test ./internal/commands -run '^TestRealCosign$' -v
+```
+
 When you change the estate report types in `cli/internal/report`, regenerate
 the contract's JSON Schemas and commit them with the change:
 

@@ -307,6 +307,9 @@ func grypeMatchJSON(id, sev, pkgName, version string, fix ...string) map[string]
 }
 
 func vulnPredicate(matches, ignored []map[string]any) map[string]any {
+	if matches == nil {
+		matches = []map[string]any{} // grype lists no matches as []
+	}
 	return map[string]any{
 		"scanner": map[string]any{"uri": "pkg:github/anchore/grype@0.118.0", "version": "0.118.0",
 			"result": map[string]any{"matches": matches, "ignoredMatches": ignored, "descriptor": map[string]string{"name": "grype", "version": "0.118.0"}}},
@@ -317,9 +320,9 @@ func vulnPredicate(matches, ignored []map[string]any) map[string]any {
 func TestMergeVulnerabilities(t *testing.T) {
 	read := func(p map[string]any) vulnScan {
 		b, _ := json.Marshal(p)
-		s, ok := readVulnPredicate(b)
-		if !ok {
-			t.Fatal("unreadable predicate")
+		s, err := readVulnPredicate(b)
+		if err != nil {
+			t.Fatalf("unreadable predicate: %v", err)
 		}
 		return s
 	}
@@ -385,8 +388,9 @@ func TestReadProvenanceSource(t *testing.T) {
 
 func TestVerdict(t *testing.T) {
 	ok := report.EvidenceItem{Status: "verified"}
+	// A rebased image: its verified rebase record stands in for the recipe.
 	img := report.Image{Evidence: report.Evidence{Signature: ok, SBOM: ok, VulnerabilityScan: ok, Provenance: ok,
-		Recipe: report.EvidenceItem{Status: "not-applicable"}, Rebase: report.EvidenceItem{Status: "not-applicable"}, Tests: report.EvidenceItem{Status: "missing"}},
+		Recipe: report.EvidenceItem{Status: "not-applicable"}, Rebase: ok, Tests: report.EvidenceItem{Status: "missing"}},
 		Vulnerabilities: &report.Vulnerabilities{Findings: []report.Finding{{ID: "CVE-1", Severity: "critical"}}}}
 	acme := []report.Signer{{IdentityRegexp: `^https://github\.com/acme/`, Issuer: ghIssuer}}
 	p := report.Policy{Required: []string{"signature", "sbom", "recipe"}, TrustedSigners: acme, FailOn: "critical", OnlyFixed: true}

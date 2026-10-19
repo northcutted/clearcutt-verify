@@ -2,6 +2,7 @@ package commands
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -61,7 +63,7 @@ func TestEstateRoundTripsTheRealPublicSnapshot(t *testing.T) {
 	}
 
 	outDir := t.TempDir()
-	pullOut, err := runCLI(t, "estate", "pull", ref, "--output", outDir, "--insecure")
+	pullOut, err := runCLI(t, "estate", "pull", ref, "--output", outDir, "--insecure", "--allow-unverified")
 	if err != nil {
 		t.Fatalf("estate pull: %v\n%s", err, pullOut)
 	}
@@ -90,10 +92,10 @@ func TestEstateRoundTripsTheRealPublicSnapshot(t *testing.T) {
 func TestEstatePullAllowMissing(t *testing.T) {
 	host := estateTestRegistry(t)
 	dir := t.TempDir()
-	if stdout, err := runCLI(t, "estate", "pull", host+"/acme/estate:latest", "--output", dir, "--insecure"); err == nil {
+	if stdout, err := runCLI(t, "estate", "pull", host+"/acme/estate:latest", "--output", dir, "--insecure", "--allow-unverified"); err == nil {
 		t.Fatalf("pulling nothing succeeded without --allow-missing:\n%s", stdout)
 	}
-	stdout, err := runCLI(t, "estate", "pull", host+"/acme/estate:latest", "--output", dir, "--insecure", "--allow-missing")
+	stdout, err := runCLI(t, "estate", "pull", host+"/acme/estate:latest", "--output", dir, "--insecure", "--allow-missing", "--allow-unverified")
 	if err != nil || !strings.Contains(stdout, "nothing at") {
 		t.Fatalf("--allow-missing on a first run: %v\n%s", err, stdout)
 	}
@@ -110,7 +112,7 @@ func TestEstatePullAllowMissing(t *testing.T) {
 	if err := remote.Write(ref, img); err != nil {
 		t.Fatal(err)
 	}
-	if stdout, err := runCLI(t, "estate", "pull", ref.String(), "--output", dir, "--insecure", "--allow-missing"); err == nil {
+	if stdout, err := runCLI(t, "estate", "pull", ref.String(), "--output", dir, "--insecure", "--allow-missing", "--allow-unverified"); err == nil {
 		t.Fatalf("a foreign artifact passed as missing:\n%s", stdout)
 	}
 	// So is a stored bundle whose files can't be read: its manifest is
@@ -136,11 +138,11 @@ func TestEstatePullAllowMissing(t *testing.T) {
 		t.Fatalf("estate push: %v\n%s", err, stdout)
 	}
 	blobsGone.Store(true)
-	if stdout, err := runCLI(t, "estate", "pull", stored, "--output", dir, "--insecure", "--allow-missing"); err == nil {
+	if stdout, err := runCLI(t, "estate", "pull", stored, "--output", dir, "--insecure", "--allow-missing", "--allow-unverified"); err == nil {
 		t.Fatalf("a bundle with unreadable files passed as missing:\n%s", stdout)
 	}
 	// So is a registry that can't be reached.
-	if stdout, err := runCLI(t, "estate", "pull", "127.0.0.1:1/acme/estate:latest", "--output", dir, "--insecure", "--allow-missing"); err == nil {
+	if stdout, err := runCLI(t, "estate", "pull", "127.0.0.1:1/acme/estate:latest", "--output", dir, "--insecure", "--allow-missing", "--allow-unverified"); err == nil {
 		t.Fatalf("an unreachable registry passed as missing:\n%s", stdout)
 	}
 }
@@ -270,45 +272,63 @@ func TestEstateHistoryOnAnEmptySeriesSaysSo(t *testing.T) {
 	}
 }
 
-// TestRegistryClientsPreferEnvironmentCredentials pins the resolution order that
-// dogfooding exposed. `estate push` could only authenticate from a docker
-// config, so it failed in CI — the one environment it is built for, where a
-// runner has REGISTRY_TOKEN or GITHUB_TOKEN and no docker config at all.
-//
-// The order is: explicit environment credentials, then the ambient keychain.
-// That way the same command works on a laptop and on a runner without a flag.
-func TestRegistryClientsPreferEnvironmentCredentials(t *testing.T) {
-	for _, key := range []string{"REGISTRY_USER", "REGISTRY_TOKEN", "CLEARCUTT_REGISTRY_USER", "CLEARCUTT_REGISTRY_TOKEN", "GITHUB_ACTOR", "GITHUB_TOKEN"} {
+// TestEnvironmentCredentialsReachOnlyTheirRegistry: estate and evidence
+// commands offer GITHUB_TOKEN to ghcr.io alone, and REGISTRY_USER and
+// REGISTRY_TOKEN only to the registry the command names. Before, whichever
+// pair was set went to any registry named on the command line, so a job's
+// GitHub token reached a third-party registry the moment one was named.
+func TestEnvironmentCredentialsReachOnlyTheirRegistry(t *testing.T) {
+	for _, key := range []string{"REGISTRY_USER", "REGISTRY_TOKEN", "CLEARCUTT_REGISTRY_USER", "CLEARCUTT_REGISTRY_TOKEN"} {
 		t.Setenv(key, "")
 	}
-	if user, token := registryDestCredentialPair(); user != "" || token != "" {
-		t.Fatalf("with no environment set, credentials should be empty, got %q/%q", user, token)
+	t.Setenv("DOCKER_CONFIG", t.TempDir()) // no docker login
+	t.Setenv("GITHUB_ACTOR", "octocat")
+	t.Setenv("GITHUB_TOKEN", "ghs_job_token")
+
+	// A registry that asks for basic auth, and records what it is offered.
+	var mu sync.Mutex
+	var offered []string
+	reg := registry.New()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		mu.Lock()
+		if auth != "" {
+			offered = append(offered, auth)
+		}
+		mu.Unlock()
+		if auth != "Basic "+basic("ci-bot", "s3cret") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="test"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		reg.ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	ref := strings.TrimPrefix(srv.URL, "http://") + "/acme/estate:history"
+	seen := func() string {
+		mu.Lock()
+		defer mu.Unlock()
+		return strings.Join(offered, " ")
 	}
 
+	for _, args := range [][]string{{"estate", "history", ref}, {"evidence", "list", ref}} {
+		if stdout, err := runCLI(t, args...); err == nil {
+			t.Fatalf("%v: authenticated without credentials:\n%s", args, stdout)
+		}
+	}
+	if strings.Contains(seen(), basic("octocat", "ghs_job_token")) {
+		t.Fatalf("GITHUB_TOKEN was offered to %s: %s", ref, seen())
+	}
+
+	// The explicit pair is for the registry the command names.
 	t.Setenv("REGISTRY_USER", "ci-bot")
 	t.Setenv("REGISTRY_TOKEN", "s3cret")
-	user, token := registryDestCredentialPair()
-	if user != "ci-bot" || token != "s3cret" {
-		t.Fatalf("explicit registry credentials should win, got %q/%q", user, token)
+	_, _ = runCLI(t, "estate", "history", ref)
+	if !strings.Contains(seen(), basic("ci-bot", "s3cret")) {
+		t.Errorf("the explicit credentials weren't offered to the named registry: %q", seen())
 	}
+}
 
-	// GITHUB_TOKEN is the CI fallback, and must be picked up when the
-	// ClearCutt-specific variables are unset.
-	t.Setenv("REGISTRY_USER", "")
-	t.Setenv("REGISTRY_TOKEN", "")
-	t.Setenv("GITHUB_ACTOR", "octocat")
-	t.Setenv("GITHUB_TOKEN", "ghs_token")
-	user, token = registryDestCredentialPair()
-	if user != "octocat" || token != "ghs_token" {
-		t.Fatalf("GITHUB_* should be the CI fallback, got %q/%q", user, token)
-	}
-
-	// And the estate client must actually use them rather than silently
-	// falling back to the keychain.
-	restore := estateOpts.insecure
-	estateOpts.insecure = false
-	t.Cleanup(func() { estateOpts.insecure = restore })
-	if estateClient() == nil {
-		t.Fatal("estate client should be constructible from environment credentials")
-	}
+func basic(user, password string) string {
+	return base64.StdEncoding.EncodeToString([]byte(user + ":" + password))
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/northcutted/clearcutt-verify/internal/evidence"
+	"github.com/northcutted/clearcutt-verify/internal/registryauth"
 	"github.com/spf13/cobra"
 )
 
@@ -51,16 +52,13 @@ retention guarantees, and ` + "`evidence import`" + ` to put it back.`,
 	return cmd
 }
 
-func evidenceClient() *evidence.Client {
+// evidenceClient reaches the registries refs name, each credential only its
+// own registry's (see estateClient).
+func evidenceClient(refs ...string) *evidence.Client {
 	if evidenceOpts.insecure {
 		return evidence.NewInsecureClient()
 	}
-	// Same resolution order as estate and fleet publish: explicit environment
-	// credentials first, ambient keychain second.
-	if user, token := registryDestCredentialPair(); user != "" && token != "" {
-		return evidence.NewBasicAuthClient(user, token)
-	}
-	return evidence.NewClient()
+	return evidence.NewKeychainClient(registryauth.ForRefs(refs...))
 }
 
 func newEvidenceAttachCmd() *cobra.Command {
@@ -111,7 +109,7 @@ func runEvidenceAttach(ref string) error {
 	for _, fileName := range missing {
 		fprintf(out, "[evidence] %s not present; attaching without it\n", fileName)
 	}
-	digest, err := evidenceClient().Attach(ref, bundle)
+	digest, err := evidenceClient(ref).Attach(ref, bundle)
 	if err != nil {
 		return err
 	}
@@ -141,7 +139,7 @@ func newEvidenceListCmd() *cobra.Command {
 }
 
 func runEvidenceList(ref string) error {
-	attachments, err := evidenceClient().List(ref)
+	attachments, err := evidenceClient(ref).List(ref)
 	if err != nil {
 		return err
 	}
@@ -194,7 +192,7 @@ Two formats, because two audiences want different things:
 }
 
 func runEvidenceExport(ref string) error {
-	manifest, err := evidenceClient().Export(ref, evidenceOpts.output)
+	manifest, err := evidenceClient(ref).Export(ref, evidenceOpts.output)
 	if err != nil {
 		return err
 	}
@@ -219,7 +217,7 @@ func newEvidenceImportCmd() *cobra.Command {
 }
 
 func runEvidenceImport(dir, repo string) error {
-	restored, err := evidenceClient().Import(dir, repo)
+	restored, err := evidenceClient(repo).Import(dir, repo)
 	if err != nil {
 		return err
 	}

@@ -229,7 +229,7 @@
               "$ref": "#/$defs/EvidenceItem"
             }
           ],
-          "description": "Tests is evidence that the image was tested (a smoke test or test attestation)."
+          "description": "Tests is evidence that the image was tested: a test-result attestation; the smoke test a verified clearcutt-factory rebase record says passed on every platform (it then names that record: predicateType, ref, signer); or, present with source recipe, the smoke test a verified recipe declares."
         },
         "vulnerabilityScan": {
           "allOf": [
@@ -291,7 +291,7 @@
           "type": "string"
         },
         "status": {
-          "description": "Status is verified (found and checked against a trusted signer), present (found but not checked: no trusted signer applies, or it can't be checked), failed (found, and the check failed), missing (looked for, none), unknown (couldn't be looked for), or not-applicable (e.g. a rebase record for an image never rebased).",
+          "description": "Status is verified (found and checked against a trusted signer), present (found but not checked: no trusted signer applies, or it can't be checked), failed (found, and the check failed), missing (looked for, none), unknown (couldn't be looked for or checked), or not-applicable (a rebase record for an image never rebased, or the recipe of a rebased image whose rebase record is verified).",
           "enum": [
             "verified",
             "present",
@@ -589,6 +589,13 @@
         "name": {
           "description": "Name identifies the estate, e.g. acme-production.",
           "type": "string"
+        },
+        "platforms": {
+          "description": "Platforms, when set, are the only platform images this run read (estate verify --platforms), e.g. linux/amd64: evidence attached to an image's other platform images (SBOMs and vulnerability reports) wasn't looked at, so per-platform evidence, findings, and packages describe these platforms only. Absent, every platform image was read.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "sources": {
           "description": "Sources are the registries and repositories that were read.",

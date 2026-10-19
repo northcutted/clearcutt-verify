@@ -133,12 +133,65 @@ jobs:
           "$BIN" --version
           clearcutt-verify estate verify --help >/dev/null
 
+  # Every other test fakes cosign. This job signs and attests images with the
+  # real cosign the action installs, in a real registry, and checks what
+  # estate verify and estate pull make of them (a wrong signer included), so
+  # a change in cosign's bundle format or output can't pass unnoticed.
+  # registry:2 has no Referrers API (cosign and clearcutt-verify use the
+  # referrers tag); registry:3 has one. It signs with key pairs and no
+  # transparency log: no OIDC token and no network beyond the registry, so
+  # pull requests from forks run it too.
+  cosign-e2e:
+    name: Real-Cosign End-To-End (${{ matrix.name }})
+    needs: [changes]
+    if: ${{ needs.changes.outputs.go == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: registry 2, referrers tag
+            image: registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
+          - name: registry 3, Referrers API
+            image: registry:3.1.2@sha256:ddf754342cfc8acc51a56d5d0ab6af06826461864460636d8bd5c546dab2a7b8
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      registry:
+        image: ${{ matrix.image }}
+        ports:
+          - 5000:5000
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: 'cli/go.mod'
+          cache-dependency-path: 'cli/go.sum'
+          cache: true
+
+      # The cosign users get: the one the action installs.
+      - name: Install cosign Through The Action
+        uses: ./
+        with:
+          version: source
+
+      - name: Sign, Attest, And Verify With Real cosign
+        working-directory: cli
+        env:
+          CLEARCUTT_E2E_REGISTRY: localhost:5000
+        run: go test -count=1 -timeout 5m -run '^TestRealCosign$' -v ./internal/commands
+
   pr-gate-summary:
     name: PR Gate Summary
     needs:
       - changes
       - go-ci
       - action-install
+      - cosign-e2e
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -162,6 +215,7 @@ jobs:
           selected = {
               "go-ci": enabled("go"),
               "action-install": enabled("go"),
+              "cosign-e2e": enabled("go"),
           }
 
           lines = [
