@@ -37,6 +37,28 @@ When a release is cut, move these entries under a heading for its version.
   list; otherwise it verifies but its findings are unknown (no
   `vulnerabilities`, a warning, and the scan's `detail` says why), so
   `failOn` and `maxScanAgeDays` leave the image `unverified`.
+- **"Couldn't check" is no longer reported as "failed".**
+  - `estate verify` checks its tools before reading anything: cosign must be
+    on `PATH` (or `--cosign-path`) and be cosign v3 whenever the policy trusts
+    a signer, and `--reproduce` needs `clearcutt-factory`. A missing tool, or
+    a cosign v2 (which reports cosign v3's bundles as unsigned) or v4, exits 1
+    (operational error) and writes no report. Before, every piece of evidence
+    came out `failed`, "not signed by a trusted signer", and `--fail-on
+    failed` exited 2 as if the estate had failed its policy.
+  - Evidence cosign couldn't check (a registry or the transparency log
+    unreachable, refusing, or throttling; cosign not running; its output
+    unreadable) is `unknown`, with a `detail` saying so, not `failed`. With
+    several trusted keys, evidence is `unknown` when any key couldn't be
+    checked and none verified. An `unknown` copy outranks `failed` ones anyone
+    could attach.
+  - An image whose platform images couldn't all be read, or none of whose
+    platform images is among `--platforms`, has its SBOM and vulnerability
+    scan `unknown` (no findings, no packages), not judged on the platform
+    images that were read. `platforms` is `[]`, never `null`, when the image's
+    platform list can't be read.
+  - New, optional, additive: `metadata.platforms` records the `--platforms`
+    selection, so a reader knows which platforms per-platform evidence
+    describes.
 
 ## v0.16.0
 

@@ -43,7 +43,7 @@ difference between them is the point:
 | `present` | Found, but not checked: no trusted signer applies, or it can't be checked | exists, unproven |
 | `failed` | Found, and the check failed (wrong signer, bad signature, digest mismatch) | a problem |
 | `missing` | Looked for, and there is none | absent |
-| `unknown` | Couldn't be looked for (registry error, unsupported store) | unknown, never as absent, zero, or a pass |
+| `unknown` | Couldn't be looked for or checked (registry error, unsupported store, cosign couldn't reach a registry or the transparency log, not every platform image could be read) | unknown, never as absent, zero, or a pass |
 | `not-applicable` | Doesn't apply: a rebase record for an image that was never rebased, or the recipe of a rebased image whose rebase record is `verified` (a rebase record that is `present`, `failed`, or `unknown` never excuses a missing recipe) | omit or grey out |
 
 What the report reads out of evidence (`vulnerabilities`, `packages`,
@@ -61,6 +61,12 @@ verified evidence the way `gh attestation verify --signer-workflow` takes it
 kind, name, and stack (`stack`, `stackRef`, `stackDigest`) come from the
 verified recipe of the image it was rebased from, reached through verified
 rebase records, so rebased apps are listed under `stacks` too.
+
+**Platforms.** `metadata.platforms`, when present, lists the only platform
+images the run read (`estate verify --platforms`): per-platform evidence
+(SBOMs and vulnerability reports, `evidence.*.platforms`), findings, and
+packages describe those platforms only. Absent, every platform image was
+read.
 
 **Bases.** `base.strength` says how an image's base is known: `proof` means the
 image starts with the base's exact layer digests (`method: layer-prefix`);

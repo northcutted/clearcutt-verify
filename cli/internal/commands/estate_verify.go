@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -25,6 +26,9 @@ import (
 	"github.com/northcutted/clearcutt-verify/internal/registryauth"
 	"github.com/northcutted/clearcutt-verify/internal/report"
 )
+
+// cosignRunner, when set, runs cosign instead of the binary (tests).
+var cosignRunner func(ctx context.Context, bin string, args ...string) ([]byte, error)
 
 var estateVerifyOpts struct {
 	observations string
@@ -95,7 +99,7 @@ references (--refs), which are imported and observed first.`,
 	f.StringVar(&o.history, "history", "", "Previous estate-history.json to extend (default: the one in --out, if any)")
 	f.BoolVar(&o.reproduce, "reproduce", false, "Rebuild clearcutt-factory images from their signed recipes and compare digests (images with a verified reproduction attestation aren't rebuilt)")
 	f.StringVar(&o.factoryPath, "factory-path", "clearcutt-factory", "clearcutt-factory binary, for --reproduce")
-	f.StringVar(&o.cosignPath, "cosign-path", "cosign", "cosign binary")
+	f.StringVar(&o.cosignPath, "cosign-path", "cosign", "cosign v3 binary (checked before the run; missing or another major version exits 1)")
 	f.StringVar(&o.generatedAt, "generated-at", "", "Deterministic report timestamp (RFC 3339)")
 	f.IntVar(&o.concurrency, "concurrency", 4, "Images to verify at once")
 	f.StringSliceVar(&o.platforms, "platforms", nil, "Read only these platform images (e.g. linux/amd64,linux/arm64); default all. Cuts requests for bases published for many architectures")
@@ -135,6 +139,22 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	}
 	policy.Reproduce = o.reproduce
 
+	// The tools come first: without them every piece of evidence would come
+	// out failed or unknown for a reason that has nothing to do with the
+	// estate. A missing or unusable tool is an operational error (exit 1),
+	// never a policy result.
+	verifier := &estateverify.Verifier{Signers: policy.TrustedSigners, Cosign: o.cosignPath, Run: cosignRunner}
+	if len(policy.TrustedSigners)+len(policy.StackSigners) > 0 {
+		if _, err := verifier.CheckCosign(ctx); err != nil {
+			return err
+		}
+	}
+	if o.reproduce {
+		if _, err := exec.LookPath(o.factoryPath); err != nil {
+			return fmt.Errorf("--reproduce rebuilds images with clearcutt-factory, which is not available (%s): install it, or name it with --factory-path: %w", o.factoryPath, err)
+		}
+	}
+
 	// One cache for the run: the observer, the verifier, and base checks read
 	// many of the same manifests, and registries count each read.
 	ropts := []remote.Option{
@@ -171,7 +191,7 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		Name: o.name, Version: Version, Policy: policy, Sources: sourcesOf(observations),
 		GeneratedAt: o.generatedAt, Concurrency: o.concurrency, Platforms: o.platforms, RemoteOptions: ropts,
 		Discoverer: &estateverify.Discoverer{Options: ropts},
-		Verifier:   &estateverify.Verifier{Signers: policy.TrustedSigners, Cosign: o.cosignPath},
+		Verifier:   verifier,
 		Log:        stderr,
 	}
 	if o.reproduce {

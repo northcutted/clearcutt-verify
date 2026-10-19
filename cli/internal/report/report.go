@@ -63,6 +63,12 @@ type Metadata struct {
 	Generator   Generator `json:"generator"`
 	// Sources are the registries and repositories that were read.
 	Sources []Source `json:"sources"`
+	// Platforms, when set, are the only platform images this run read
+	// (estate verify --platforms), e.g. linux/amd64: evidence attached to an
+	// image's other platform images (SBOMs and vulnerability reports) wasn't
+	// looked at, so per-platform evidence, findings, and packages describe
+	// these platforms only. Absent, every platform image was read.
+	Platforms []string `json:"platforms,omitempty"`
 }
 
 // Generator is the tool that wrote the report.

@@ -68,6 +68,7 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 	if conc <= 0 {
 		conc = 4
 	}
+	opts.Platforms = platformSelection(opts.Platforms)
 
 	r := &report.Report{
 		APIVersion: report.APIVersion,
@@ -76,6 +77,7 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 			Name: opts.Name, GeneratedAt: generatedAt,
 			Generator: report.Generator{Name: "clearcutt-verify", Version: opts.Version},
 			Sources:   opts.Sources,
+			Platforms: opts.Platforms,
 		},
 		Policy:   opts.Policy,
 		Images:   make([]report.Image, len(observations.Images)),
@@ -150,6 +152,19 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 	return r, nil
 }
 
+// platformSelection is the --platforms selection as the report records it:
+// sorted, each once; nil when every platform is read.
+func platformSelection(only []string) []string {
+	var out []string
+	for _, p := range only {
+		if p = strings.TrimSpace(p); p != "" {
+			out = appendUnique(out, p)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 // buildImage verifies one image; Build decides its verdict. named says
 // whether the image names a base of its own (in its annotations or its
 // recipe's lock), which makes it no root.
@@ -176,9 +191,17 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 		return img, nil, false
 	}
 
-	platforms, err := platformImages(ctx, repo, img.Digest, obs, opts.RemoteOptions, opts.Platforms)
-	if err != nil {
-		img.Warnings = append(img.Warnings, "platform images could not be read: "+err.Error())
+	platforms, platformsErr := platformImages(ctx, repo, img.Digest, obs, opts.RemoteOptions, opts.Platforms)
+	if platformsErr != nil {
+		img.Warnings = append(img.Warnings, "platform images could not be read: "+platformsErr.Error())
+	} else if len(platforms) == 0 && len(opts.Platforms) > 0 {
+		// None of them was read: their evidence isn't missing, it wasn't
+		// looked for.
+		platformsErr = fmt.Errorf("none of its platform images is one this run reads (--platforms %s)", strings.Join(opts.Platforms, ","))
+		img.Warnings = append(img.Warnings, platformsErr.Error())
+	}
+	if platforms == nil {
+		platforms = []report.Platform{}
 	}
 	img.Platforms = platforms
 
@@ -186,6 +209,18 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 	// signed to be in.
 	claimedSource := firstNonEmpty(obs.Labels["org.opencontainers.image.source"], obs.Annotations["org.opencontainers.image.source"])
 	ev, data := gatherEvidence(ctx, repo, img.Digest, claimedSource, platforms, opts)
+	if platformsErr != nil {
+		// Evidence attached to each platform image is known only for the
+		// ones that were read: judged on those, an image would pass on the
+		// platforms that happened to be readable. It is unknown, and so is
+		// what it would have told (findings, packages).
+		detail := fmt.Sprintf("Not every platform image could be read (%v), so this evidence is unknown for the image, not judged on the %d that were.", platformsErr, len(platforms))
+		for _, item := range []*report.EvidenceItem{&ev.SBOM, &ev.VulnerabilityScan} {
+			item.Status, item.Detail = "unknown", detail
+		}
+		data.vulns, data.unreadableScans = nil, nil
+		data.packages, data.packagesKnown, data.sbomPlatforms = nil, false, nil
+	}
 	if f := data.factory; f != nil && f.Kind == "" && f.RebasedFrom != "" && data.rebaseVerified {
 		test, err := originalRecipe(ctx, f, claimedSource, opts)
 		if err != nil {

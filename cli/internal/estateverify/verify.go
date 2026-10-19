@@ -84,6 +84,9 @@ func (v *Verifier) Verify(ctx context.Context, subj Subject) (Verified, error) {
 	}
 	flags, signer := exactFlags(*subj.Signer)
 	statements, err := v.verifyWith(ctx, subj, flags)
+	if couldntCheck(err) {
+		return Verified{}, err
+	}
 	if err != nil {
 		return Verified{}, errors.New(notVerified(err))
 	}
@@ -168,10 +171,12 @@ func preferred(accepted []report.Signer, cert report.Signer) report.Signer {
 
 // verifyKeys verifies evidence with no certificate against the trusted keys.
 // A key whose evidence fails only on the transparency log is said to have
-// failed there, not to be the wrong signer.
+// failed there, not to be the wrong signer; when cosign couldn't check it
+// against some key, whether that key signed it is unknown, so it isn't
+// failed either.
 func (v *Verifier) verifyKeys(ctx context.Context, subj Subject) (Verified, error) {
 	var errs []string
-	tlog := false
+	tlog, undecided := false, false
 	for _, s := range v.Signers {
 		if s.Key == "" {
 			errs = append(errs, "no certificate names who signed it")
@@ -184,6 +189,10 @@ func (v *Verifier) verifyKeys(ctx context.Context, subj Subject) (Verified, erro
 		}
 		statements, err := v.verifyWith(ctx, subj, flags)
 		switch {
+		case couldntCheck(err):
+			undecided = true
+			errs = append(errs, fmt.Sprintf("key %s: %v", s.Key, err))
+			continue
 		case err != nil && tlogFailure(err):
 			tlog = true
 			errs = append(errs, fmt.Sprintf("key %s: %v (if this key signs without a transparency log, set tlog: false on its trusted signer)", s.Key, err))
@@ -193,6 +202,9 @@ func (v *Verifier) verifyKeys(ctx context.Context, subj Subject) (Verified, erro
 			continue
 		}
 		return Verified{Trusted: s, Signer: keySigner(s), Statements: statements}, nil
+	}
+	if undecided {
+		return Verified{}, unchecked(errors.New(strings.Join(dedupe(errs), "; ")))
 	}
 	if tlog {
 		return Verified{}, fmt.Errorf("its transparency log inclusion couldn't be verified: %s", strings.Join(dedupe(errs), "; "))
@@ -236,7 +248,7 @@ func verifiedOutput(out []byte, subj Subject) ([][]byte, error) {
 			} `json:"critical"`
 		}
 		if err := dec.Decode(&sigs); err != nil {
-			return nil, fmt.Errorf("cosign's output couldn't be read: %w", err)
+			return nil, unchecked(fmt.Errorf("cosign's output couldn't be read: %w", err))
 		}
 		for _, s := range sigs {
 			if s.Critical.Image.Digest == digest && (s.Critical.Type == cosignImageSignature || s.Critical.Type == PredicateCosignSign) {
@@ -255,7 +267,7 @@ func verifiedOutput(out []byte, subj Subject) ([][]byte, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("cosign's output couldn't be read: %w", err)
+			return nil, unchecked(fmt.Errorf("cosign's output couldn't be read: %w", err))
 		}
 		if statementAbout(env.Payload, subj.PredicateType, digest) {
 			statements = append(statements, env.Payload)
@@ -413,14 +425,21 @@ func (v *Verifier) run(ctx context.Context, args ...string) ([]byte, error) {
 		bin = "cosign"
 	}
 	if v.Run != nil {
-		return v.Run(ctx, bin, args...)
+		out, err := v.Run(ctx, bin, args...)
+		return out, classify(ctx, err)
 	}
 	cmd := exec.CommandContext(ctx, bin, args...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("cosign %s: %v: %s", args[0], err, lastLine(stderr.String()))
+		wrapped := fmt.Errorf("cosign %s: %w: %s", args[0], err, lastLine(stderr.String()))
+		var exit *exec.ExitError
+		if !errors.As(err, &exit) {
+			// cosign didn't run to an answer (not found, not executable).
+			return nil, unchecked(wrapped)
+		}
+		return nil, classify(ctx, wrapped)
 	}
 	return out, nil
 }
@@ -736,7 +755,7 @@ func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageS
 		res, err := v.verifyKeys(ctx, subject(copies[idx[0]]))
 		for _, i := range idx {
 			if err != nil {
-				status[i], detail[i] = "failed", err.Error()
+				status[i], detail[i] = failure(err, err.Error())
 				continue
 			}
 			pass(i, res)
@@ -749,14 +768,16 @@ func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageS
 		if len(cs) > 1 {
 			// Which statements did any identity a trusted signer accepts
 			// sign? Copies holding none can't verify under any signer.
-			genuine, signed := map[string]bool{}, false
+			genuine, signed, undecided := map[string]bool{}, false, false
 			tried := map[string]bool{}
 			for _, c := range cs {
 				for _, s := range c.accepted {
 					flags, _ := signerFlags(s)
 					if k := strings.Join(flags, "\x00"); !tried[k] {
 						tried[k] = true
-						if statements, err := v.verifyWith(ctx, subj, flags); err == nil {
+						statements, err := v.verifyWith(ctx, subj, flags)
+						undecided = undecided || couldntCheck(err)
+						if err == nil {
 							signed = true
 							for _, st := range statements {
 								genuine[string(st)] = true
@@ -765,9 +786,14 @@ func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageS
 					}
 				}
 			}
+			if undecided {
+				// cosign couldn't say which statements are genuine; verify
+				// every claim exactly instead.
+				genuine, signed = nil, true
+			}
 			kept := cs[:0]
 			for _, c := range cs {
-				holds := signed && kind == KindSignature
+				holds := signed && (kind == KindSignature || genuine == nil)
 				for _, i := range c.copies {
 					holds = holds || genuine[string(copies[i].Statement)]
 				}
@@ -786,7 +812,7 @@ func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageS
 			statements, err := v.verifyWith(ctx, subj, flags)
 			for _, i := range c.copies {
 				if err != nil {
-					status[i], detail[i] = "failed", notVerified(err)
+					status[i], detail[i] = failure(err, notVerified(err))
 					continue
 				}
 				pass(i, Verified{Trusted: preferred(c.accepted, c.cert), Signer: signer, Statements: statements})
@@ -801,8 +827,18 @@ func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageS
 		}
 	}
 	if len(verified) == 0 {
-		f := copies[0]
-		return report.EvidenceItem{Status: status[0], Source: sourceName(f), PredicateType: f.PredicateType, Ref: f.Ref, Timestamp: f.Timestamp, Signer: f.Signer, Detail: detail[0]}, nil
+		// The newest copy says why, unless cosign couldn't check one: then
+		// whether a trusted signer signed it is undecided, whatever the
+		// copies anyone can attach say.
+		at := 0
+		for i := range copies {
+			if status[i] == "unknown" {
+				at = i
+				break
+			}
+		}
+		f := copies[at]
+		return report.EvidenceItem{Status: status[at], Source: sourceName(f), PredicateType: f.PredicateType, Ref: f.Ref, Timestamp: f.Timestamp, Signer: f.Signer, Detail: detail[at]}, nil
 	}
 	// Newest first: by the signed scan time for scans (not when the
 	// registry says a copy was attached), else as attached.

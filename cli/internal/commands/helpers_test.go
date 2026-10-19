@@ -2,6 +2,8 @@ package commands
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"testing"
 )
 
@@ -23,4 +25,25 @@ func runCLI(t *testing.T, args ...string) (string, error) {
 
 	err := cmd.Execute()
 	return buf.String(), err
+}
+
+// withCosign stands in for cosign for the rest of the test: it says it is
+// version (v3.1.3 when empty), and answers every other run with run, or,
+// without one, as cosign does when nothing verifies.
+func withCosign(t *testing.T, version string, run func(args []string) ([]byte, error)) {
+	t.Helper()
+	if version == "" {
+		version = "v3.1.3"
+	}
+	old := cosignRunner
+	cosignRunner = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		if len(args) > 0 && args[0] == "version" {
+			return []byte(`{"gitVersion":"` + version + `"}`), nil
+		}
+		if run == nil {
+			return nil, errors.New("error during command execution: no matching signatures")
+		}
+		return run(args)
+	}
+	t.Cleanup(func() { cosignRunner = old })
 }

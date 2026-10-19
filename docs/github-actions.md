@@ -68,7 +68,10 @@ jobs:
 - **Gate.** `--fail-on failed` (or `unverified`) exits **2** when an image falls
   short of the policy. Usage and runtime errors exit **1**, so a red policy
   result is distinguishable from a crash (`steps.verify.outcome` plus the exit
-  code).
+  code); so does a missing cosign, or one that isn't cosign v3 (the action
+  installs a v3), checked before anything is read. Evidence cosign couldn't
+  check during the run (a registry or the transparency log failing) is
+  `unknown`, so the image is `unverified`, never `failed` for that reason.
 - **Throttling.** Registry lookups retry with backoff on 408, 429, and 5xx. A
   refusal that persists is reported as `unknown` for the images it affects, not
   as missing evidence. A run reads each manifest once; `--concurrency` bounds

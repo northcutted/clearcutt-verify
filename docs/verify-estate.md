@@ -28,7 +28,13 @@ instead.
    bundles as plain signatures.
 2. **Verification.** Each piece of evidence is verified with cosign against
    the policy's trusted signers. Anything not signed by one of them is
-   `failed`, never quietly accepted. cosign is asked for exactly the signer
+   `failed`, never quietly accepted. Evidence cosign couldn't check (it
+   couldn't reach the registry or the transparency log, the registry refused
+   it, or cosign couldn't run) is `unknown`, not `failed`, and its `detail`
+   says what went wrong; whether a trusted signer signed it is undecided.
+   Before reading anything, the run checks that cosign is there and is cosign
+   v3 (the version whose bundles and output it reads), and stops with exit 1
+   if not. cosign is asked for exactly the signer
    the evidence's certificate names (its identity and issuer, and for GitHub
    Actions the repository and ref of the run), once a trusted signer accepts
    that signer, so the signer the report shows on verified evidence is the
@@ -340,8 +346,13 @@ attestation are `not-checked`.
 - **Registry rate limits.** Docker Hub limits anonymous manifest reads (100 an
   hour). A run reads each manifest once, but bases published for many
   architectures cost a read per platform image; `--platforms
-  linux/amd64,linux/arm64` reads only those. Lookups the registry refuses are
-  reported as `unknown`, not `missing`. Logging in (`docker login`) raises the
+  linux/amd64,linux/arm64` reads only those, and the report records the
+  selection (`metadata.platforms`): SBOMs, scans, findings, and packages then
+  describe those platforms only. An image none of whose platform images is
+  selected, or whose platform images couldn't all be read, has its SBOM and
+  vulnerability scan `unknown`, not judged on the platforms that happened to
+  be read. Lookups the registry refuses are reported as `unknown`, not
+  `missing`. Logging in (`docker login`) raises the
   limit; `clearcutt-verify` reads the same credentials.
 - **Scanners: grype only, for now.** Vulnerability findings are read from
   cosign vulnerability attestations (`https://cosign.sigstore.dev/attestation/vuln/v1`)

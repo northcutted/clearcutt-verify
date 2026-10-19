@@ -14,7 +14,15 @@ The CLI distinguishes "the gate said no" from "the gate could not run":
 | `2` | Policy gate failed: a check evaluated and rejected the input. |
 
 Exit code 2 comes from `estate verify --fail-on failed|unverified` and
-`graph build --fail-on-stale`. Scripts can branch on the code:
+`graph build --fail-on-stale`. `estate verify` checks its tools before it
+reads anything: cosign must be on `PATH` (or `--cosign-path`) and be cosign
+v3 whenever the policy trusts a signer, and `--reproduce` needs
+`clearcutt-factory` (or `--factory-path`). A missing tool, or a cosign of
+another major version, exits 1 and writes no report. Evidence cosign couldn't
+check during the run (a registry or the transparency log unreachable or
+refusing) is `unknown`, which leaves the image `unverified`: exit 2 under
+`--fail-on unverified`, not under `--fail-on failed`. Scripts can branch on
+the code:
 
 ```text
 clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --out dist/estate --fail-on failed; case $? in

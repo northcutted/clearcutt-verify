@@ -29,6 +29,10 @@
           "library/redis"
         ]
       }
+    ],
+    "platforms": [
+      "linux/amd64",
+      "linux/arm64"
     ]
   },
   "policy": {
