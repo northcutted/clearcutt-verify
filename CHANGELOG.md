@@ -108,6 +108,13 @@ When a release is cut, move these entries under a heading for its version.
   lists why each image that isn't verified isn't, `--quiet` prints nothing
   but errors and the `--fail-on` result, and `--format json|yaml` prints the
   report itself instead of the table.
+- CI runs the real cosign: a new required job (`cosign-e2e`, in the PR Gate
+  Summary) signs and attests two-platform images with cosign v3 key pairs in
+  `registry:2` (no Referrers API: the referrers tag) and `registry:3` (the
+  Referrers API), and checks the verdicts `estate verify` reaches (a
+  verified image, one signed by another key, a Trivy scan, an unsigned one)
+  and that `estate pull` reads a signed bundle back only for the key that
+  signed it. Every other test fakes cosign.
 - **`estate push --history` no longer resets the history on a read error.**
   Any error reading the history index (401, 429, 5xx included) started an
   empty index, which the push then wrote over the series. A new series now
