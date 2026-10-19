@@ -373,8 +373,9 @@ type EvidenceItem struct {
 	// Status is verified (found and checked against a trusted signer),
 	// present (found but not checked: no trusted signer applies, or it
 	// can't be checked), failed (found, and the check failed), missing
-	// (looked for, none), unknown (couldn't be looked for), or
-	// not-applicable (e.g. a rebase record for an image never rebased).
+	// (looked for, none), unknown (couldn't be looked for or checked), or
+	// not-applicable (a rebase record for an image never rebased, or the
+	// recipe of a rebased image whose rebase record is verified).
 	Status string `json:"status" enum:"verified,present,failed,missing,unknown,not-applicable"`
 	// Source is where it was found: cosign-signature, cosign-attestation,
 	// github-attestation, or oci-referrer (an unsigned document). Open: new

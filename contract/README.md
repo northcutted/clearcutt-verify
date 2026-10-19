@@ -44,7 +44,7 @@ difference between them is the point:
 | `failed` | Found, and the check failed (wrong signer, bad signature, digest mismatch) | a problem |
 | `missing` | Looked for, and there is none | absent |
 | `unknown` | Couldn't be looked for (registry error, unsupported store) | unknown, never as absent, zero, or a pass |
-| `not-applicable` | Doesn't apply (a rebase record for an image that was never rebased) | omit or grey out |
+| `not-applicable` | Doesn't apply: a rebase record for an image that was never rebased, or the recipe of a rebased image whose rebase record is `verified` (a rebase record that is `present`, `failed`, or `unknown` never excuses a missing recipe) | omit or grey out |
 
 What the report reads out of evidence (`vulnerabilities`, `packages`,
 `source` with `basis: provenance`, `factory`) comes only from evidence that is

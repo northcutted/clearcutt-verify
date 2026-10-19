@@ -63,6 +63,11 @@ instead.
    every image is `unverified`, and so is an image none of whose evidence
    verified, whatever else the policy checks. Checks that read no evidence
    (`maxDaysBehind`, `--reproduce`) can't verify an image on their own.
+   Only `verified` evidence meets a requirement. A rebased image needs no
+   recipe of its own (`recipe: not-applicable`) only when its rebase record
+   is `verified`; a missing recipe beside a rebase record that is `present`
+   or `unknown` leaves the image `unverified`, and beside one that `failed`,
+   `failed`.
 
 ## The policy
 

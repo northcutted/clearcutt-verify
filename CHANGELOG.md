@@ -18,6 +18,17 @@ commands and flags, the estate report contract, the action, release assets).
 When a release is cut, move these entries under a heading for its version.
 -->
 
+- **An untrusted rebase record no longer satisfies a required `recipe`.** Any
+  rebase record that wasn't `missing` (one signed by someone else, `failed`;
+  one no trusted signer applied to, `present`) made the recipe
+  `not-applicable`, and `not-applicable` met `required: [recipe]`, so an image
+  could be `verified` on evidence nobody trusted. The recipe is now
+  `not-applicable` only when the rebase record is `verified` and names the
+  image it was rebased from; otherwise it stays `missing`, and its `detail`
+  says why the record doesn't count. The verdict accepts `not-applicable`
+  only for that recipe: a missing recipe beside a `present` or `unknown`
+  rebase record is `unverified`, beside a `failed` one `failed`.
+
 ## v0.16.0
 
 Released 2026-10-16.

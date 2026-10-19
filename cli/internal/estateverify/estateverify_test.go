@@ -385,8 +385,9 @@ func TestReadProvenanceSource(t *testing.T) {
 
 func TestVerdict(t *testing.T) {
 	ok := report.EvidenceItem{Status: "verified"}
+	// A rebased image: its verified rebase record stands in for the recipe.
 	img := report.Image{Evidence: report.Evidence{Signature: ok, SBOM: ok, VulnerabilityScan: ok, Provenance: ok,
-		Recipe: report.EvidenceItem{Status: "not-applicable"}, Rebase: report.EvidenceItem{Status: "not-applicable"}, Tests: report.EvidenceItem{Status: "missing"}},
+		Recipe: report.EvidenceItem{Status: "not-applicable"}, Rebase: ok, Tests: report.EvidenceItem{Status: "missing"}},
 		Vulnerabilities: &report.Vulnerabilities{Findings: []report.Finding{{ID: "CVE-1", Severity: "critical"}}}}
 	acme := []report.Signer{{IdentityRegexp: `^https://github\.com/acme/`, Issuer: ghIssuer}}
 	p := report.Policy{Required: []string{"signature", "sbom", "recipe"}, TrustedSigners: acme, FailOn: "critical", OnlyFixed: true}

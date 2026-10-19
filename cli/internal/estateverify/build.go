@@ -689,13 +689,21 @@ func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platf
 	}
 
 	// A rebased image carries a rebase record instead of a recipe and build
-	// provenance: it was never built, its layers were moved.
-	if items[KindRebase].Status == "missing" {
+	// provenance: it was never built, its layers were moved. Only a rebase
+	// record a trusted signer verified (and that names the image it was
+	// rebased from) stands in for the recipe: one that is present, failed,
+	// or unknown is no reason to excuse a missing recipe.
+	switch rebase := items[KindRebase].Status; {
+	case rebase == "missing":
 		items[KindRebase] = &report.EvidenceItem{Status: "not-applicable", Detail: "No rebase record: the image was built, not rebased."}
-	} else if items[KindRecipe].Status == "missing" {
-		items[KindRecipe] = &report.EvidenceItem{Status: "not-applicable", Detail: "Rebased: the rebase record names the image that was built from a recipe."}
+	case items[KindRecipe].Status != "missing":
+	case rebase == "verified" && data.rebaseVerified:
+		items[KindRecipe] = &report.EvidenceItem{Status: "not-applicable", Detail: "Rebased: the verified rebase record names the image that was built from a recipe."}
+	default:
+		items[KindRecipe].Detail = "No clearcutt-factory recipe. A rebase record is attached, but it is " + rebase +
+			" (not a verified record naming the image it was rebased from), so it doesn't stand in for one."
 	}
-	if items[KindRecipe].Status == "missing" {
+	if items[KindRecipe].Status == "missing" && items[KindRecipe].Detail == "" {
 		items[KindRecipe].Detail = "No clearcutt-factory recipe."
 	}
 	if items[KindTests].Status == "missing" && data.recipeTest != "" {

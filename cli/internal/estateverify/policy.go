@@ -169,18 +169,32 @@ func verdictAt(img report.Image, p report.Policy, now time.Time) report.Verdict 
 		// that read no evidence (base drift, scan age) can't stand alone.
 		unverified = append(unverified, "none of its evidence is verified, so a trusted signer vouched for nothing about it")
 	}
+	// Only verified evidence meets a requirement. The one exception is a
+	// recipe that doesn't apply because the image was rebased, and that holds
+	// only when its rebase record is verified: anything a trusted signer
+	// didn't vouch for (present, failed, unknown, missing) never stands in.
+	rebase := img.Evidence.Rebase.Status
 	for _, k := range p.Required {
 		item := evidenceItem(img.Evidence, k)
-		switch item.Status {
-		case "verified", "not-applicable":
-		case "present":
+		switch st := item.Status; {
+		case st == "verified":
+		case st == "not-applicable" && k == KindRecipe && rebase == "verified":
+		case st == "not-applicable":
+			unverified = append(unverified, k+" is not applicable, and no verified evidence stands in for it")
+		case st == "present":
 			unverified = append(unverified, k+" is present but not verified")
-		case "unknown":
-			unverified = append(unverified, k+" is unknown (couldn't be read)")
-		case "failed":
+		case st == "unknown":
+			unverified = append(unverified, k+" is unknown (couldn't be read or checked)")
+		case st == "failed":
 			failed = append(failed, k+" failed verification")
-		default:
+		case k == KindRecipe && (rebase == "present" || rebase == "unknown"):
+			// A rebased image has no recipe of its own; whether this one was
+			// rebased rests on a record nobody could vouch for.
+			unverified = append(unverified, "recipe is missing, and the rebase record that would stand in for it is "+rebase+", not verified")
+		case st == "missing" || st == "":
 			failed = append(failed, k+" is missing")
+		default:
+			unverified = append(unverified, fmt.Sprintf("%s has status %q, which isn't verified", k, st))
 		}
 	}
 	if p.FailOn != "" {
