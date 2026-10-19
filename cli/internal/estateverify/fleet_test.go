@@ -456,8 +456,8 @@ func TestRebasedAppKeepsItsStack(t *testing.T) {
 		strings.Join(st.Versions[0].Images, ",") != "apps/catalog" || !st.Versions[0].Current {
 		t.Errorf("stack: %+v", st)
 	}
-	// The rebase record doesn't say whether the smoke test ran.
-	if e := c.Evidence.Tests; e.Status != "missing" || !strings.Contains(e.Detail, "GET :8080/healthz") || !strings.Contains(e.Detail, "doesn't say whether") {
+	// The rebase record names no smoke test that ran.
+	if e := c.Evidence.Tests; e.Status != "missing" || !strings.Contains(e.Detail, "GET :8080/healthz") || !strings.Contains(e.Detail, "names no smoke test that ran") {
 		t.Errorf("rebased app tests: %+v", e)
 	}
 

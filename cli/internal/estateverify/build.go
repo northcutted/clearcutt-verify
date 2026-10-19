@@ -227,10 +227,10 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 			img.Warnings = append(img.Warnings, "the recipe of the image it was rebased from couldn't be read: "+err.Error())
 		}
 		if test != "" && ev.Tests.Status == "missing" {
-			// The rebase record doesn't say whether a smoke test ran, so the
+			// The rebase record names no smoke test that ran, so the
 			// original's declared test can't stand for the rebased image.
 			ev.Tests.Detail = "No test attestation. The recipe of the image it was rebased from declares a smoke test (" + test +
-				"), but the rebase record doesn't say whether the rebase ran it: clearcutt-factory runs the app's smoke test when it rebases from the app manifest (rebase -f, as its fleet workflow does), not when it rebases --image or with --no-test."
+				"), but the verified rebase record names no smoke test that ran: clearcutt-factory (v0.2.0 and later) records the test it runs when it rebases from the app manifest (rebase -f, as its fleet workflow does); it runs none with rebase --image or --no-test, and earlier versions don't record it."
 		}
 	}
 	baseOf(&img, obs, graph, ids, created)
@@ -656,6 +656,8 @@ type imageData struct {
 	sbomPlatforms []string
 	// recipeTest describes the smoke test a verified recipe declares.
 	recipeTest string
+	// rebaseTest is the smoke test a verified rebase record says ran.
+	rebaseTest *rebaseTest
 	// unreadableScans are platforms whose verified vulnerability scan
 	// couldn't be read.
 	unreadableScans []string
@@ -747,6 +749,10 @@ func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platf
 		items[KindTests] = &report.EvidenceItem{Status: "present", Source: "recipe",
 			Detail: "The verified recipe declares a smoke test (" + data.recipeTest + ") that clearcutt-factory runs on every platform before it pushes; the result isn't separately attested."}
 	}
+	if items[KindTests].Status == "missing" && data.rebaseVerified && data.rebaseTest != nil && items[KindRebase].Status == "verified" {
+		tests := testsFromRebase(data.rebaseTest, *items[KindRebase], platforms)
+		items[KindTests] = &tests
+	}
 	if items[KindTests].Status == "missing" {
 		items[KindTests].Detail = "No test attestation."
 	}
@@ -757,6 +763,51 @@ func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platf
 		Signature: *items[KindSignature], SBOM: *items[KindSBOM], VulnerabilityScan: *items[KindVulnerabilityScan],
 		Provenance: *items[KindProvenance], Recipe: *items[KindRecipe], Rebase: *items[KindRebase], Tests: *items[KindTests],
 	}, data
+}
+
+// testsFromRebase is what a verified rebase record says about the smoke
+// test that ran on the rebased image: clearcutt-factory runs the app's test
+// on every platform before it publishes a rebase, and records each result in
+// the signed record. It is verified only when the record says the test
+// passed on every platform the rebase built and every platform image read;
+// failed when it says one didn't pass; present when it says nothing about
+// one. It is stored where the record is, so checking the record checks it.
+func testsFromRebase(t *rebaseTest, rebase report.EvidenceItem, platforms []report.Platform) report.EvidenceItem {
+	item := report.EvidenceItem{Source: rebase.Source, PredicateType: rebase.PredicateType, Ref: rebase.Ref, Timestamp: rebase.Timestamp,
+		Signer: rebase.Signer, SignerWorkflow: rebase.SignerWorkflow}
+	want := append([]string{}, t.Built...)
+	for p := range t.Platforms {
+		want = appendUnique(want, p)
+	}
+	for _, p := range platforms {
+		if p.Platform != "" && p.Platform != "unknown" {
+			want = appendUnique(want, p.Platform)
+		}
+	}
+	sort.Strings(want)
+	var passed, failed, unsaid []string
+	for _, p := range want {
+		switch r := t.Platforms[p]; r {
+		case "passed":
+			passed = append(passed, p)
+		case "":
+			unsaid = append(unsaid, p)
+		default:
+			failed = append(failed, p+" ("+r+")")
+		}
+	}
+	test := "The verified rebase record says the smoke test (" + t.describe() + ")"
+	switch {
+	case len(failed) > 0:
+		item.Status, item.Detail = "failed", test+" didn't pass on "+strings.Join(failed, ", ")+"."
+	case len(passed) == 0:
+		item.Status, item.Detail = "present", test+" ran, but gives no result for any platform."
+	case len(unsaid) > 0:
+		item.Status, item.Detail = "present", test+" passed on "+strings.Join(passed, ", ")+", and says nothing about "+strings.Join(unsaid, ", ")+"."
+	default:
+		item.Status, item.Detail = "verified", test+" passed on "+strings.Join(passed, ", ")+" before clearcutt-factory published the rebased image."
+	}
+	return item
 }
 
 // verifyKind verifies kind on one subject, records what the verified
@@ -822,6 +873,7 @@ func verifyKind(ctx context.Context, repo, digest, kind, imageSource string, fou
 			}
 			data.rebaseVerified = true
 			data.rebaseSigner = &signer
+			data.rebaseTest = readRebaseTest(pred)
 		}
 	case KindProvenance:
 		if s, ok := readProvenanceSource(pred); ok {

@@ -229,7 +229,7 @@
               "$ref": "#/$defs/EvidenceItem"
             }
           ],
-          "description": "Tests is evidence that the image was tested (a smoke test or test attestation)."
+          "description": "Tests is evidence that the image was tested: a test-result attestation; the smoke test a verified clearcutt-factory rebase record says passed on every platform (it then names that record: predicateType, ref, signer); or, present with source recipe, the smoke test a verified recipe declares."
         },
         "vulnerabilityScan": {
           "allOf": [

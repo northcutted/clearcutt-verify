@@ -369,8 +369,11 @@ type Evidence struct {
 	// Rebase is a clearcutt-factory rebase record, for images whose layers
 	// were moved onto a newer base without a rebuild.
 	Rebase EvidenceItem `json:"rebase"`
-	// Tests is evidence that the image was tested (a smoke test or test
-	// attestation).
+	// Tests is evidence that the image was tested: a test-result
+	// attestation; the smoke test a verified clearcutt-factory rebase record
+	// says passed on every platform (it then names that record:
+	// predicateType, ref, signer); or, present with source recipe, the smoke
+	// test a verified recipe declares.
 	Tests EvidenceItem `json:"tests"`
 }
 

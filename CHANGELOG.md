@@ -94,6 +94,16 @@ When a release is cut, move these entries under a heading for its version.
   keychain, each entry to its own registry. On `ghcr.io`, a `docker login`
   now takes precedence over `GITHUB_TOKEN`, as it already did for `estate
   verify`.
+- **Rebased images read their smoke test from the rebase record.**
+  clearcutt-factory v0.2.0 and later record in the signed rebase record the
+  smoke test a rebase ran (`test`: the app's `spec.test` and each platform's
+  result), but rebased images still showed `tests: missing`. A verified
+  rebase record whose test passed on every platform the rebase built and
+  every platform image read now makes `tests` `verified`, pointing at the
+  record (`predicateType`, `ref`, `signer`); one that says it didn't pass on
+  a platform makes it `failed`, and one silent about a platform `present`.
+  Records without `test`, and records that aren't verified, leave it
+  `missing`.
 - **`estate push --history` no longer resets the history on a read error.**
   Any error reading the history index (401, 429, 5xx included) started an
   empty index, which the push then wrote over the series. A new series now

@@ -420,6 +420,51 @@ func readRebase(pred json.RawMessage) (*report.Factory, bool) {
 	return &report.Factory{Version: r.Factory.Version, RebasedFrom: r.Image}, true
 }
 
+// rebaseTest is the smoke test a clearcutt-factory rebase record says ran on
+// the rebased image before it was published (clearcutt-factory v0.2.0 and
+// later): the app's spec.test as declared, and each platform's result.
+type rebaseTest struct {
+	Command []string `json:"command"`
+	HTTP    *struct {
+		Port int    `json:"port"`
+		Path string `json:"path"`
+	} `json:"http"`
+	// Platforms is each platform's result (passed).
+	Platforms map[string]string `json:"platforms"`
+	// Built are the platforms the record's result names: the rebased image's.
+	Built []string `json:"-"`
+}
+
+// readRebaseTest reads the smoke test a rebase record says ran, or nil when
+// it names none (rebase --image, --no-test, or an older clearcutt-factory).
+func readRebaseTest(pred json.RawMessage) *rebaseTest {
+	var r struct {
+		Test   *rebaseTest `json:"test"`
+		Result struct {
+			Platforms map[string]string `json:"platforms"`
+		} `json:"result"`
+	}
+	if json.Unmarshal(pred, &r) != nil || r.Test == nil {
+		return nil
+	}
+	for p := range r.Result.Platforms {
+		r.Test.Built = append(r.Test.Built, p)
+	}
+	sort.Strings(r.Test.Built)
+	return r.Test
+}
+
+// describe says what the test checks, as a recipe's test is described.
+func (t *rebaseTest) describe() string {
+	switch {
+	case t.HTTP != nil:
+		return fmt.Sprintf("GET :%d%s", t.HTTP.Port, firstNonEmpty(t.HTTP.Path, "/"))
+	case len(t.Command) > 0:
+		return strings.Join(t.Command, " ")
+	}
+	return "unnamed"
+}
+
 // readProvenanceSource reads the source repository and revision from SLSA
 // provenance (v1 GitHub Actions builds, and v0.2).
 func readProvenanceSource(pred json.RawMessage) (*report.SourceRef, bool) {

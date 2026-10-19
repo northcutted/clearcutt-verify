@@ -292,10 +292,16 @@ anyway, and warns.
   `signer.sourceRepository`.
 - `tests` is `present` (source `recipe`) for clearcutt-factory images whose
   verified recipe declares a smoke test: factory runs it on every platform
-  before pushing, but doesn't attest the result. A rebased image's stays
-  `missing`: its rebase record doesn't say whether a smoke test ran
-  (`rebase -f app.yaml` runs the app's; `rebase --image` and `--no-test`
-  don't), and its `detail` names the test the original's recipe declares.
+  before pushing, but doesn't attest the result. A rebased image's comes from
+  its verified rebase record, which (clearcutt-factory v0.2.0 and later)
+  names the smoke test the rebase ran and each platform's result: `verified`
+  when it passed on every platform the rebase built and every platform image
+  read, `failed` when the record says it didn't pass on one, `present` when
+  it says nothing about one. The item points at the rebase record
+  (`predicateType`, `ref`, `signer`), so checking the record checks it. A
+  record that names no test (`rebase --image`, `--no-test`, or an earlier
+  clearcutt-factory) leaves it `missing`, and its `detail` names the test the
+  original's recipe declares.
 - Each history entry has a row per image (`images`): its digest, verdict, base,
   rebase, and vulnerability counts in that run, for per-image history. Rows
   also list the IDs of the image's fixable high and critical findings
@@ -370,7 +376,9 @@ attestation are `not-checked`.
   still verified, but its findings aren't read: the image's vulnerabilities
   are unknown (no `vulnerabilities`, a warning, and the scan's `detail` says
   why), never zero, so `failOn` and `maxScanAgeDays` leave it `unverified`.
-- **Tests.** Test evidence counts only as a test-result attestation
+- **Tests.** Test evidence counts as a test-result attestation, or as the
+  smoke test a verified clearcutt-factory rebase record says passed (a
+  recipe's declared test is only `present`): a test-result attestation
   (`https://in-toto.io/attestation/test-result/…`).
 - **Speed.** Each signer of each kind of evidence on an image is one cosign
   verification; when copies name more than one signer, one more per trusted
