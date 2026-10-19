@@ -20,6 +20,22 @@ When a release is cut, move these entries under a heading for its version.
 
 ### Breaking
 
+- **Image IDs come from the whole reference.** An image's `id` was its
+  repository's last path segment and tag (`billing-1-2`), with `-2`, `-3`
+  added to repeats in the order references were listed, so two registries'
+  `static` images could swap IDs between runs. It is now the registry,
+  repository path, and tag (or a digest's first 12 hex digits), lower-cased,
+  with other characters made dashes and the tag `latest` left out:
+  `ghcr-io-acme-billing-1-2`, `cgr-dev-chainguard-static`. References that
+  spell the same ID each get the first 8 hex digits of the sha256 of the
+  reference appended, so IDs no longer depend on input order. This applies to
+  `import images`, `registry scan`, and `estate verify --refs`; `estate
+  verify` also gives any observation whose ID is missing, repeated, or not a
+  URL path segment the ID its reference gives. A reference listed twice is
+  imported once. Readers that kept IDs (links, compare-runs) see each image
+  under a new ID once; `estate verify` renames the rows of earlier runs in
+  the history it extends when exactly one current image had the old ID. The
+  fixture and example bundles use the new IDs.
 - **`estate pull` verifies the signature of what it pulls.** It checked only
   the artifact's media type, so anyone who could push to the repository could
   hand the next scheduled run a history of their making. It now writes
@@ -42,6 +58,15 @@ When a release is cut, move these entries under a heading for its version.
 
 ### Changed
 
+- **Every report and history is checked against the contract before it is
+  written.** `estate verify` validates both documents against the schemas in
+  `contract/` (compiled into the binary from the same types) and writes
+  nothing, exiting 1, when either doesn't match, so a bug can't publish a
+  bundle a portal would reject. A previous `estate-history.json` that isn't a
+  valid history now stops the run instead of being extended.
+- **`reproducibility.checkedAt` is the report's time** for images this run
+  rebuilt (`--reproduce`), not the wall clock, so `--generated-at` makes the
+  whole report reproducible.
 - **An untrusted rebase record no longer satisfies a required `recipe`.** Any
   rebase record that wasn't `missing` (one signed by someone else, `failed`;
   one no trusted signer applied to, `present`) made the recipe

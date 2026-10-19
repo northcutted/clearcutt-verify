@@ -112,12 +112,29 @@
       },
       "images": [
         {
-          "id": "amazonlinux-2023",
+          "id": "cgr-dev-chainguard-static",
+          "digest": "sha256:fe55470f22d3259488d9d3739168d8f04da67755f0b69382bc26eda4a7d3d327",
+          "verdict": "unverified",
+          "packagesDigest": "sha256:ec9778eb1f3778faaf817f521908fa1b06ae034a6fc0a18a18ebf4ddf7562d71"
+        },
+        {
+          "id": "cgr-dev-chainguard-wolfi-base",
+          "digest": "sha256:1c451d46a0d5c4e9f2b38e0e8d3e299564a1aa95c21973efcc1980a9d1d2e73e",
+          "verdict": "unverified",
+          "packagesDigest": "sha256:9ca191ab524adf8e0066d2fef72a495debfeecf6e906a46c45f64960a0c2c5cb"
+        },
+        {
+          "id": "docker-io-library-amazonlinux-2023",
           "digest": "sha256:8ed3c0a996841537f75607e7d1de2114d8150391f75792e8da9268738547e73f",
           "verdict": "failed"
         },
         {
-          "id": "amazonlinux-tools",
+          "id": "docker-io-library-debian-trixie-slim",
+          "digest": "sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f",
+          "verdict": "failed"
+        },
+        {
+          "id": "ghcr-io-northcutted-images-amazonlinux-tools",
           "digest": "sha256:d2f9195b3966d6beebc5ebbf83c22a92eb719399aca923473516ceed01f517f2",
           "verdict": "verified",
           "base": {
@@ -147,7 +164,7 @@
           "packagesDigest": "sha256:28061ddc7202e931d91b051aea4283f14b50d1e2e2211741c4f8fbf80a7d7453"
         },
         {
-          "id": "debian-tools",
+          "id": "ghcr-io-northcutted-images-debian-tools",
           "digest": "sha256:867c6cbf7f445e6571356c30130010a4d1c60d3432000ce45cf394e59c03816c",
           "verdict": "verified",
           "base": {
@@ -177,12 +194,7 @@
           "packagesDigest": "sha256:79a15a838bec2b0d1e2b2813a1f5fb44dedb9923e84c3a594795541fcc7514f9"
         },
         {
-          "id": "debian-trixie-slim",
-          "digest": "sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f",
-          "verdict": "failed"
-        },
-        {
-          "id": "hello-app",
+          "id": "ghcr-io-northcutted-images-hello-app",
           "digest": "sha256:4350805faaa3691ff14c1e9edd5ff4cfb274c840f906bae0d05cf649ac18a0e5",
           "verdict": "verified",
           "base": {
@@ -201,7 +213,7 @@
           "packagesDigest": "sha256:e494620031c6243bf104c3ec15c9a2d4497592dacc0daf05b11268cd174f6ebf"
         },
         {
-          "id": "platform-tools",
+          "id": "ghcr-io-northcutted-images-platform-tools",
           "digest": "sha256:bf7990acf59ee88704a3a0b6fa280cb74ba771b86ccc1ce3a911e4122afc3591",
           "verdict": "verified",
           "base": {
@@ -245,18 +257,6 @@
             "GO-2026-6629"
           ],
           "packagesDigest": "sha256:06605045561d1eebdbd395a94e4f4995363b11e8c1c7b7abb8d700c4e9fe63a4"
-        },
-        {
-          "id": "static",
-          "digest": "sha256:fe55470f22d3259488d9d3739168d8f04da67755f0b69382bc26eda4a7d3d327",
-          "verdict": "unverified",
-          "packagesDigest": "sha256:ec9778eb1f3778faaf817f521908fa1b06ae034a6fc0a18a18ebf4ddf7562d71"
-        },
-        {
-          "id": "wolfi-base",
-          "digest": "sha256:1c451d46a0d5c4e9f2b38e0e8d3e299564a1aa95c21973efcc1980a9d1d2e73e",
-          "verdict": "unverified",
-          "packagesDigest": "sha256:9ca191ab524adf8e0066d2fef72a495debfeecf6e906a46c45f64960a0c2c5cb"
         }
       ]
     },

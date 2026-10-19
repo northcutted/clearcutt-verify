@@ -54,11 +54,11 @@ func TestImportRefsInfersLanguagesAndUnknowns(t *testing.T) {
 			t.Fatalf("%s should not claim provenance, got %q", image.ID, image.Origin.ProvenanceClaim)
 		}
 	}
-	if byID["java21-runtime-2026-07-01"].Language.ID != "java" || byID["java21-runtime-2026-07-01"].Language.Version != "21" {
-		t.Fatalf("java inference failed: %+v", byID["java21-runtime-2026-07-01"].Language)
+	if byID["registry-example-com-platform-java21-runtime-2026-07-01"].Language.ID != "java" || byID["registry-example-com-platform-java21-runtime-2026-07-01"].Language.Version != "21" {
+		t.Fatalf("java inference failed: %+v", byID["registry-example-com-platform-java21-runtime-2026-07-01"].Language)
 	}
-	if byID["mystery-box"].Language.ID != "unknown" || byID["mystery-box"].Governance.ClassificationConfidence != "low" {
-		t.Fatalf("unknown classification failed: %+v", byID["mystery-box"])
+	if byID["registry-example-com-platform-mystery-box"].Language.ID != "unknown" || byID["registry-example-com-platform-mystery-box"].Governance.ClassificationConfidence != "low" {
+		t.Fatalf("unknown classification failed: %+v", byID["registry-example-com-platform-mystery-box"])
 	}
 }
 

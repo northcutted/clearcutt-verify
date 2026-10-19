@@ -378,7 +378,7 @@ func TestBaseAgeAndRoots(t *testing.T) {
 	if s := img["svc"]; s.Base == nil || s.Base.ImageID != "liar" {
 		t.Errorf("svc base: %+v", s.Base)
 	}
-	if n := img["nix"]; n.Root == "" {
+	if n := img["nix-2"]; n.Root == "" {
 		t.Errorf("nix is a root: %+v", n)
 	}
 }

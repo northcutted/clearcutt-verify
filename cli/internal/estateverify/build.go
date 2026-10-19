@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -54,6 +55,8 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 	if generatedAt == "" {
 		generatedAt = time.Now().UTC().Format(time.RFC3339)
 	}
+	opts.GeneratedAt = generatedAt
+	observations.Images = uniqueImages(observations.Images)
 	graph, err := estategraph.BuildGraph(observations, estategraph.GraphOptions{GeneratedAt: generatedAt})
 	if err != nil {
 		return nil, fmt.Errorf("base graph: %w", err)
@@ -150,6 +153,55 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 	r.Packages = packageIndex(observations, packagesByImage)
 	r.Summary = summarize(r)
 	return r, nil
+}
+
+// idPattern is what an image ID may be: one URL path segment.
+var idPattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
+// uniqueImages lists each observed image once, with an ID the report can use:
+// unique, and one URL path segment (readers name pages after it). The same
+// reference observed twice is one image. An observation whose ID is missing,
+// isn't a path segment, or is shared with another gets the ID its reference
+// gives (estategraph.AssignIDs), which depends only on the reference, so the
+// result doesn't depend on the order observations come in.
+func uniqueImages(images []estategraph.Observation) []estategraph.Observation {
+	var out []estategraph.Observation
+	listed := map[string]bool{}
+	for _, o := range images {
+		key := o.ID + "\x00" + o.SourceRef + "\x00" + o.DigestRef
+		if !listed[key] {
+			listed[key] = true
+			out = append(out, o)
+		}
+	}
+	count := map[string]int{}
+	for _, o := range out {
+		count[o.ID]++
+	}
+	var refs []string
+	var redo []int
+	taken := map[string]bool{}
+	for i, o := range out {
+		if count[o.ID] == 1 && idPattern.MatchString(o.ID) {
+			taken[o.ID] = true
+			continue
+		}
+		redo = append(redo, i)
+		refs = append(refs, firstNonEmpty(o.SourceRef, o.DigestRef, o.ID))
+	}
+	ids := estategraph.AssignIDs(refs)
+	for k, i := range redo {
+		id := ids[k]
+		for n := 2; taken[id] || !idPattern.MatchString(id); n++ {
+			id = fmt.Sprintf("%s-%d", ids[k], n)
+			if !idPattern.MatchString(id) {
+				id = fmt.Sprintf("image-%d", n)
+			}
+		}
+		taken[id] = true
+		out[i].ID = id
+	}
+	return out
 }
 
 // platformSelection is the --platforms selection as the report records it:
@@ -1053,7 +1105,9 @@ func reproduceLocally(ctx context.Context, img *report.Image, data imageData, op
 		bound = report.Signer{Identity: signer.Identity, Issuer: signer.Issuer, SourceRepository: signer.SourceRepository}
 	}
 	got, err := opts.Reproducer.Reproduce(ctx, img.Repository+"@"+img.Digest, bound)
-	r := report.Reproducibility{Method: method, CheckedAt: time.Now().UTC().Format(time.RFC3339), Digest: got, Source: "rebuild"}
+	// When this run checked it: the report's time, so --generated-at makes
+	// the report reproducible.
+	r := report.Reproducibility{Method: method, CheckedAt: opts.GeneratedAt, Digest: got, Source: "rebuild"}
 	switch {
 	case got == img.Digest:
 		r.Status = "reproduced"

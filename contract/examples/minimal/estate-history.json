@@ -14,30 +14,6 @@
           "unverified": 2
         },
         "evidence": {
-          "signature": {
-            "verified": 2,
-            "present": 1,
-            "failed": 0,
-            "missing": 1,
-            "unknown": 0,
-            "notApplicable": 0
-          },
-          "sbom": {
-            "verified": 2,
-            "present": 1,
-            "failed": 0,
-            "missing": 0,
-            "unknown": 1,
-            "notApplicable": 0
-          },
-          "vulnerabilityScan": {
-            "verified": 2,
-            "present": 0,
-            "failed": 0,
-            "missing": 2,
-            "unknown": 0,
-            "notApplicable": 0
-          },
           "provenance": {
             "verified": 1,
             "present": 1,
@@ -45,14 +21,6 @@
             "missing": 2,
             "unknown": 0,
             "notApplicable": 0
-          },
-          "recipe": {
-            "verified": 1,
-            "present": 0,
-            "failed": 0,
-            "missing": 2,
-            "unknown": 0,
-            "notApplicable": 1
           },
           "rebase": {
             "verified": 1,
@@ -62,9 +30,41 @@
             "unknown": 0,
             "notApplicable": 3
           },
+          "recipe": {
+            "verified": 1,
+            "present": 0,
+            "failed": 0,
+            "missing": 2,
+            "unknown": 0,
+            "notApplicable": 1
+          },
+          "sbom": {
+            "verified": 2,
+            "present": 1,
+            "failed": 0,
+            "missing": 0,
+            "unknown": 1,
+            "notApplicable": 0
+          },
+          "signature": {
+            "verified": 2,
+            "present": 1,
+            "failed": 0,
+            "missing": 1,
+            "unknown": 0,
+            "notApplicable": 0
+          },
           "tests": {
             "verified": 0,
             "present": 2,
+            "failed": 0,
+            "missing": 2,
+            "unknown": 0,
+            "notApplicable": 0
+          },
+          "vulnerabilityScan": {
+            "verified": 2,
+            "present": 0,
             "failed": 0,
             "missing": 2,
             "unknown": 0,
@@ -122,30 +122,6 @@
           "unverified": 2
         },
         "evidence": {
-          "signature": {
-            "verified": 2,
-            "present": 1,
-            "failed": 0,
-            "missing": 1,
-            "unknown": 0,
-            "notApplicable": 0
-          },
-          "sbom": {
-            "verified": 2,
-            "present": 1,
-            "failed": 0,
-            "missing": 0,
-            "unknown": 1,
-            "notApplicable": 0
-          },
-          "vulnerabilityScan": {
-            "verified": 2,
-            "present": 0,
-            "failed": 0,
-            "missing": 2,
-            "unknown": 0,
-            "notApplicable": 0
-          },
           "provenance": {
             "verified": 1,
             "present": 1,
@@ -153,14 +129,6 @@
             "missing": 2,
             "unknown": 0,
             "notApplicable": 0
-          },
-          "recipe": {
-            "verified": 1,
-            "present": 0,
-            "failed": 0,
-            "missing": 2,
-            "unknown": 0,
-            "notApplicable": 1
           },
           "rebase": {
             "verified": 1,
@@ -170,9 +138,41 @@
             "unknown": 0,
             "notApplicable": 3
           },
+          "recipe": {
+            "verified": 1,
+            "present": 0,
+            "failed": 0,
+            "missing": 2,
+            "unknown": 0,
+            "notApplicable": 1
+          },
+          "sbom": {
+            "verified": 2,
+            "present": 1,
+            "failed": 0,
+            "missing": 0,
+            "unknown": 1,
+            "notApplicable": 0
+          },
+          "signature": {
+            "verified": 2,
+            "present": 1,
+            "failed": 0,
+            "missing": 1,
+            "unknown": 0,
+            "notApplicable": 0
+          },
           "tests": {
             "verified": 0,
             "present": 2,
+            "failed": 0,
+            "missing": 2,
+            "unknown": 0,
+            "notApplicable": 0
+          },
+          "vulnerabilityScan": {
+            "verified": 2,
+            "present": 0,
             "failed": 0,
             "missing": 2,
             "unknown": 0,

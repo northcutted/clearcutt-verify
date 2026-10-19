@@ -2,6 +2,8 @@ package estategraph
 
 import (
 	"bufio"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path"
@@ -70,9 +72,22 @@ func ImportRefList(refs []string, opts ImportOptions) (ImagesFile, ImportSummary
 		Images:       make([]ImageSpec, 0, len(refs)),
 	}
 	summary := ImportSummary{GeneratedAt: generatedAt}
-	seen := map[string]int{}
+	// A reference listed twice is one image.
+	var unique []string
+	listed := map[string]bool{}
 	for _, ref := range refs {
-		spec, item, err := importedImageSpec(ref, defaultTier, defaultLifecycle, generatedAt, firstNonEmpty(opts.Owner, "unknown"), seen)
+		canonical, err := canonicalRef(ref)
+		if err != nil {
+			return ImagesFile{}, ImportSummary{}, fmt.Errorf("parse image ref %q: %w", ref, err)
+		}
+		if !listed[canonical] {
+			listed[canonical] = true
+			unique = append(unique, ref)
+		}
+	}
+	ids := AssignIDs(unique)
+	for i, ref := range unique {
+		spec, item, err := importedImageSpec(ref, ids[i], defaultTier, defaultLifecycle, generatedAt, firstNonEmpty(opts.Owner, "unknown"))
 		if err != nil {
 			return ImagesFile{}, ImportSummary{}, err
 		}
@@ -113,17 +128,10 @@ func readRefs(path string) ([]string, error) {
 	return refs, nil
 }
 
-func importedImageSpec(ref, defaultTier, lifecycleStatus, generatedAt, owner string, seen map[string]int) (ImageSpec, ImportImageSummary, error) {
+func importedImageSpec(ref, id, defaultTier, lifecycleStatus, generatedAt, owner string) (ImageSpec, ImportImageSummary, error) {
 	parsed, err := name.ParseReference(ref, name.WeakValidation)
 	if err != nil {
 		return ImageSpec{}, ImportImageSummary{}, fmt.Errorf("parse image ref %q: %w", ref, err)
-	}
-	id := stableIDForRef(parsed)
-	if seen[id] > 0 {
-		seen[id]++
-		id = fmt.Sprintf("%s-%d", id, seen[id])
-	} else {
-		seen[id] = 1
 	}
 	lang, confidence := InferLanguage(path.Base(parsed.Context().RepositoryStr()), parsed.Identifier())
 	spec := ImageSpec{
@@ -174,21 +182,91 @@ func importedImageSpec(ref, defaultTier, lifecycleStatus, generatedAt, owner str
 	return spec, item, nil
 }
 
-func stableIDForRef(ref name.Reference) string {
-	base := sanitizeID(path.Base(ref.Context().RepositoryStr()))
-	id := base
-	switch identifier := ref.Identifier(); {
-	case strings.HasPrefix(identifier, "sha256:"):
-		id = base + "-" + sanitizeID(identifier[:19])
+// ImageID is the ID an image reference gets in inventories and estate
+// reports: its registry, repository path, and tag or digest, lower-cased,
+// with every run of other characters made one dash. The tag latest is left
+// out, and a digest is cut to its first 12 hex digits:
+//
+//	ghcr.io/acme/billing:1.2     ghcr-io-acme-billing-1-2
+//	ghcr.io/acme/billing         ghcr-io-acme-billing
+//	debian:trixie-slim           docker-io-library-debian-trixie-slim
+//	ghcr.io/acme/billing@sha256:0123456789abcdef…  ghcr-io-acme-billing-sha256-0123456789ab
+//
+// It depends on nothing but the reference, so a reference has the same ID in
+// every run, whatever else the estate holds. Two references can spell the
+// same ID (acme/a-b and acme/a/b); AssignIDs tells them apart.
+func ImageID(ref string) string {
+	parsed, err := name.ParseReference(strings.TrimSpace(ref), name.WeakValidation)
+	if err != nil {
+		return sanitizeID(ref)
+	}
+	id := sanitizeID(registryName(parsed) + "/" + parsed.Context().RepositoryStr())
+	switch identifier := parsed.Identifier(); {
+	case strings.HasPrefix(identifier, "sha256:") && len(identifier) >= 19:
+		id += "-" + sanitizeID(identifier[:19])
 	case identifier != "latest":
-		id = base + "-" + sanitizeID(identifier)
+		id += "-" + sanitizeID(identifier)
 	}
-	for _, suffix := range []string{"-runtime", "-base", "-image"} {
-		if strings.HasSuffix(id, suffix) {
-			return strings.TrimSuffix(id, suffix) + suffix
+	return id
+}
+
+// AssignIDs gives each reference its ImageID, made unique without regard to
+// order: references that are different but spell the same ID each get the
+// first 8 hex digits of the sha256 of the reference (as canonicalRef spells
+// it) appended. The same reference twice gets the same ID; callers list each
+// image once.
+func AssignIDs(refs []string) []string {
+	canonical := make([]string, len(refs))
+	byID := map[string]map[string]bool{}
+	for i, ref := range refs {
+		c, err := canonicalRef(ref)
+		if err != nil {
+			c = strings.TrimSpace(ref)
 		}
+		canonical[i] = c
+		id := ImageID(ref)
+		if byID[id] == nil {
+			byID[id] = map[string]bool{}
+		}
+		byID[id][c] = true
 	}
-	return strings.Trim(id, "-")
+	out := make([]string, len(refs))
+	for i, ref := range refs {
+		id := ImageID(ref)
+		if len(byID[id]) > 1 {
+			id += "-" + shortHash(canonical[i])
+		}
+		out[i] = id
+	}
+	return out
+}
+
+// canonicalRef spells a reference the one way: registry (Docker Hub as
+// docker.io), repository, and tag or digest.
+func canonicalRef(ref string) (string, error) {
+	parsed, err := name.ParseReference(strings.TrimSpace(ref), name.WeakValidation)
+	if err != nil {
+		return "", err
+	}
+	sep := ":"
+	if _, ok := parsed.(name.Digest); ok {
+		sep = "@"
+	}
+	return registryName(parsed) + "/" + parsed.Context().RepositoryStr() + sep + parsed.Identifier(), nil
+}
+
+// registryName is a reference's registry, Docker Hub's as docker.io.
+func registryName(ref name.Reference) string {
+	reg := ref.Context().RegistryStr()
+	if reg == name.DefaultRegistry {
+		return "docker.io"
+	}
+	return reg
+}
+
+func shortHash(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:4])
 }
 
 func sanitizeID(value string) string {

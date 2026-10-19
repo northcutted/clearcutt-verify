@@ -595,12 +595,23 @@ func fakeCosign(ctx context.Context, forged map[string]bool, args []string) ([]b
 func observe(t *testing.T, host string, refs ...string) estategraph.Observations {
 	t.Helper()
 	var observations estategraph.Observations
+	repos := map[string]int{}
+	for _, ref := range refs {
+		repo, _, _ := strings.Cut(ref, ":")
+		repos[repo]++
+	}
 	for _, ref := range refs {
 		obs, err := estategraph.RegistryObserver{}.Observe(context.Background(), host+"/"+ref)
 		if err != nil {
 			t.Fatal(err)
 		}
-		obs.ID, _, _ = strings.Cut(ref, ":")
+		// IDs are URL path segments: the repository, with the tag when the
+		// repository is listed more than once.
+		repo, tag, _ := strings.Cut(ref, ":")
+		obs.ID = strings.ReplaceAll(repo, "/", "-")
+		if repos[repo] > 1 {
+			obs.ID += "-" + tag
+		}
 		observations.Images = append(observations.Images, obs)
 	}
 	return observations

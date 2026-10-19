@@ -209,7 +209,15 @@ Without a file, the same policy can be given with `--require`,
 
 `--out DIR` receives a bundle: `estate-report.json` and `estate-history.json`.
 The history gains an entry per run; pass `--history` to extend a history kept
-elsewhere. The command prints a summary table (`--verbose` adds why each
+elsewhere. Both are checked against the contract's schemas before anything is
+written; a report or history that doesn't match (a bug, or a history file that
+isn't one) writes nothing and exits 1. Each image's `id` comes from its whole
+reference (`ghcr.io/acme/billing:1.2` is `ghcr-io-acme-billing-1-2`; see
+[the contract](../contract/README.md)), so it is the same in every run and
+never depends on the order of `refs.txt`. A reference listed twice is one
+image. History rows written before v0.17.0, under the old short IDs
+(`billing-1-2`), are renamed to the image's current ID when exactly one image
+had that old ID, so its history carries on. The command prints a summary table (`--verbose` adds why each
 image that isn't verified isn't; `--quiet` prints nothing but errors and the
 `--fail-on` result; `--format json` or `yaml` prints the report itself
 instead), and `--fail-on failed` (or `unverified`) makes it exit 2 when any

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -207,14 +208,23 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		return err
 	}
 
+	history, err := extendHistory(r, o.history, o.out)
+	if err != nil {
+		return err
+	}
+	// Nothing is written that breaks the contract readers rely on: a report
+	// a portal would refuse, or a history it would choke on, is a bug here,
+	// not a result.
+	if err := report.Validate(r); err != nil {
+		return fmt.Errorf("the estate report this run made isn't valid, so nothing was written (a bug in clearcutt-verify; please report it): %w", err)
+	}
+	if err := report.Validate(history); err != nil {
+		return fmt.Errorf("the estate history isn't valid, so nothing was written (the history this run extends, %s, or this run's entry): %w", firstNonEmptyString(o.history, filepath.Join(o.out, report.HistoryFile)), err)
+	}
 	if err := os.MkdirAll(o.out, 0o755); err != nil {
 		return err
 	}
 	if err := writeReportJSON(filepath.Join(o.out, report.ReportFile), r); err != nil {
-		return err
-	}
-	history, err := extendHistory(r, o.history, o.out)
-	if err != nil {
 		return err
 	}
 	if err := writeReportJSON(filepath.Join(o.out, report.HistoryFile), history); err != nil {
@@ -344,9 +354,65 @@ func extendHistory(r *report.Report, path, out string) (*report.History, error) 
 				h.Entries = append(h.Entries, e)
 			}
 		}
+		renameLegacyIDs(h.Entries, r)
 	}
 	h.Entries = append([]report.HistoryEntry{{GeneratedAt: r.Metadata.GeneratedAt, Ref: report.ReportFile, Summary: r.Summary, Images: historyImages(r)}}, h.Entries...)
 	return h, nil
+}
+
+// renameLegacyIDs gives rows of earlier runs the IDs images have now.
+// Before v0.17.0 an image's ID was its repository's last path segment and its
+// tag (billing-1-2); now it is the whole reference (ghcr-io-acme-billing-1-2).
+// A row whose ID is no current image's, and is the old ID of exactly one
+// current image, is that image's, so its history carries on. Anything less
+// certain is left as it was.
+func renameLegacyIDs(entries []report.HistoryEntry, r *report.Report) {
+	current := map[string]bool{}
+	legacy := map[string][]string{} // old ID → current IDs
+	for _, img := range r.Images {
+		current[img.ID] = true
+		tag := ""
+		if len(img.Tags) > 0 {
+			tag = img.Tags[0]
+		}
+		old := legacyImageID(img.Repository, tag, img.Digest)
+		legacy[old] = append(legacy[old], img.ID)
+	}
+	for i := range entries {
+		for j := range entries[i].Images {
+			row := &entries[i].Images[j]
+			if ids := legacy[row.ID]; !current[row.ID] && len(ids) == 1 {
+				row.ID = ids[0]
+			}
+		}
+	}
+}
+
+// legacyImageID is the ID clearcutt-verify gave an image before v0.17.0.
+func legacyImageID(repository, tag, digest string) string {
+	base := sanitizeLegacy(path.Base(repository))
+	switch {
+	case tag == "" && strings.HasPrefix(digest, "sha256:") && len(digest) >= 19:
+		return base + "-" + sanitizeLegacy(digest[:19])
+	case tag != "" && tag != "latest":
+		return strings.Trim(base+"-"+sanitizeLegacy(tag), "-")
+	}
+	return strings.Trim(base, "-")
+}
+
+func sanitizeLegacy(v string) string {
+	var b strings.Builder
+	dash := false
+	for _, r := range strings.ToLower(v) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			dash = false
+		} else if !dash {
+			b.WriteRune('-')
+			dash = true
+		}
+	}
+	return strings.Trim(b.String(), "-")
 }
 
 // historyImages is one row per image of the run, for per-image history.

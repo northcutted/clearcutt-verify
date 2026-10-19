@@ -113,9 +113,18 @@ findings are only counted, to keep the history small. A row with
 `vulnerabilities` they are unknown, and without `packagesDigest` so is the
 package set.
 
-**Identity.** `images[].id` is unique in a report and stable across runs for
-the same repository, so it works in URLs. `base.imageId` links to the base when
-the base is in the report.
+**Identity.** `images[].id` is unique in a report, one URL path segment
+(letters, digits, `.`, `_`, `-`), and the same in every run for the same image
+reference, so it works in URLs and joins runs in the history. clearcutt-verify
+makes it from the whole reference: registry, repository path, and tag (or the
+first 12 hex digits of a digest), lower-cased, every run of other characters
+one dash, the tag `latest` left out (`ghcr.io/acme/billing:1.2` is
+`ghcr-io-acme-billing-1-2`, `debian:trixie-slim` is
+`docker-io-library-debian-trixie-slim`). Two references that spell the same ID
+each get the first 8 hex digits of the sha256 of the reference appended, so an
+ID never depends on the order images were listed in. Treat IDs as opaque:
+match them, don't parse them. `base.imageId` links to the base when the base
+is in the report.
 
 ## Versioning
 
@@ -127,7 +136,9 @@ changing a meaning) needs `v2`, with both versions written for a release
 before `v1` is dropped.
 
 The published schemas reject unknown fields (`additionalProperties: false`),
-so they catch a producer that drifts from the types. A reader that validates
+so they catch a producer that drifts from the types. clearcutt-verify checks
+every report and history against them before writing it, and writes nothing
+(exit 1) when one doesn't match. A reader that validates
 reports against a copy of a schema should allow unknown fields when it does,
 as clearcutt-portal does, or a newer report with an added field fails a check
 it should pass.

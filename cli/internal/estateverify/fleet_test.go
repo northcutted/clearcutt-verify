@@ -143,6 +143,11 @@ func TestBuildFactoryFleet(t *testing.T) {
 	if tl.Factory == nil || tl.Factory.Kind != "Image" || tl.Reproducibility.Status != "reproduced" || tl.Verdict.Status != "verified" {
 		t.Errorf("tools: %+v %+v %+v", tl.Factory, tl.Reproducibility, tl.Verdict)
 	}
+	// When this run rebuilt it is the report's time, so --generated-at makes
+	// the report reproducible.
+	if tl.Reproducibility.CheckedAt != "2026-10-06T00:00:00Z" {
+		t.Errorf("tools checkedAt %q, want the report's time", tl.Reproducibility.CheckedAt)
+	}
 
 	rb := img["rebased"]
 	if rb.Evidence.Rebase.Status != "verified" || rb.Evidence.Recipe.Status != "not-applicable" || rb.Factory == nil || rb.Factory.RebasedFrom != host+"/tools@"+toolsDesc.Digest.String() {
@@ -354,14 +359,14 @@ func TestBuildStacks(t *testing.T) {
 	if len(r.Stacks) != 2 {
 		t.Fatalf("stacks: %+v", r.Stacks)
 	}
-	if st := r.Stacks[1]; st.Ref != host+"/stacks/go:2" || st.CurrentDigest != next || st.Consumers != 1 || st.StaleConsumers != 0 || strings.Join(st.Versions[0].Images, ",") != "apps/billing" {
+	if st := r.Stacks[1]; st.Ref != host+"/stacks/go:2" || st.CurrentDigest != next || st.Consumers != 1 || st.StaleConsumers != 0 || strings.Join(st.Versions[0].Images, ",") != "apps-billing" {
 		t.Errorf("stack :2: %+v", st)
 	}
 	st := r.Stacks[0]
 	if st.Repository != host+"/stacks/go" || st.CurrentDigest != current || st.Consumers != 1 || st.StaleConsumers != 1 {
 		t.Errorf("stack: %+v", st)
 	}
-	if len(st.Versions) != 1 || st.Versions[0].Current || st.Versions[0].Signature.Status != "verified" || strings.Join(st.Versions[0].Images, ",") != "apps/checkout" {
+	if len(st.Versions) != 1 || st.Versions[0].Current || st.Versions[0].Signature.Status != "verified" || strings.Join(st.Versions[0].Images, ",") != "apps-checkout" {
 		t.Errorf("stack versions: %+v", st.Versions)
 	}
 	validateReport(t, r)
@@ -445,7 +450,7 @@ func TestRebasedAppKeepsItsStack(t *testing.T) {
 		img[i.ID] = i
 	}
 
-	c := img["apps/catalog"]
+	c := img["apps-catalog"]
 	if f := c.Factory; f == nil || f.Kind != "App" || f.Name != "catalog" || f.Stack != "python" || f.StackRef != host+"/stacks/python:1" || f.StackDigest != stackDigest.String() || f.RebasedFrom == "" {
 		t.Fatalf("rebased app factory: %+v (warnings %v)", f, c.Warnings)
 	}
@@ -453,7 +458,7 @@ func TestRebasedAppKeepsItsStack(t *testing.T) {
 		t.Fatalf("stacks: %+v", r.Stacks)
 	}
 	if st := r.Stacks[0]; st.Ref != host+"/stacks/python:1" || st.Consumers != 1 || len(st.Versions) != 1 || st.Versions[0].Signature.Status != "verified" ||
-		strings.Join(st.Versions[0].Images, ",") != "apps/catalog" || !st.Versions[0].Current {
+		strings.Join(st.Versions[0].Images, ",") != "apps-catalog" || !st.Versions[0].Current {
 		t.Errorf("stack: %+v", st)
 	}
 	// The rebase record names no smoke test that ran.
@@ -461,7 +466,7 @@ func TestRebasedAppKeepsItsStack(t *testing.T) {
 		t.Errorf("rebased app tests: %+v", e)
 	}
 
-	co := img["apps/checkout"]
+	co := img["apps-checkout"]
 	if f := co.Factory; f == nil || f.Kind != "" || f.StackRef != "" || f.StackDigest != "" || f.RebasedFrom == "" {
 		t.Errorf("app rebased from an image whose recipe a stranger signed: %+v", f)
 	}

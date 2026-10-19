@@ -29,6 +29,13 @@ func Schemas(srcDir string) ([]SchemaFile, error) {
 	if err != nil {
 		return nil, err
 	}
+	return schemas(docs)
+}
+
+// schemas generates the schemas with the given doc comments as descriptions
+// (none, for the copies the binary validates its output against: a
+// description changes nothing a document must be).
+func schemas(docs map[string]string) ([]SchemaFile, error) {
 	g := &schemaGen{docs: docs, defs: map[string]any{}}
 	var out []SchemaFile
 	for _, s := range []struct {
