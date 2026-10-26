@@ -73,6 +73,16 @@ When a release is cut, move these entries under a heading for its version.
 
 ### Added
 
+- **Trivy's vulnerability attestations are read.** A cosign vulnerability
+  attestation holding Trivy's report (`trivy image --format cosign-vuln`)
+  was verified but its findings weren't read, so the image's vulnerabilities
+  were unknown. Its findings are now read like grype's, from verified
+  attestations only: counted, merged across platforms, gated on by `failOn`
+  and `maxScanAgeDays`, with `vulnerabilities.scanner` `trivy <version>`. It
+  is read only when the predicate's `scanner.uri` names Trivy and its result
+  is Trivy's JSON report of schema version 2 with its `Results` list (a
+  report without one, which Trivy writes when it found nothing it could scan,
+  stays unknown, never clean); every finding counts, whatever its `Status`.
 - **`sourceRepositoryOwner` is validated and described.** A trusted signer's
   `sourceRepositoryOwner` must be exactly `https://github.com/OWNER`; the
   policy is refused otherwise (before, a wrong value silently matched nothing

@@ -286,9 +286,11 @@ trustedSigners:
 	if e.Evidence.Signature.Status != "failed" || e.Evidence.SBOM.Status != "failed" || e.Vulnerabilities != nil || e.Packages != nil || e.Verdict.Status != "failed" {
 		t.Errorf("evil: signature %+v, sbom %+v, vulnerabilities %+v, verdict %+v", e.Evidence.Signature, e.Evidence.SBOM, e.Vulnerabilities, e.Verdict)
 	}
-	// A verified Trivy scan isn't read as a clean grype scan.
+	// A verified Trivy scan is read like grype's: its critical finding is
+	// counted, and fails failOn.
 	tv := img["trivy"]
-	if tv.Evidence.VulnerabilityScan.Status != "verified" || tv.Vulnerabilities != nil || tv.Verdict.Status != "unverified" {
+	if tv.Evidence.VulnerabilityScan.Status != "verified" || tv.Vulnerabilities == nil || tv.Vulnerabilities.Scanner != "trivy 0.67.2" ||
+		tv.Vulnerabilities.Counts.Critical != 1 || tv.Verdict.Status != "failed" {
 		t.Errorf("trivy: scan %+v, vulnerabilities %+v, verdict %+v", tv.Evidence.VulnerabilityScan, tv.Vulnerabilities, tv.Verdict)
 	}
 	if u := img["unsigned"]; u.Evidence.Signature.Status != "missing" || u.Verdict.Status != "failed" {

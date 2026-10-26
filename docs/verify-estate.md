@@ -61,8 +61,8 @@ instead.
    one cosign checked.
 3. **Contents.** Only what cosign verified is read: vulnerability findings
    from verified vulnerability attestations (deduplicated across platforms;
-   VEX-suppressed findings are kept but not counted; grype output only, for
-   now, see Limits), packages from verified
+   VEX-suppressed findings are kept but not counted; grype's and Trivy's
+   output only, for now, see Limits), packages from verified
    SBOM attestations, the source commit from verified SLSA provenance, and
    clearcutt-factory details from verified recipes and rebase records.
    Evidence that is `present` or `failed` is reported, but nothing in it is
@@ -577,14 +577,19 @@ if it had no recipe.
   be read. Lookups the registry refuses are reported as `unknown`, not
   `missing`. Logging in (`docker login`) raises the
   limit; `clearcutt-verify` reads the same credentials.
-- **Scanners: grype only, for now.** Vulnerability findings are read from
-  cosign vulnerability attestations (`https://cosign.sigstore.dev/attestation/vuln/v1`)
-  holding grype's JSON output: the predicate's `scanner.uri` (or the result's
-  `descriptor.name`) names grype, and the result has grype's `matches` list.
-  Another scanner's attestation (Trivy's `--format cosign-vuln`, for one) is
-  still verified, but its findings aren't read: the image's vulnerabilities
-  are unknown (no `vulnerabilities`, a warning, and the scan's `detail` says
-  why), never zero, so `failOn` and `maxScanAgeDays` leave it `unverified`.
+- **Scanners: grype and Trivy, for now.** Vulnerability findings are read
+  from cosign vulnerability attestations (`https://cosign.sigstore.dev/attestation/vuln/v1`)
+  holding grype's JSON output (the predicate's `scanner.uri`, or the result's
+  `descriptor.name`, names grype, and the result has grype's `matches` list)
+  or Trivy's report (`trivy image --format cosign-vuln`: the `scanner.uri`
+  names Trivy, and the result is Trivy's JSON report, schema version 2, with
+  its `Results` list; every finding counts, whatever its `Status`, and a
+  report without `Results`, which Trivy writes when it found nothing it could
+  scan, isn't read). Another scanner's attestation is still verified, but its
+  findings aren't read: the image's vulnerabilities are unknown (no
+  `vulnerabilities`, a warning, and the scan's `detail` says why), never
+  zero, so `failOn` and `maxScanAgeDays` leave it `unverified`. `--rescan`
+  scans with grype.
 - **Tests.** Test evidence counts as a test-result attestation, or as the
   smoke test a verified clearcutt-factory rebase record says passed (a
   recipe's declared test is only `present`): a test-result attestation

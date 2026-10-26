@@ -146,7 +146,7 @@ See [registry scan and the base image graph](docs/registry-graph.md).
 `estate verify` finds each image's signatures and attestations in the registry,
 verifies them with cosign against the policy's trusted signers (bound to the
 repositories whose workflow runs may sign), reads vulnerabilities (from grype
-scan attestations only, for now), packages, and
+and Trivy scan attestations, for now), packages, and
 clearcutt-factory recipes and rebase records from the evidence that verified
 (never from copies that didn't), proves bases by layer digest, and decides a
 verdict per image. With `--rescan` it also scans each image's verified SBOMs
