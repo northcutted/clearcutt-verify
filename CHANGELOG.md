@@ -162,6 +162,16 @@ When a release is cut, move these entries under a heading for its version.
 
 ### Changed
 
+- **The pull request gate runs the race detector, staticcheck, govulncheck,
+  and zizmor.** `go test -race` (images are verified concurrently),
+  staticcheck v0.8.2, and govulncheck v1.9.0 run on the CLI, and zizmor 1.31.1
+  audits the workflows and the action; each is a job the PR Gate Summary
+  requires. The findings zizmor reported when it was added are kept in
+  `.github/zizmor.yml`, each with its reason; any other fails the gate.
+  `make analysis` runs the four locally. A test now covers evidence discovery
+  through the referrers tag (`sha256-<hex>`, registries without the Referrers
+  API), including a tag that can't be read or doesn't hold an index (unknown,
+  never missing).
 - **A run that could check nothing exits 1, not 0.** When every piece of
   evidence of every image is `unknown` (cosign, the registries, or the
   images couldn't be reached), `estate verify` writes the report, which says

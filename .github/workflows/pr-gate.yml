@@ -30,6 +30,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Classify changed paths
         if: ${{ github.event_name != 'workflow_dispatch' }}
@@ -49,6 +51,8 @@ jobs:
               - 'cli/**'
               - '.agents/**'
               - '.github/workflows/**'
+              - '.github/zizmor.yml'
+              - '.github/dependabot.yml'
               - '.github/copilot-instructions.md'
 
   go-ci:
@@ -60,6 +64,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
@@ -108,6 +114,103 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+  # Build runs images concurrently (estate verify --concurrency), so the
+  # tests run under the race detector too.
+  go-race:
+    name: Go Race Detector
+    needs: [changes]
+    if: ${{ needs.changes.outputs.go == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: 'cli/go.mod'
+          cache-dependency-path: 'cli/go.sum'
+          cache: true
+
+      - name: Go Test With The Race Detector
+        working-directory: cli
+        run: go test -race -count=1 ./...
+
+  # Pinned versions, fetched through the Go module proxy and checked against
+  # the checksum database (go run pkg@version); they don't enter go.mod.
+  staticcheck:
+    name: Staticcheck
+    needs: [changes]
+    if: ${{ needs.changes.outputs.go == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: 'cli/go.mod'
+          cache-dependency-path: 'cli/go.sum'
+          cache: true
+
+      - name: Staticcheck
+        working-directory: cli
+        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
+
+  # Known vulnerabilities in the code paths the CLI calls, its dependencies'
+  # and the Go standard library's (of the toolchain go.mod selects, which the
+  # release builds with too).
+  govulncheck:
+    name: Govulncheck
+    needs: [changes]
+    if: ${{ needs.changes.outputs.go == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: 'cli/go.mod'
+          cache-dependency-path: 'cli/go.sum'
+          cache: true
+
+      - name: Govulncheck
+        working-directory: cli
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+  # The workflows and the action, linted like code. Findings this repository
+  # keeps, and why, are in .github/zizmor.yml.
+  zizmor:
+    name: Zizmor (Workflow Audit)
+    needs: [changes]
+    if: ${{ needs.changes.outputs.go == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Zizmor
+        uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e # v0.7.1
+        with:
+          version: 1.31.1
+          config: .github/zizmor.yml
+          advanced-security: false
+
   # The source build in go-ci covers the action's `version: source` path; this
   # covers the default, which downloads the latest release and checks its
   # checksum and Sigstore bundle, on the platforms users run it on.
@@ -124,6 +227,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install Through The Action (Default)
         id: install
@@ -321,6 +426,10 @@ jobs:
     needs:
       - changes
       - go-ci
+      - go-race
+      - staticcheck
+      - govulncheck
+      - zizmor
       - action-install
       - cosign-e2e
       - cosign-keyless-e2e
@@ -347,6 +456,10 @@ jobs:
 
           selected = {
               "go-ci": enabled("go"),
+              "go-race": enabled("go"),
+              "staticcheck": enabled("go"),
+              "govulncheck": enabled("go"),
+              "zizmor": enabled("go"),
               "action-install": enabled("go"),
               "cosign-e2e": enabled("go"),
               "cosign-keyless-e2e": enabled("keyless"),

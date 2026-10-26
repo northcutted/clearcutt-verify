@@ -1,4 +1,4 @@
-.PHONY: cli-build cli-test cli-vet cli-fmt-check demo-imported-fleet-offline demo-imported-fleet-live test check agent-sync
+.PHONY: cli-build cli-test cli-vet cli-fmt-check demo-imported-fleet-offline demo-imported-fleet-live test check analysis agent-sync
 
 # .agents/ is upstream-only tooling, so the target degrades to a note instead
 # of erroring in checkouts without it.
@@ -37,3 +37,12 @@ check: cli-vet cli-fmt-check cli-build
 	cd cli && COVERAGE_MIN=85.0 ./scripts/go-coverage.sh
 	./scripts/validate-doc-commands.sh ./clearcutt-verify
 	./scripts/validate-workflow-hardening.sh
+
+# The rest of the PR gate's Go and workflow checks, which fetch pinned tools
+# (and govulncheck's vulnerability database) over the network:
+# the race detector, staticcheck, govulncheck, and zizmor (through uvx).
+analysis:
+	cd cli && go test -race -count=1 ./...
+	cd cli && go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
+	cd cli && go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+	uvx zizmor@1.31.1 --offline --config .github/zizmor.yml .
