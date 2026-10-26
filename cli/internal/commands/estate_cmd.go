@@ -132,7 +132,7 @@ func signerFlags(f *pflag.FlagSet, what string) {
 	f.BoolVar(&estateOpts.ignoreTlog, "insecure-ignore-tlog", false, "With --key: accept a signature with no transparency log entry (cosign --insecure-ignore-tlog)")
 	f.BoolVar(&estateOpts.allowUnverified, "allow-unverified", false, "Go on even when the signature of "+what+" isn't verified (prints a warning); without a signer, it isn't checked at all")
 	f.StringVar(&estateOpts.cosignPath, "cosign-path", "cosign", "cosign v3 binary")
-	f.StringVar(&estateOpts.trustedRoot, "trusted-root", "", "Sigstore trusted_root.json for cosign to verify a keyless signer against (default: fetched once with cosign initialize)")
+	f.StringVar(&estateOpts.trustedRoot, "trusted-root", "", "Sigstore trusted_root.json for cosign to verify a keyless signer, or a key signer that checks the transparency log, against (default: fetched once with cosign initialize)")
 }
 
 // pullSigners is who must have signed what estate pull or estate history
