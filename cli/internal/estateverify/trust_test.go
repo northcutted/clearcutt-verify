@@ -98,3 +98,53 @@ type reproducerFunc func(context.Context, string, report.Signer) (string, error)
 func (f reproducerFunc) Reproduce(ctx context.Context, ref string, s report.Signer) (string, error) {
 	return f(ctx, ref, s)
 }
+
+// sourceRepositoryOwner must be exactly https://github.com/OWNER (a trailing
+// slash allowed): anything else matched no certificate, silently, so every
+// signature came out failed. It is refused when the policy is read, naming
+// the form, wherever the signer comes from.
+func TestSourceRepositoryOwnerIsValidated(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	signer := func(owner string) string {
+		return "  - identityRegexp: ^https://github\\.com/acme/\n    issuer: " + ghIssuer + "\n    sourceRepositoryOwner: '" + owner + "'\n"
+	}
+	policies := map[string]func(owner string) string{
+		"trustedSigners": func(owner string) string {
+			return write("policy.yaml", "apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\ntrustedSigners:\n"+signer(owner))
+		},
+		"stackSigners": func(owner string) string {
+			return write("policy.yaml", "apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\nstackSigners:\n"+signer(owner))
+		},
+		"trust policy": func(owner string) string {
+			write("trust.yaml", "apiVersion: clearcutt.dev/v1\nkind: TrustPolicy\nsigners:\n"+signer(owner))
+			return write("policy.yaml", "apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\ntrustPolicy: trust.yaml\n")
+		},
+	}
+	for where, policy := range policies {
+		for _, owner := range []string{"https://github.com/acme", "https://github.com/acme/"} {
+			if _, err := ReadPolicy(policy(owner)); err != nil {
+				t.Errorf("%s: %q refused: %v", where, owner, err)
+			}
+		}
+		for _, owner := range []string{
+			"https://github.com/acme/repo", // a repository, not an owner
+			"github.com/acme",              // no scheme
+			"http://github.com/acme",
+			"https://github.com/", // no owner
+			"https://gitlab.com/acme",
+			"acme",
+		} {
+			_, err := ReadPolicy(policy(owner))
+			if err == nil || !strings.Contains(err.Error(), "sourceRepositoryOwner \""+owner+"\" must be https://github.com/OWNER") {
+				t.Errorf("%s: %q: got %v, want it refused naming https://github.com/OWNER", where, owner, err)
+			}
+		}
+	}
+}
