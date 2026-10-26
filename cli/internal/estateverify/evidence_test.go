@@ -786,3 +786,75 @@ func TestSignerWorkflow(t *testing.T) {
 		}
 	}
 }
+
+// provenanceBuilders makes the builder SLSA provenance names a check: a listed
+// builder is verified (and says it was checked); any other, or none, is
+// failed, and nothing is read from failed provenance (not its source, not
+// its builder). A policy that reaches Build without validation (an empty
+// entry) must not panic on provenance that names no builder.
+func TestProvenanceBuilders(t *testing.T) {
+	srv := httptest.NewServer(ggcrregistry.New(ggcrregistry.Logger(log.New(io.Discard, "", 0)), ggcrregistry.WithReferrersSupport(true)))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	ours := fulcioCert(t, ourSigner, ghIssuer)
+	const runner = "https://github.com/actions/runner/github-hosted"
+	const buildType = "https://actions.github.io/buildtypes/workflow/v1"
+	withBuilder := func(builder string) map[string]any {
+		p := provenancePredicate("https://github.com/acme/images", "abc123")
+		p["buildDefinition"].(map[string]any)["buildType"] = buildType
+		if builder != "" {
+			p["runDetails"] = map[string]any{"builder": map[string]string{"id": builder}}
+		}
+		return p
+	}
+	for _, tc := range []struct {
+		name      string
+		builders  []string
+		pred      map[string]any
+		status    string
+		checked   bool // provenance.builderChecked
+		read      bool // images[].provenance and the source are read from it
+		inDetail  string
+		builderID string
+	}{
+		{"unchecked", nil, withBuilder("https://ci.example/other"), "verified", false, true, "weren't evaluated", "https://ci.example/other"},
+		{"listed", []string{"https://ci.example/other", runner}, withBuilder(runner), "verified", true, true, "is one of the policy's provenanceBuilders", runner},
+		{"another", []string{runner}, withBuilder("https://ci.example/other"), "failed", false, false, `"https://ci.example/other", not one of the policy's provenanceBuilders`, ""},
+		{"unnamed", []string{runner}, withBuilder(""), "failed", false, false, "unnamed, not one of the policy's provenanceBuilders", ""},
+		{"unreadable-empty-entry", []string{""}, map[string]any{}, "failed", false, false, "unnamed, not one of the policy's provenanceBuilders", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			idx := pushIndex(t, host+"/"+tc.name+":1", nil, built, nil)
+			d := descriptorOf(t, idx)
+			attach(t, host+"/"+tc.name, d, bundleJSON(t, PredicateCosignSign, d.Digest.String(), map[string]any{}, ours))
+			attach(t, host+"/"+tc.name, d, bundleJSON(t, "https://slsa.dev/provenance/v1", d.Digest.String(), tc.pred, ours))
+			verifier := acmeVerifier()
+			r, err := Build(context.Background(), observe(t, host, tc.name+":1"), Options{
+				Name: "provenance", Version: "test", GeneratedAt: "2026-10-26T00:00:00Z", Verifier: verifier,
+				Policy: report.Policy{Required: []string{KindSignature, KindProvenance}, TrustedSigners: verifier.Signers, ProvenanceBuilders: tc.builders},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			img := r.Images[0]
+			ev := img.Evidence.Provenance
+			if ev.Status != tc.status || !strings.Contains(ev.Detail, tc.inDetail) {
+				t.Errorf("provenance evidence %s %q, want %s containing %q", ev.Status, ev.Detail, tc.status, tc.inDetail)
+			}
+			switch {
+			case tc.read && (img.Provenance == nil || img.Provenance.BuilderID != tc.builderID || img.Provenance.BuildType != buildType || img.Provenance.BuilderChecked != tc.checked):
+				t.Errorf("images[].provenance %+v, want builder %q checked %v", img.Provenance, tc.builderID, tc.checked)
+			case !tc.read && img.Provenance != nil:
+				t.Errorf("images[].provenance read from failed provenance: %+v", img.Provenance)
+			}
+			fromProvenance := img.Source != nil && img.Source.Basis == "provenance"
+			if fromProvenance != tc.read {
+				t.Errorf("source %+v; read from provenance: %v, want %v", img.Source, fromProvenance, tc.read)
+			}
+			if want := map[bool]string{true: "verified", false: "failed"}[tc.status == "verified"]; img.Verdict.Status != want {
+				t.Errorf("verdict %+v, want %s", img.Verdict, want)
+			}
+			validateReport(t, r)
+		})
+	}
+}

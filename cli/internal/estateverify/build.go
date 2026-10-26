@@ -1000,25 +1000,28 @@ func verifyKind(ctx context.Context, repo, digest, kind, imageSource string, fou
 			data.rebaseTest = readRebaseTest(pred)
 		}
 	case KindProvenance:
-		if s, ok := readProvenanceSource(pred); ok {
-			data.provenanceSource = s
-		}
-		data.provenance = readProvenanceDetails(pred)
+		details := readProvenanceDetails(pred)
 		// What was checked: the signature, and the statement being about the
 		// image; the source was read. The builder is evaluated only when the
 		// policy names the builders it trusts.
 		note := "cosign verified its signature and that it is about this image; the source repository and commit were read from it. Its builder, build type, and materials weren't evaluated."
 		if builders := opts.Policy.ProvenanceBuilders; len(builders) > 0 {
 			id := ""
-			if data.provenance != nil {
-				id = data.provenance.BuilderID
+			if details != nil {
+				id = details.BuilderID
 			}
-			if !contains(builders, id) {
-				item.Detail = strings.TrimSpace(item.Detail + " Its builder is " + firstNonEmpty(quoteOrNone(id), "unnamed") + ", not one of the policy's provenanceBuilders, so it is failed.")
+			// Provenance that names no builder names none of them, whatever
+			// the list holds; and nothing is read from failed evidence.
+			if id == "" || !contains(builders, id) {
+				item.Detail = strings.TrimSpace(item.Detail + " Its builder is " + firstNonEmpty(quoteOrNone(id), "unnamed") + ", not one of the policy's provenanceBuilders, so it is failed; nothing was read from it.")
 				return "failed"
 			}
-			data.provenance.BuilderChecked = true
+			details.BuilderChecked = true
 			note = "cosign verified its signature and that it is about this image; the source repository and commit were read from it, and its builder (" + id + ") is one of the policy's provenanceBuilders. Its build type and materials weren't evaluated."
+		}
+		data.provenance = details
+		if s, ok := readProvenanceSource(pred); ok {
+			data.provenanceSource = s
 		}
 		item.Detail = strings.TrimSpace(item.Detail + " " + strings.ToUpper(note[:1]) + note[1:])
 	}

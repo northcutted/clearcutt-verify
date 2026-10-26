@@ -120,8 +120,11 @@ When a release is cut, move these entries under a heading for its version.
   was checked (the signature, that the statement is about the image; the
   source read from it) and what wasn't (builder, build type, materials). A
   policy's `provenanceBuilders:` list makes the builder a check: provenance
-  naming another builder is `failed`; one naming a listed builder records
-  `provenance.builderChecked: true`.
+  naming another builder, or none, is `failed`, and neither its source nor
+  its builder is read from it (no `source` with `basis: provenance`, no
+  `images[].provenance`); one naming a listed builder records
+  `provenance.builderChecked: true`. An empty entry in the list is refused
+  when the policy is read.
 
 ### Fixed
 

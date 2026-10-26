@@ -237,9 +237,11 @@ provenanceBuilders: ["https://github.com/northcutted/clearcutt-factory/.github/w
 ```
 
 Verified provenance naming another builder (`runDetails.builder.id`, or
-`builder.id` in SLSA v0.2) is then `failed`, and one naming a listed builder
-records `provenance.builderChecked: true`. Build type and materials still
-aren't evaluated.
+`builder.id` in SLSA v0.2), or naming none, is then `failed`, and nothing is
+read from it: no `source` from it, no `provenance`. One naming a listed
+builder records `provenance.builderChecked: true`. Each entry must be a
+builder ID; an empty one is refused when the policy is read. Build type and
+materials still aren't evaluated.
 
 ### Identity checks
 

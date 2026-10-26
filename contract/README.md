@@ -121,7 +121,8 @@ about the image, and the source repository and commit were read from it
 (`source`, `basis: provenance`). It does not mean the builder, build type, or
 materials were evaluated: `images[].provenance` shows the builder ID and build
 type as read, and `builderChecked: true` only when `policy.provenanceBuilders`
-named the builder (provenance naming another builder is then `failed`).
+named the builder (provenance naming another builder, or none, is then
+`failed`, and neither `images[].provenance` nor `source` is read from it).
 
 **Reproducibility.** `reproducibility.source` says how an image was found to
 reproduce: `rebuild` (this run rebuilt it) or `attestation` (a

@@ -386,6 +386,23 @@ func TestReadProvenanceSource(t *testing.T) {
 	}
 }
 
+func TestReadProvenanceDetails(t *testing.T) {
+	for raw, want := range map[string]*report.Provenance{
+		`{"buildDefinition":{"buildType":"https://actions.github.io/buildtypes/workflow/v1"},"runDetails":{"builder":{"id":"https://github.com/actions/runner"}}}`: {
+			BuilderID: "https://github.com/actions/runner", BuildType: "https://actions.github.io/buildtypes/workflow/v1"},
+		// SLSA v0.2.
+		`{"builder":{"id":"https://ci.example/b"},"buildType":"https://ci.example/t"}`: {BuilderID: "https://ci.example/b", BuildType: "https://ci.example/t"},
+		`{"buildDefinition":{"buildType":"https://ci.example/t"}}`:                     {BuildType: "https://ci.example/t"},
+		`{}`: nil,
+		`[`:  nil,
+	} {
+		got := readProvenanceDetails(json.RawMessage(raw))
+		if (got == nil) != (want == nil) || (got != nil && *got != *want) {
+			t.Errorf("%s: %+v, want %+v", raw, got, want)
+		}
+	}
+}
+
 func TestVerdict(t *testing.T) {
 	ok := report.EvidenceItem{Status: "verified"}
 	// A rebased image: its verified rebase record stands in for the recipe.

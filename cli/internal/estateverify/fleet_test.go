@@ -204,11 +204,13 @@ func TestReadPolicy(t *testing.T) {
 		t.Fatalf("policy %+v, %v", p, err)
 	}
 	for body, want := range map[string]string{
-		"apiVersion: v1\nkind: Policy\n":                                                                     "expected apiVersion",
-		"apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\nrequired: [rebase]\n":                       "required evidence",
-		"apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\nfailOn: severe\n":                           "failOn",
-		"apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\ntrustedSigners: [{identityRegexp: '.*'}]\n": "wildcard",
-		"apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\nrequire: [signature]\n":                     "unknown field",
+		"apiVersion: v1\nkind: Policy\n":                                                                          "expected apiVersion",
+		"apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\nrequired: [rebase]\n":                            "required evidence",
+		"apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\nfailOn: severe\n":                                "failOn",
+		"apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\ntrustedSigners: [{identityRegexp: '.*'}]\n":      "wildcard",
+		"apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\nrequire: [signature]\n":                          "unknown field",
+		"apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\nprovenanceBuilders: ['']\n":                      "provenanceBuilders",
+		"apiVersion: clearcutt.dev/v1\nkind: VerificationPolicy\nprovenanceBuilders: [https://ci.example, ' ']\n": "provenanceBuilders",
 	} {
 		if _, err := ReadPolicy(write(body)); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%q: got %v, want %q", body, err, want)

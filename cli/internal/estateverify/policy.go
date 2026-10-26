@@ -1,6 +1,7 @@
 package estateverify
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -200,6 +201,11 @@ func ValidatePolicy(p report.Policy) error {
 	case "", "attestation", "rescan", "worst":
 	default:
 		return fmt.Errorf("scanSource %q must be attestation, rescan, or worst", p.ScanSource)
+	}
+	for _, b := range p.ProvenanceBuilders {
+		if strings.TrimSpace(b) == "" {
+			return errors.New("provenanceBuilders lists an empty builder ID; name each builder (runDetails.builder.id, or builder.id in SLSA v0.2) exactly")
+		}
 	}
 	for _, pat := range p.Observe {
 		if _, err := path.Match(pat, ""); err != nil {
