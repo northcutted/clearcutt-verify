@@ -20,6 +20,13 @@ When a release is cut, move these entries under a heading for its version.
 
 ### Breaking
 
+- **Evidence that was `missing` can now be `present`, so some `failed`
+  verdicts are `unverified`.** An image whose required signature is a
+  Notation signature, whose required SBOM is a BuildKit attestation, in
+  cosign's `.sbom` tag, or attached only to its image index, was `failed`
+  ("missing"); it is now `unverified` ("present but not verified"), which
+  `--fail-on failed` doesn't fail. Gate with `--fail-on unverified` to fail
+  on both. (See Added: evidence other tools leave.)
 - **Image IDs come from the whole reference.** An image's `id` was its
   repository's last path segment and tag (`billing-1-2`), with `-2`, `-3`
   added to repeats in the order references were listed, so two registries'
@@ -73,6 +80,24 @@ When a release is cut, move these entries under a heading for its version.
 
 ### Added
 
+- **Evidence other tools leave is found, as `present`.** `estate verify`
+  read only cosign's bundles and tags and unsigned SBOM referrers, so a team
+  with existing evidence saw `missing`. It now also finds Notation
+  signatures (referrers of artifact type
+  `application/vnd.cncf.notary.signature`; `source: notation-signature`, the
+  signer shown being the `x509.subject: …` its certificate claims), the SPDX
+  SBOMs and SLSA provenance BuildKit stores in the image index (`docker buildx
+  build --sbom --provenance`; `source: buildx-attestation`), and SBOMs in
+  cosign's `sha256-<digest>.sbom` tag (`cosign attach sbom`; `source:
+  cosign-sbom-tag`). None is verified (Notation signatures aren't checked:
+  no ClearCutt trust policy names a Notation signer yet), so each is
+  `present`, nothing in it is read, and none is handed to cosign or crowds
+  out evidence cosign verified. A platform image with no SBOM or
+  vulnerability report of its own is now judged by any attached to the image
+  index (`cosign attach sbom` or `cosign attest` on a multi-platform tag):
+  `present`, since such a copy doesn't say which platform it describes, where
+  it was `missing`; and `unknown`, not `missing`, when the index's evidence
+  (or BuildKit's attestation manifests) can't be read.
 - **Trivy's vulnerability attestations are read.** A cosign vulnerability
   attestation holding Trivy's report (`trivy image --format cosign-vuln`)
   was verified but its findings weren't read, so the image's vulnerabilities

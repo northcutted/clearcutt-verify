@@ -810,22 +810,7 @@ var perPlatform = map[string]bool{KindSBOM: true, KindVulnerabilityScan: true}
 func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platforms []report.Platform, opts Options) (report.Evidence, imageData) {
 	data := imageData{vulns: map[string]vulnScan{}, statements: map[string]string{}, sboms: map[string]sbomDoc{}}
 	type subject struct{ platform, digest string }
-	subjects := []subject{{"", digest}}
-	for _, p := range platforms {
-		if p.Digest != digest {
-			subjects = append(subjects, subject{p.Platform, p.Digest})
-		}
-	}
-	found := map[string][]Found{} // subject digest → evidence
-	unknown := map[string]error{}
-	for _, s := range subjects {
-		f, err := opts.Discoverer.Discover(ctx, repo, s.digest)
-		if err != nil {
-			unknown[s.digest] = err
-			continue
-		}
-		found[s.digest] = f
-	}
+	found, unknown := discoverImage(ctx, repo, digest, platforms, opts.Discoverer)
 
 	items := map[string]*report.EvidenceItem{}
 	for _, kind := range Kinds {
@@ -843,7 +828,13 @@ func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platf
 		}
 		var statuses []string
 		for _, s := range look {
-			st := verifyKind(ctx, repo, s.digest, kind, imageSource, found[s.digest], unknown[s.digest], opts, item, &data, s.platform)
+			var st string
+			if perPlatform[kind] && s.digest != digest && unknown[s.digest] == nil && len(copiesOf(found[s.digest], kind, s.digest)) == 0 {
+				st = indexOnly(kind, digest, found[digest], unknown[digest], item)
+			}
+			if st == "" {
+				st = verifyKind(ctx, repo, s.digest, kind, imageSource, found[s.digest], unknown[s.digest], opts, item, &data, s.platform)
+			}
 			statuses = append(statuses, st)
 			if s.platform != "" && perPlatform[kind] {
 				if item.Platforms == nil {
@@ -893,6 +884,69 @@ func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platf
 		Signature: *items[KindSignature], SBOM: *items[KindSBOM], VulnerabilityScan: *items[KindVulnerabilityScan],
 		Provenance: *items[KindProvenance], Recipe: *items[KindRecipe], Rebase: *items[KindRebase], Tests: *items[KindTests],
 	}, data
+}
+
+// discoverImage finds the evidence attached to an image and to each of its
+// platform images, by subject digest, and the subjects whose evidence
+// couldn't be read. BuildKit's attestations, stored in the image index, are
+// filed under the platform image each is about (SBOMs and scans) or under
+// the image (provenance, which is judged on the image); when they can't be
+// read, nothing about the image or its platform images is known.
+func discoverImage(ctx context.Context, repo, digest string, platforms []report.Platform, d *Discoverer) (found map[string][]Found, unknown map[string]error) {
+	found, unknown = map[string][]Found{}, map[string]error{}
+	subjects := []string{digest}
+	for _, p := range platforms {
+		if p.Digest != digest {
+			subjects = append(subjects, p.Digest)
+		}
+	}
+	for _, s := range subjects {
+		f, err := d.Discover(ctx, repo, s)
+		if err != nil {
+			unknown[s] = err
+			continue
+		}
+		found[s] = f
+	}
+	bx, err := d.BuildxAttestations(ctx, repo, digest)
+	if err != nil {
+		for _, s := range subjects {
+			if unknown[s] == nil {
+				unknown[s] = err
+			}
+		}
+	}
+	for _, f := range bx {
+		if !perPlatform[f.Kind] {
+			f.Subject = digest
+		}
+		found[f.Subject] = append(found[f.Subject], f)
+	}
+	return found, unknown
+}
+
+// indexOnly judges evidence of a per-platform kind (an SBOM or a
+// vulnerability scan) for a platform image that has none of its own, by
+// the copies attached to the image index instead (cosign attach sbom, or
+// cosign attest, on a multi-platform tag). Such a copy doesn't say which
+// platform image it describes, so it is present at best: neither verified
+// nor read. When the index's evidence couldn't be read, the platform's is
+// unknown. It returns "" when the index has none either.
+func indexOnly(kind, digest string, found []Found, lookErr error, item *report.EvidenceItem) string {
+	if lookErr != nil {
+		item.Detail = "The registry couldn't be read: " + lookErr.Error()
+		return "unknown"
+	}
+	copies := copiesOf(found, kind, digest)
+	if len(copies) == 0 {
+		return ""
+	}
+	if item.Source == "" {
+		f := copies[0]
+		item.Source, item.PredicateType, item.Ref, item.Timestamp, item.Signer = sourceName(f), f.PredicateType, f.Ref, f.Timestamp, f.Signer
+	}
+	item.Detail = "Attached to the image index, not to this platform image, so it doesn't say which platform it describes: it is neither verified nor read."
+	return "present"
 }
 
 // testsFromRebase is what a verified rebase record says about the smoke
@@ -1100,6 +1154,8 @@ func sourceName(f Found) string {
 	switch {
 	case f.Format == FormatRawReferrer:
 		return "oci-referrer"
+	case f.Format == FormatNotation, f.Format == FormatBuildx, f.Format == FormatCosignSBOM:
+		return f.Format
 	case f.Kind == KindSignature:
 		return "cosign-signature"
 	}

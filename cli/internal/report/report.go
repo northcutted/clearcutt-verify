@@ -462,12 +462,18 @@ type EvidenceItem struct {
 	// recipe of a rebased image whose rebase record is verified).
 	Status string `json:"status" enum:"verified,present,failed,missing,unknown,not-applicable"`
 	// Source is where it was found: cosign-signature, cosign-attestation,
-	// github-attestation, or oci-referrer (an unsigned document). Open: new
-	// sources may appear. github-attestation is a GitHub artifact
-	// attestation (actions/attest-build-provenance) stored in the registry,
-	// which gh attestation verify --bundle-from-oci can check too; it is told
-	// apart from cosign's by its content, so only verified evidence is
-	// labeled so, and an unverified one shows as cosign-attestation.
+	// github-attestation, oci-referrer (an unsigned document),
+	// notation-signature (a Notation signature), buildx-attestation (an
+	// unsigned in-toto statement BuildKit stored in the image index), or
+	// cosign-sbom-tag (an unsigned SBOM in cosign's sha256-<digest>.sbom
+	// tag). Open: new sources may appear. github-attestation is a GitHub
+	// artifact attestation (actions/attest-build-provenance) stored in the
+	// registry, which gh attestation verify --bundle-from-oci can check too;
+	// it is told apart from cosign's by its content, so only verified
+	// evidence is labeled so, and an unverified one shows as
+	// cosign-attestation. notation-signature, buildx-attestation,
+	// cosign-sbom-tag, and oci-referrer evidence is never verified: it is
+	// present at best, and nothing in it is read.
 	Source string `json:"source,omitempty"`
 	// PredicateType is the in-toto predicate type, for attestations.
 	PredicateType string `json:"predicateType,omitempty"`

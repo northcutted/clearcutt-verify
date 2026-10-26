@@ -55,7 +55,12 @@ verified evidence means cosign checked the key's signature but no
 transparency log entry, because the policy's key signer says it signs
 without one. `source: github-attestation` marks a GitHub artifact attestation
 in the registry (told by its verified content, so only on verified
-evidence), and `signerWorkflow` names the GitHub Actions workflow that signed
+evidence); `notation-signature` (a Notation signature, whose `signer.identity`
+is the `x509.subject: …` its certificate claims), `buildx-attestation` (an
+unsigned in-toto statement BuildKit stored in the image index), and
+`cosign-sbom-tag` (an unsigned SBOM in cosign's `sha256-<digest>.sbom` tag)
+are evidence clearcutt-verify finds but doesn't verify, so always `present`;
+and `signerWorkflow` names the GitHub Actions workflow that signed
 verified evidence the way `gh attestation verify --signer-workflow` takes it
 (`signer.sourceRepository` gives its `--repo`). A rebased image's `factory`
 kind, name, and stack (`stack`, `stackRef`, `stackDigest`) come from the

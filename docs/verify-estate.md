@@ -25,7 +25,30 @@ instead.
    attestations pushed to the registry), by cosign v2 (`sha256-<digest>.sig`
    and `.att` tags), and unsigned SBOMs attached as referrers. Bundles are
    decoded to learn what each one actually holds; cosign labels its own
-   bundles as plain signatures.
+   bundles as plain signatures. Evidence other tools leave is found too, and
+   reported `present`, never `verified`, with nothing in it read:
+   - **Notation signatures** (`notation sign`, as ACR, Harbor, and ECR
+     setups use): referrers of artifact type
+     `application/vnd.cncf.notary.signature` (`source: notation-signature`).
+     clearcutt-verify doesn't verify them (no ClearCutt trust policy names a
+     Notation signer, and cosign doesn't check them); the `signer` it shows
+     is the claim in the envelope's certificate, `identity: "x509.subject:
+     <subject>"` (JWS envelopes; a COSE envelope's isn't read). `notation
+     verify` checks them against a Notation trust policy.
+   - **BuildKit attestations** (`docker buildx build --sbom --provenance`):
+     the SPDX SBOM and SLSA provenance BuildKit stores in the image index, in
+     an attestation manifest beside each platform image
+     (`vnd.docker.reference.type: attestation-manifest`; `source:
+     buildx-attestation`). They are unsigned in-toto statements.
+   - **cosign's `.sbom` tag** (`cosign attach sbom`): an unsigned SBOM in the
+     `sha256-<digest>.sbom` tag (`source: cosign-sbom-tag`).
+
+   SBOMs and vulnerability reports belong to platform images. A platform
+   image with none of its own is judged by any attached to the image index
+   (what `cosign attach sbom` or `cosign attest` on a multi-platform tag
+   writes): `present`, signed or not, since such a copy doesn't say which
+   platform it describes, and never read. When the index's evidence can't be
+   read, the platform image's is `unknown`, not `missing`.
 2. **Verification.** Each piece of evidence is verified with cosign against
    the policy's trusted signers. Anything not signed by one of them is
    `failed`, never quietly accepted. Evidence cosign couldn't check (it

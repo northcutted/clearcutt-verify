@@ -736,8 +736,9 @@ func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageS
 	}
 	for i, f := range copies {
 		switch {
-		case f.Format == FormatRawReferrer:
-			status[i], detail[i] = "present", "An unsigned document; nothing to verify."
+		case Unsigned(f.Format):
+			// Never handed to cosign: nothing a trusted signer signed is in it.
+			status[i], detail[i] = "present", unsignedDetail(f)
 		case len(v.Signers) == 0:
 			status[i], detail[i] = "present", "No trusted signer is configured, so it can't be verified."
 		case invalid != nil:
@@ -871,6 +872,20 @@ func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageS
 		item.Detail = fmt.Sprintf("%d other attached copies aren't verified and weren't read.", n)
 	}
 	return item, verified
+}
+
+// unsignedDetail says why evidence clearcutt-verify can't verify is present,
+// not verified.
+func unsignedDetail(f Found) string {
+	switch f.Format {
+	case FormatNotation:
+		return "A Notation signature. clearcutt-verify doesn't verify Notation signatures, so it is present, not verified; notation verify checks it against a Notation trust policy."
+	case FormatBuildx:
+		return "An unsigned in-toto statement BuildKit stored in the image index (docker buildx build --sbom or --provenance); nothing can verify it, so it isn't read."
+	case FormatCosignSBOM:
+		return "An unsigned SBOM in cosign's sha256-<digest>.sbom tag (cosign attach sbom); nothing can verify it, so it isn't read."
+	}
+	return "An unsigned document; nothing to verify."
 }
 
 func sortedKeys[V any](m map[string]V) []string {

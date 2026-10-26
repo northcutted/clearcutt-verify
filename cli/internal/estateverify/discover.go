@@ -55,7 +55,34 @@ const (
 	FormatBundle      = "sigstore-bundle" // cosign v3 / GitHub: a Sigstore bundle as an OCI referrer
 	FormatCosignTag   = "cosign-tag"      // cosign v2: sha256-<digest>.sig / .att tags
 	FormatRawReferrer = "oci-referrer"    // an unsigned document attached as a referrer (a raw SBOM)
+	// FormatNotation is a Notation signature (notation sign: ACR, Harbor,
+	// ECR, and others), an OCI referrer of artifact type
+	// application/vnd.cncf.notary.signature. clearcutt-verify doesn't verify
+	// it: it is present, never verified.
+	FormatNotation = "notation-signature"
+	// FormatBuildx is an in-toto statement BuildKit stores in the image index
+	// (docker buildx build --sbom, --provenance): an attestation manifest
+	// beside the platform image it is about. Unsigned: present.
+	FormatBuildx = "buildx-attestation"
+	// FormatCosignSBOM is an SBOM in cosign's sha256-<digest>.sbom tag
+	// (cosign attach sbom). Unsigned: present.
+	FormatCosignSBOM = "cosign-sbom-tag"
 )
+
+// Unsigned reports whether evidence in format carries nothing
+// clearcutt-verify can verify: it is present at best, and never read.
+func Unsigned(format string) bool {
+	switch format {
+	case FormatRawReferrer, FormatNotation, FormatBuildx, FormatCosignSBOM:
+		return true
+	}
+	return false
+}
+
+// notationArtifactType is the artifact type of a Notation signature (the
+// manifest's artifactType, or its config's media type where the registry
+// doesn't keep artifactType).
+const notationArtifactType = "application/vnd.cncf.notary.signature"
 
 // Predicate types factory and cosign use.
 const (
@@ -138,7 +165,9 @@ var ErrUnknown = errors.New("evidence could not be read")
 
 // Discover lists the evidence attached to repository@digest: Sigstore
 // bundle referrers (cosign v3, GitHub artifact attestations), legacy cosign
-// .sig/.att tags, and unsigned SBOM referrers.
+// .sig/.att tags, Notation signatures, unsigned SBOM referrers, and SBOMs in
+// cosign's .sbom tag. The attestations BuildKit stores in an image index are
+// listed by BuildxAttestations.
 func (d *Discoverer) Discover(ctx context.Context, repository, digest string) ([]Found, error) {
 	subject, err := name.NewDigest(repository + "@" + digest)
 	if err != nil {
@@ -175,8 +204,8 @@ func (d *Discoverer) Discover(ctx context.Context, repository, digest string) ([
 			switch at := desc.ArtifactType; {
 			// cosign v3 lists its bundles under the empty config's media
 			// type; only the manifest itself says it holds a bundle.
-			case strings.HasPrefix(at, "application/vnd.dev.sigstore.bundle"), at == "", at == emptyMediaType:
-				f, ok, err := d.bundle(ctx, ref, opts)
+			case strings.HasPrefix(at, "application/vnd.dev.sigstore.bundle"), at == "", at == emptyMediaType, at == notationArtifactType:
+				f, ok, err := d.referrer(ctx, ref, digest, opts)
 				if err != nil {
 					return nil, fmt.Errorf("%w: %s: %v", ErrUnknown, ref, err)
 				}
@@ -199,9 +228,9 @@ func (d *Discoverer) Discover(ctx context.Context, repository, digest string) ([
 
 const emptyMediaType = "application/vnd.oci.empty.v1+json"
 
-// bundle reads a referrer that may hold a Sigstore bundle; ok is false when
-// it holds something else.
-func (d *Discoverer) bundle(ctx context.Context, ref name.Digest, opts []remote.Option) (Found, bool, error) {
+// referrer reads a referrer that may hold a Sigstore bundle or a Notation
+// signature about subject; ok is false when it holds something else.
+func (d *Discoverer) referrer(ctx context.Context, ref name.Digest, subject string, opts []remote.Option) (Found, bool, error) {
 	img, err := remote.Image(ref, opts...)
 	if err != nil {
 		return Found{}, false, err
@@ -209,6 +238,9 @@ func (d *Discoverer) bundle(ctx context.Context, ref name.Digest, opts []remote.
 	m, err := img.Manifest()
 	if err != nil {
 		return Found{}, false, err
+	}
+	if m.ArtifactType == notationArtifactType || m.Config.MediaType == notationArtifactType {
+		return notationSignature(img, m, ref, subject), true, nil
 	}
 	if len(m.Layers) == 0 || !strings.HasPrefix(string(m.Layers[0].MediaType), "application/vnd.dev.sigstore.bundle") {
 		return Found{}, false, nil
@@ -226,6 +258,110 @@ func (d *Discoverer) bundle(ctx context.Context, ref name.Digest, opts []remote.
 		f.Timestamp = m.Annotations["org.opencontainers.image.created"]
 	}
 	return f, true, nil
+}
+
+// notationSignature is a Notation signature over subject. Who it names as
+// its signer is read from the certificate in a JWS envelope (Notation's
+// default format) as "x509.subject: <the certificate's subject>", the way a
+// Notation trust policy names trusted identities; it is a claim, never
+// checked, as the signature is never verified. A COSE envelope's signer
+// isn't read.
+func notationSignature(img v1.Image, m *v1.Manifest, ref name.Digest, subject string) Found {
+	f := Found{Kind: KindSignature, Format: FormatNotation, Ref: ref.String(), Subject: subject, Timestamp: m.Annotations["org.opencontainers.image.created"]}
+	if len(m.Layers) > 0 && m.Layers[0].MediaType == "application/jose+json" {
+		if raw, err := readBlob(img, m.Layers[0].Digest); err == nil {
+			f.Signer = notationSigner(raw)
+		}
+	}
+	return f
+}
+
+// notationSigner reads the signing certificate (the first in x5c) from a
+// Notation JWS envelope.
+func notationSigner(raw []byte) *report.Signer {
+	var jws struct {
+		Header struct {
+			X5C []string `json:"x5c"`
+		} `json:"header"`
+	}
+	if json.Unmarshal(raw, &jws) != nil || len(jws.Header.X5C) == 0 {
+		return nil
+	}
+	der, err := base64.StdEncoding.DecodeString(jws.Header.X5C[0])
+	if err != nil {
+		return nil
+	}
+	cert, err := x509.ParseCertificate(der)
+	if err != nil || cert.Subject.String() == "" {
+		return nil
+	}
+	return &report.Signer{Identity: "x509.subject: " + cert.Subject.String()}
+}
+
+// BuildKit's attestation manifests: an image index entry of this reference
+// type holds in-toto statements about the platform image whose digest the
+// other annotation names.
+const (
+	buildxReferenceType   = "vnd.docker.reference.type"
+	buildxReferenceDigest = "vnd.docker.reference.digest"
+	buildxAttestation     = "attestation-manifest"
+	inTotoPredicateType   = "in-toto.io/predicate-type"
+)
+
+// BuildxAttestations lists the attestations BuildKit stores in the image
+// index repository@digest (docker buildx build --sbom, --provenance): one
+// attestation manifest per platform image, whose layers are unsigned in-toto
+// statements (an SPDX SBOM, SLSA provenance), each about that platform
+// image (Subject). Their kinds and predicate types are read from the layers'
+// annotations; their content isn't read, since nothing can verify it. An
+// image that isn't an index has none.
+func (d *Discoverer) BuildxAttestations(ctx context.Context, repository, digest string) ([]Found, error) {
+	ref, err := name.NewDigest(repository + "@" + digest)
+	if err != nil {
+		return nil, err
+	}
+	opts := append([]remote.Option{remote.WithContext(ctx)}, d.Options...)
+	desc, err := remote.Get(ref, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrUnknown, ref, err)
+	}
+	if !desc.MediaType.IsIndex() {
+		return nil, nil
+	}
+	idx, err := desc.ImageIndex()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrUnknown, ref, err)
+	}
+	im, err := idx.IndexManifest()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s: %v", ErrUnknown, ref, err)
+	}
+	var out []Found
+	for _, m := range im.Manifests {
+		about := m.Annotations[buildxReferenceDigest]
+		if m.Annotations[buildxReferenceType] != buildxAttestation || !strings.HasPrefix(about, "sha256:") {
+			continue
+		}
+		att := ref.Context().Digest(m.Digest.String())
+		img, err := remote.Image(att, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s: %v", ErrUnknown, att, err)
+		}
+		mf, err := img.Manifest()
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s: %v", ErrUnknown, att, err)
+		}
+		for _, l := range mf.Layers {
+			pt := l.Annotations[inTotoPredicateType]
+			kind := KindOf(pt)
+			if kind == "" || !strings.HasPrefix(string(l.MediaType), "application/vnd.in-toto") {
+				continue
+			}
+			out = append(out, Found{Kind: kind, PredicateType: pt, Format: FormatBuildx, Ref: att.String(), Subject: about,
+				Timestamp: firstNonEmpty(mf.Annotations["org.opencontainers.image.created"], m.Annotations["org.opencontainers.image.created"])})
+		}
+	}
+	return out, nil
 }
 
 // decodeBundle reads a Sigstore bundle (v0.1-v0.3): its DSSE statement and
@@ -352,11 +488,12 @@ func signerOf(cert *x509.Certificate) *report.Signer {
 
 const githubIssuer = "https://token.actions.githubusercontent.com"
 
-// cosignTags reads cosign v2's sha256-<digest>.sig and .att tags.
+// cosignTags reads cosign v2's sha256-<digest>.sig and .att tags, and the
+// SBOM cosign attach sbom stores in the .sbom tag.
 func (d *Discoverer) cosignTags(ctx context.Context, subject name.Digest, opts []remote.Option) ([]Found, error) {
 	base := strings.Replace(subject.DigestStr(), ":", "-", 1)
 	var out []Found
-	for _, suffix := range []string{".sig", ".att"} {
+	for _, suffix := range []string{".sig", ".att", ".sbom"} {
 		tag := subject.Context().Tag(base + suffix)
 		if _, err := remote.Head(tag, opts...); isNotFound(err) {
 			continue
@@ -370,6 +507,15 @@ func (d *Discoverer) cosignTags(ctx context.Context, subject name.Digest, opts [
 		m, err := img.Manifest()
 		if err != nil {
 			return nil, err
+		}
+		if suffix == ".sbom" {
+			// One document, unsigned (cosign signs it only as a separate
+			// attachment): its media type is all that is read.
+			if len(m.Layers) > 0 {
+				out = append(out, Found{Kind: KindSBOM, PredicateType: string(m.Layers[0].MediaType), Format: FormatCosignSBOM, Ref: tag.String(), Subject: subject.DigestStr(),
+					Timestamp: m.Annotations["org.opencontainers.image.created"]})
+			}
+			continue
 		}
 		for _, layer := range m.Layers {
 			f := Found{Format: FormatCosignTag, Ref: tag.String(), Subject: subject.DigestStr(), Signer: legacySigner(layer.Annotations)}
