@@ -47,6 +47,7 @@ var estateVerifyOpts struct {
 	factoryPath  string
 	cosignPath   string
 	grypePath    string
+	trustedRoot  string
 	generatedAt  string
 	concurrency  int
 	platforms    []string
@@ -118,6 +119,7 @@ isn't, --quiet prints nothing but errors and the --fail-on result, and
 	f.BoolVar(&o.reproduce, "reproduce", false, "Rebuild clearcutt-factory images from their signed recipes and compare digests (images with a verified reproduction attestation aren't rebuilt)")
 	f.StringVar(&o.factoryPath, "factory-path", "clearcutt-factory", "clearcutt-factory binary, for --reproduce")
 	f.StringVar(&o.cosignPath, "cosign-path", "cosign", "cosign v3 binary (checked before the run; missing or another major version exits 1)")
+	f.StringVar(&o.trustedRoot, "trusted-root", "", "Sigstore trusted_root.json for cosign to verify keyless evidence against (cosign --trusted-root); default: fetched once with cosign initialize before the run")
 	f.BoolVar(&o.rescan, "rescan", false, "Scan each image's verified SBOMs with grype and report the fresh findings beside the attested scan (grype's database settings, GRYPE_DB_*, apply)")
 	f.StringVar(&o.grypePath, "grype-path", "grype", "grype binary, for --rescan (checked before the run; missing exits 1)")
 	f.StringVar(&o.generatedAt, "generated-at", "", "Deterministic report timestamp (RFC 3339)")
@@ -173,12 +175,27 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	// out failed or unknown for a reason that has nothing to do with the
 	// estate. A missing or unusable tool is an operational error (exit 1),
 	// never a policy result.
-	verifier := &estateverify.Verifier{Signers: policy.TrustedSigners, Cosign: o.cosignPath, Run: cosignRunner}
+	verifier := &estateverify.Verifier{Signers: append(append([]report.Signer{}, policy.TrustedSigners...), policy.StackSigners...), Cosign: o.cosignPath, Run: cosignRunner, TrustedRoot: o.trustedRoot}
 	if len(policy.TrustedSigners)+len(policy.StackSigners) > 0 {
 		if _, err := verifier.CheckCosign(ctx); err != nil {
 			return err
 		}
+		// Sigstore's trusted root, once, before the concurrent verifications
+		// that read it; a fetch that fails is an operational error here, not
+		// unknown evidence everywhere.
+		root, err := verifier.PrepareTrustedRoot(ctx)
+		if err != nil {
+			return err
+		}
+		switch {
+		case GlobalOpts.Quiet || root == "":
+		case o.trustedRoot != "":
+			fprintf(stderr, "[verify-estate] keyless evidence is verified against %s (--trusted-root)\n", root)
+		default:
+			fprintf(stderr, "[verify-estate] keyless evidence is verified against %s (cosign initialize fetched it once for this run)\n", root)
+		}
 	}
+	verifier.Signers = policy.TrustedSigners
 	if o.reproduce {
 		if _, err := exec.LookPath(o.factoryPath); err != nil {
 			return fmt.Errorf("--reproduce rebuilds images with clearcutt-factory, which is not available (%s): install it, or name it with --factory-path: %w", o.factoryPath, err)

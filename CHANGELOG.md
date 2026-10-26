@@ -102,6 +102,26 @@ When a release is cut, move these entries under a heading for its version.
   naming another builder is `failed`; one naming a listed builder records
   `provenance.builderChecked: true`.
 
+### Fixed
+
+- **Keyless evidence no longer fails when cosign loses Sigstore's trusted
+  root.** Each cosign run refreshes TUF metadata over the network into the
+  shared `~/.sigstore/root` cache, so with verifications running
+  concurrently one could find the TUF repository unreachable, or a sibling's
+  half-written file, and come out `failed` ("not signed by a trusted signer:
+  … trusted root is required when using new bundle format"; cosign v3.0.x
+  only warns what TUF said). This made a verified image's vulnerability scan
+  read as failed on the showcase estate on some days. `estate verify` and
+  `estate pull` now fetch the trusted root once (`cosign initialize`) before
+  verifying anything, when the policy trusts a keyless signer, and pass the
+  cached `trusted_root.json` to every verification (`--trusted-root`); a
+  fetch that fails is an operational error (exit 1). `--trusted-root FILE`
+  supplies one instead (air-gapped setups), and `SIGSTORE_ROOT_FILE` and the
+  other individual-target variables are left to cosign. Should cosign still
+  lose the root, the evidence is `unknown`, with TUF's own message in its
+  detail, never `failed`. The action installs cosign v3.1.4 (the installer's
+  default was v3.0.6).
+
 ### Changed
 
 - **A run that could check nothing exits 1, not 0.** When every piece of

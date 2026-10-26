@@ -31,7 +31,7 @@ type estateFlags struct {
 	// Who must have signed what estate pull reads (cosign's flags).
 	identity, identityRegexp, issuer, workflowRepo, key string
 	ignoreTlog, allowUnverified                         bool
-	cosignPath                                          string
+	cosignPath, trustedRoot                             string
 }
 
 var estateOpts estateFlags
@@ -115,6 +115,7 @@ with the Docker keychain: log cosign in to private registries.`,
 	f.BoolVar(&estateOpts.ignoreTlog, "insecure-ignore-tlog", false, "With --key: accept a signature with no transparency log entry (cosign --insecure-ignore-tlog)")
 	f.BoolVar(&estateOpts.allowUnverified, "allow-unverified", false, "Write the bundle even when its signature isn't verified (prints a warning); without a signer, it isn't checked at all")
 	f.StringVar(&estateOpts.cosignPath, "cosign-path", "cosign", "cosign v3 binary")
+	f.StringVar(&estateOpts.trustedRoot, "trusted-root", "", "Sigstore trusted_root.json for cosign to verify a keyless signer against (default: fetched once with cosign initialize)")
 	return cmd
 }
 
@@ -318,9 +319,12 @@ func runEstatePull(ctx context.Context, ref string) error {
 	if !verify && !estateOpts.allowUnverified {
 		return errors.New("estate pull verifies the signature of what it pulls: name its signer with --certificate-identity (or --certificate-identity-regexp) and --certificate-oidc-issuer, or --key, as cosign verify takes them (or pass --allow-unverified to write it unverified)")
 	}
-	verifier := &estateverify.Verifier{Signers: []report.Signer{signer}, Cosign: estateOpts.cosignPath, Run: cosignRunner}
+	verifier := &estateverify.Verifier{Signers: []report.Signer{signer}, Cosign: estateOpts.cosignPath, Run: cosignRunner, TrustedRoot: estateOpts.trustedRoot}
 	if verify {
 		if _, err := verifier.CheckCosign(ctx); err != nil {
+			return err
+		}
+		if _, err := verifier.PrepareTrustedRoot(ctx); err != nil {
 			return err
 		}
 	}

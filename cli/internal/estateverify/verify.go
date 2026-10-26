@@ -24,6 +24,10 @@ type Verifier struct {
 	Signers []report.Signer
 	// Cosign is the cosign binary (default "cosign").
 	Cosign string
+	// TrustedRoot is a Sigstore trusted_root.json every keyless verification
+	// reads (cosign --trusted-root), so none fetches it from the TUF
+	// repository itself; PrepareTrustedRoot fetches it once.
+	TrustedRoot string
 	// Run executes cosign and returns stdout; tests replace it.
 	Run func(ctx context.Context, bin string, args ...string) ([]byte, error)
 }
@@ -218,7 +222,11 @@ func (v *Verifier) verifyWith(ctx context.Context, subj Subject, flags []string)
 	if subj.Kind == KindSignature {
 		args = []string{"verify"}
 	}
-	args = append(append(append(args, "--output", "json"), flags...), subj.Ref)
+	args = append(append(args, "--output", "json"), flags...)
+	if v.TrustedRoot != "" && !contains(flags, "--key") {
+		args = append(args, "--trusted-root", v.TrustedRoot)
+	}
+	args = append(args, subj.Ref)
 	out, err := v.run(ctx, args...)
 	if err != nil {
 		return nil, err
@@ -433,7 +441,7 @@ func (v *Verifier) run(ctx context.Context, args ...string) ([]byte, error) {
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		wrapped := fmt.Errorf("cosign %s: %w: %s", args[0], err, lastLine(stderr.String()))
+		wrapped := fmt.Errorf("cosign %s: %w: %s", args[0], err, cosignStderr(stderr.String()))
 		var exit *exec.ExitError
 		if !errors.As(err, &exit) {
 			// cosign didn't run to an answer (not found, not executable).

@@ -39,7 +39,7 @@ func stacksOf(ctx context.Context, images []report.Image, opts Options) []report
 	}
 	verifier := &Verifier{Signers: opts.Policy.StackSigners}
 	if opts.Verifier != nil {
-		verifier.Cosign, verifier.Run = opts.Verifier.Cosign, opts.Verifier.Run
+		verifier.Cosign, verifier.Run, verifier.TrustedRoot = opts.Verifier.Cosign, opts.Verifier.Run, opts.Verifier.TrustedRoot
 	}
 	o := append([]remote.Option{remote.WithContext(ctx)}, opts.RemoteOptions...)
 

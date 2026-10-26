@@ -40,6 +40,9 @@ func withCosign(t *testing.T, version string, run func(args []string) ([]byte, e
 		if len(args) > 0 && args[0] == "version" {
 			return []byte(`{"gitVersion":"` + version + `"}`), nil
 		}
+		if len(args) > 0 && args[0] == "initialize" {
+			return nil, nil
+		}
 		if run == nil {
 			return nil, errors.New("error during command execution: no matching signatures")
 		}

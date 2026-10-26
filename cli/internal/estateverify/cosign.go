@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -55,6 +57,12 @@ var operationalErrors = []string{
 	"status code 401", "status code 403", "status code 408", "status code 429",
 	"status code 500", "status code 502", "status code 503", "status code 504",
 	"unauthorized: ", "denied: ", "toomanyrequests: ",
+	// cosign couldn't get Sigstore's trusted root (the TUF repository
+	// unreachable, or its cache half-written by a concurrent cosign): it then
+	// has nothing to verify a certificate against. cosign v3.0.x says only
+	// "trusted root is required", after warning what TUF said.
+	"trusted root is required", "could not fetch trusted_root", "error from tuf", "tuf repository",
+	"tuf updater", "getting live trusted root", "fetching trusted root", "loading trusted root", "error setting tuf",
 }
 
 // classify marks errors that decided nothing about the evidence: cosign
@@ -89,6 +97,89 @@ func failure(err error, detail string) (string, string) {
 // uncheckedDetail says why evidence cosign couldn't check is unknown.
 func uncheckedDetail(err error) string {
 	return "cosign couldn't check it (cosign, a registry, or the transparency log failed), so whether a trusted signer signed it is unknown: " + err.Error()
+}
+
+// Sigstore variables under which cosign verifies against individual targets
+// (keys and roots given by file) instead of the TUF trusted root.
+var sigstoreTargetVars = []string{"SIGSTORE_ROOT_FILE", "SIGSTORE_REKOR_PUBLIC_KEY", "SIGSTORE_CT_LOG_PUBLIC_KEY_FILE", "SIGSTORE_TSA_CERTIFICATE_FILE"}
+
+// PrepareTrustedRoot fetches Sigstore's trusted root once, before anything
+// is verified, and makes every verification read it from that file
+// (--trusted-root) instead of refreshing it from the TUF repository itself.
+// Each cosign run refreshes TUF metadata over the network and rewrites the
+// shared cache (~/.sigstore/root), so with verifications running
+// concurrently one can find the repository unreachable, or a sibling's
+// half-written file, and lose the trusted root; cosign v3.0.x then fails the
+// evidence with "trusted root is required when using new bundle format",
+// which read as a bad signature. Fetched once (cosign initialize), the root
+// is the same for every verification, and a fetch that fails stops the run
+// before it, as an operational error.
+//
+// It returns the file's path, or "" when no trusted root is needed: the
+// policy trusts only keys, a path was given (TrustedRoot), or the
+// environment names individual Sigstore targets (SIGSTORE_ROOT_FILE and the
+// like), which cosign uses instead.
+func (v *Verifier) PrepareTrustedRoot(ctx context.Context) (string, error) {
+	if v.TrustedRoot != "" {
+		return v.TrustedRoot, nil
+	}
+	keyless := false
+	for _, s := range v.Signers {
+		if s.Key == "" {
+			keyless = true
+		}
+	}
+	if !keyless {
+		return "", nil
+	}
+	for _, name := range sigstoreTargetVars {
+		if os.Getenv(name) != "" {
+			return "", nil
+		}
+	}
+	args := []string{"initialize"}
+	mirror := os.Getenv("TUF_MIRROR")
+	if mirror != "" {
+		args = append(args, "--mirror", mirror)
+	}
+	if _, err := v.run(ctx, args...); err != nil {
+		return "", fmt.Errorf("cosign couldn't fetch Sigstore's trusted root (cosign initialize): %w. Keyless evidence can't be verified without it: check access to the TUF repository (%s), or pass --trusted-root FILE", err, firstNonEmpty(mirror, "https://tuf-repo-cdn.sigstore.dev"))
+	}
+	v.TrustedRoot = cachedTrustedRoot()
+	return v.TrustedRoot, nil
+}
+
+// cachedTrustedRoot is the trusted_root.json cosign initialize cached
+// (<cache>/<mirror host>/targets/trusted_root.json under $TUF_ROOT or
+// ~/.sigstore/root), or "" when there isn't exactly one.
+func cachedTrustedRoot() string {
+	cache := os.Getenv("TUF_ROOT")
+	if cache == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return ""
+		}
+		cache = filepath.Join(home, ".sigstore", "root")
+	}
+	matches, err := filepath.Glob(filepath.Join(cache, "*", "targets", "trusted_root.json"))
+	if err != nil || len(matches) != 1 {
+		return ""
+	}
+	return matches[0]
+}
+
+// cosignStderr is what cosign's standard error says went wrong: its last
+// line and, before it, any line about the trusted root or TUF (cosign
+// v3.0.x only warns what TUF said, then fails for the lack of a root).
+func cosignStderr(stderr string) string {
+	var out []string
+	lines := strings.Split(strings.TrimSpace(stderr), "\n")
+	for _, l := range lines[:len(lines)-1] {
+		if lower := strings.ToLower(l); strings.Contains(lower, "trusted_root") || strings.Contains(lower, "tuf") || strings.Contains(lower, "trusted root") {
+			out = append(out, strings.TrimSpace(l))
+		}
+	}
+	return strings.Join(append(out, strings.TrimSpace(lines[len(lines)-1])), "; ")
 }
 
 // CheckCosign checks, before anything is verified, that cosign runs here and

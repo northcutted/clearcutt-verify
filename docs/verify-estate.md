@@ -31,10 +31,23 @@ instead.
    `failed`, never quietly accepted. Evidence cosign couldn't check (it
    couldn't reach the registry or the transparency log, the registry refused
    it, or cosign couldn't run) is `unknown`, not `failed`, and its `detail`
-   says what went wrong; whether a trusted signer signed it is undecided.
+   says what went wrong (for the trusted root, what TUF said too); whether a
+   trusted signer signed it is undecided.
    Before reading anything, the run checks that cosign is there and is cosign
    v3 (the version whose bundles and output it reads), and stops with exit 1
-   if not. cosign is asked for exactly the signer
+   if not. When the policy trusts a keyless signer, it then fetches Sigstore's
+   trusted root once (`cosign initialize`) and hands the cached
+   `trusted_root.json` to every verification (`cosign --trusted-root`), so no
+   verification fetches it from the TUF repository itself: each cosign run
+   otherwise refreshes TUF metadata over the network into the shared cache
+   (`~/.sigstore/root`), and with verifications running concurrently one
+   could find the repository unreachable, or a sibling's half-written file,
+   and fail the evidence as if its signature were bad (cosign v3.0.x reports
+   that as "trusted root is required when using new bundle format"). A fetch
+   that fails stops the run (exit 1); an air-gapped setup passes its own file
+   with `--trusted-root`, and one that sets `SIGSTORE_ROOT_FILE` and the
+   other individual-target variables is left to cosign. cosign is asked for
+   exactly the signer
    the evidence's certificate names (its identity and issuer, and for GitHub
    Actions the repository and ref of the run), once a trusted signer accepts
    that signer, so the signer the report shows on verified evidence is the
