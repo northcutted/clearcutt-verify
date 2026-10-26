@@ -80,6 +80,14 @@ When a release is cut, move these entries under a heading for its version.
 
 ### Added
 
+- **OpenVEX 0.0.1 documents are read, as clearcutt-factory reads them.** A
+  policy's `vex:` document in OpenVEX 0.0.1 (a `vulnerability` given as a
+  string, `subcomponents` beside the products) was refused; it is now
+  converted on reading, the way clearcutt-factory converts it, so one
+  document means the same to both tools: the string is the vulnerability's
+  name, and a statement's `subcomponents` are those of each product that
+  names none of its own (subcomponents none of which can be read still never
+  widen a statement to every package). grype is handed v0.2.0 statements.
 - **Evidence other tools leave is found, as `present`.** `estate verify`
   read only cosign's bundles and tags and unsigned SBOM referrers, so a team
   with existing evidence saw `missing`. It now also finds Notation

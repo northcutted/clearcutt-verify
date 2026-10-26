@@ -236,8 +236,15 @@ applies the same one to its build-time scans):
   `pkg:apk/wolfi/openssl@3.0.1-r0?arch=x86_64`).
 - A statement about an image applies to the packages its `subcomponents`
   name; with no subcomponents, to every package in the image's SBOM, for that
-  vulnerability. A statement's `vulnerability.name` and `aliases` both count
+  vulnerability (subcomponents none of which can be read leave it applying
+  to none). A statement's `vulnerability.name` and `aliases` both count
   (grype's GHSA and the CVE it tracks are the same finding).
+
+OpenVEX v0.2.0 documents are read, and OpenVEX 0.0.1 documents are read the
+way clearcutt-factory reads them, so one document means the same to both
+tools: a `vulnerability` given as a string is its name, products given as
+strings are their `@id`, and the `subcomponents` a 0.0.1 statement names
+beside its products are those of each product that names none of its own.
 
 For each scan, the statements about the image are rewritten as
 package-scoped statements (each subcomponent, or each package of the SBOM,

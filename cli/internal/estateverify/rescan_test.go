@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http/httptest"
@@ -554,5 +555,87 @@ func TestGrypeDatabaseIsPreparedOnce(t *testing.T) {
 	}
 	if got := strings.Join(calls(), "\n"); got != "db status auto-update=false\ndb status auto-update=false" {
 		t.Errorf("grype ran:\n%s", got)
+	}
+}
+
+// TestOpenVEX001MeansWhatV020Means: an OpenVEX 0.0.1 document (vulnerability
+// as a string, products as strings, subcomponents beside the products) is
+// read, as clearcutt-factory reads it, and scoped exactly like the v0.2.0
+// document that says the same: the statement's subcomponents are those of
+// each product naming none of its own, subcomponents none of which can be
+// read never widen a statement to every package, and grype is handed
+// v0.2.0 statements.
+func TestOpenVEX001MeansWhatV020Means(t *testing.T) {
+	dir := t.TempDir()
+	const app = "pkg:oci/app?repository_url=ghcr.io/acme/app"
+	old := `{"@context":"https://openvex.dev/ns","@id":"https://acme.example/vex/1","author":"acme","version":"1","statements":[
+  {"vulnerability":"CVE-2026-1","products":["` + app + `"],"subcomponents":["pkg:npm/a@1"],"status":"not_affected","justification":"vulnerable_code_not_in_execute_path"},
+  {"vulnerability":"CVE-2026-2","products":["` + app + `"],"status":"fixed"},
+  {"vulnerability":"CVE-2026-3","products":["` + app + `"],"subcomponents":[{"unreadable":1}],"status":"not_affected"},
+  {"vulnerability":"CVE-2026-4","products":["pkg:npm/b@2"],"status":"not_affected"},
+  {"vulnerability":"CVE-2026-5","products":[{"@id":"ghcr.io/acme/app","subcomponents":[{"@id":"pkg:npm/b@2"}]}],"subcomponents":["pkg:npm/a@1"],"status":"not_affected"}]}`
+	current := `{"@context":"https://openvex.dev/ns/v0.2.0","@id":"https://acme.example/vex/1","author":"acme","version":1,"statements":[
+  {"vulnerability":{"name":"CVE-2026-1"},"products":[{"@id":"` + app + `","subcomponents":[{"@id":"pkg:npm/a@1"}]}],"status":"not_affected","justification":"vulnerable_code_not_in_execute_path"},
+  {"vulnerability":{"name":"CVE-2026-2"},"products":[{"@id":"` + app + `"}],"status":"fixed"},
+  {"vulnerability":{"name":"CVE-2026-3"},"products":[{"@id":"` + app + `","subcomponents":[{"unreadable":1}]}],"status":"not_affected"},
+  {"vulnerability":{"name":"CVE-2026-4"},"products":[{"@id":"pkg:npm/b@2"}],"status":"not_affected"},
+  {"vulnerability":{"name":"CVE-2026-5"},"products":[{"@id":"ghcr.io/acme/app","subcomponents":[{"@id":"pkg:npm/b@2"}]}],"status":"not_affected"}]}`
+	for name, body := range map[string]string{"old.json": old, "current.json": current} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	img := imageIdentity{repository: "ghcr.io/acme/app", tags: []string{"1"}, digest: "sha256:" + strings.Repeat("a", 64)}
+	purls := []string{"pkg:npm/a@1", "pkg:npm/b@2"}
+	scope := func(file string) ([]byte, []string) {
+		t.Helper()
+		docs, err := ReadVEX(dir, []string{file})
+		if err != nil {
+			t.Fatalf("%s: %v", file, err)
+		}
+		raw, scoped := scopeVEX(docs, img, purls)
+		var out []string
+		for _, s := range scoped {
+			var products []string
+			for _, p := range s.Products {
+				products = append(products, p.ID)
+			}
+			out = append(out, fmt.Sprintf("%s %s %s any=%v [%s] from %s", s.Vulnerability.Name, s.Status, s.Justification, s.anyPackage, strings.Join(products, ","), s.origin.Product))
+		}
+		return raw, out
+	}
+	oldRaw, oldScoped := scope("old.json")
+	_, currentScoped := scope("current.json")
+	want := []string{
+		"CVE-2026-1 not_affected vulnerable_code_not_in_execute_path any=false [pkg:npm/a@1] from " + app,
+		"CVE-2026-2 fixed  any=true [pkg:npm/a@1,pkg:npm/b@2] from " + app,
+		"CVE-2026-4 not_affected  any=false [pkg:npm/b@2] from pkg:npm/b@2",
+		"CVE-2026-5 not_affected  any=false [pkg:npm/b@2] from ghcr.io/acme/app",
+	}
+	if strings.Join(oldScoped, "\n") != strings.Join(want, "\n") {
+		t.Errorf("OpenVEX 0.0.1 scoped:\n%s\nwant:\n%s", strings.Join(oldScoped, "\n"), strings.Join(want, "\n"))
+	}
+	if strings.Join(currentScoped, "\n") != strings.Join(oldScoped, "\n") {
+		t.Errorf("v0.2.0 and 0.0.1 differ:\n%s\nvs\n%s", strings.Join(currentScoped, "\n"), strings.Join(oldScoped, "\n"))
+	}
+	var handed struct {
+		Context    string `json:"@context"`
+		Statements []struct {
+			Vulnerability struct {
+				Name string `json:"name"`
+			} `json:"vulnerability"`
+			Subcomponents any `json:"subcomponents"`
+		} `json:"statements"`
+	}
+	if err := json.Unmarshal(oldRaw, &handed); err != nil || handed.Context != "https://openvex.dev/ns/v0.2.0" || len(handed.Statements) != 4 ||
+		handed.Statements[0].Vulnerability.Name != "CVE-2026-1" || handed.Statements[0].Subcomponents != nil {
+		t.Errorf("grype is handed v0.2.0 statements: %s (%v)", oldRaw, err)
+	}
+	// A 0.0.1 statement that isn't one is refused like any other.
+	if err := os.WriteFile(filepath.Join(dir, "bad.json"), []byte(`{"@context":"https://openvex.dev/ns","statements":[{"vulnerability":"CVE-1","products":["pkg:npm/a@1"],"subcomponents":"pkg:npm/a@1","status":"fixed"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadVEX(dir, []string{"bad.json"}); err == nil || !strings.Contains(err.Error(), "subcomponents") {
+		t.Errorf("subcomponents that aren't a list: %v", err)
 	}
 }
