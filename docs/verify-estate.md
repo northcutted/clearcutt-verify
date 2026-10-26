@@ -303,7 +303,35 @@ signers:
 
 Name it from a verification policy (`trustPolicy: trust.yaml`, relative to the
 policy) or pass `--trust-policy trust.yaml`; its image signers join the
-policy's `trustedSigners`.
+policy's `trustedSigners`. A third role, `estate`, names who may sign the
+estate's own artifacts in the registry (the report bundle `estate push`
+stores and the history index it appends to): `estate pull --trust-policy
+trust.yaml` (or `--policy policy.yaml`, through its `trustPolicy`) verifies
+against those signers instead of cosign's flags, and so does `estate
+history`. clearcutt-factory accepts the role and ignores it.
+
+```yaml
+  - name: estate-job
+    roles: [estate]
+    identity: https://github.com/acme/estate/.github/workflows/estate.yml@refs/heads/main
+    issuer: https://token.actions.githubusercontent.com
+```
+
+`sourceRepositoryOwner: https://github.com/OWNER` accepts a keyless signer's
+runs in any repository of that owner: the certificate's Source Repository
+URI (`1.3.6.1.4.1.57264.1.12`, or the v1 workflow repository extension) must
+be `https://github.com/OWNER/<repo>`, i.e. its owner segment must be
+`OWNER` exactly (`acme-evil` is not `acme`), and that repository is then
+required of cosign exactly (`--certificate-github-workflow-repository
+OWNER/<repo>`), so the report shows the repository that signed. With
+`sourceRepository` or `sourceMatchesImage` as well, the repository they
+resolve to must be the owner's. The value must be exactly
+`https://github.com/OWNER` (a trailing slash is allowed); anything else is
+refused when the policy is read, and the constraint needs the GitHub Actions
+issuer. Evidence signed by a reusable workflow under a signer that names
+none of `sourceRepository`, `sourceRepositoryOwner`, or `sourceMatchesImage`
+stays `present`, never `verified`: the identity alone would trust every
+caller.
 
 A signer's `key:` file is relative to the file that names it (the trust
 policy, or the verification policy), as clearcutt-factory reads it, so cosign
@@ -421,12 +449,18 @@ reference (nothing yet on the first run); any other failure fails, including a
 stored bundle whose files can't be read, so a run never starts a fresh
 history and pushes it over one it couldn't read. The push prints the
 artifact's digest; the job signs it, and the next run's pull writes nothing
-until cosign has verified that signature against the job's identity
+until cosign has verified that signature against the trust policy's `estate`
+signers (`--trust-policy trust.yaml`, or `--policy policy.yaml` through its
+`trustPolicy`), or against the job's identity given as cosign's flags
 (`--certificate-identity` or `--certificate-identity-regexp` with
 `--certificate-oidc-issuer`, or `--key`, as `cosign verify` takes them).
 Without it, anyone who can push to the repository could hand the next run a
 history of their making. `--allow-unverified` writes an unverified bundle
-anyway, and warns.
+anyway, and warns. `estate push --history REF` appends the snapshot to a
+history index and prints the index's digest too; a job signs that digest the
+same way (`cosign sign --yes REPOSITORY@INDEX_DIGEST`), and `estate history
+REF` reads the index only once cosign has verified it against the same
+signers (the same flags), refusing it otherwise unless `--allow-unverified`.
 
 ## Other fields readers use
 

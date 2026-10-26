@@ -171,7 +171,9 @@ every edge with the confidence that method earns. See
 ./clearcutt-verify estate dependents --report dist/estate/estate-report.json \
   --base ghcr.io/acme/platform/run-python --format json
 
-# Keep the report next to the images, and read it back
+# Keep the report next to the images, and read it back (the pushing job
+# signs the bundle's digest, and the history index's, with cosign; a trust
+# policy's estate signers say who may have)
 ./clearcutt-verify estate push ghcr.io/acme/estate:latest --dir dist/estate \
   --file estate-report.json --file estate-history.json
 ./clearcutt-verify estate pull ghcr.io/acme/estate:latest --output dist/estate \

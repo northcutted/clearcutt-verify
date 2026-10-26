@@ -227,9 +227,17 @@ func TestEstateHistoryCommandRendersTheTrend(t *testing.T) {
 		}
 	}
 
-	stdout, err := runCLI(t, "estate", "history", historyRef, "--insecure")
+	// Nobody signed the index: reading it takes --allow-unverified, and the
+	// output says so.
+	if _, err := runCLI(t, "estate", "history", historyRef, "--insecure"); err == nil || !strings.Contains(err.Error(), "role estate") {
+		t.Fatalf("history without a signer: %v", err)
+	}
+	stdout, err := runCLI(t, "estate", "history", historyRef, "--insecure", "--allow-unverified")
 	if err != nil {
 		t.Fatalf("history: %v\n%s", err, stdout)
+	}
+	if !strings.Contains(stdout, "WARNING") || !strings.Contains(stdout, "NOT verified") {
+		t.Errorf("an unverified index read without a warning:\n%s", stdout)
 	}
 	for _, want := range []string{
 		"2026-08-31T00:00:00Z",
@@ -263,7 +271,7 @@ func TestEstateHistoryOnAnEmptySeriesSaysSo(t *testing.T) {
 		"--generated-at", "2026-09-01T00:00:00Z", "--history", historyRef, "--insecure"); err != nil {
 		t.Fatal(err)
 	}
-	stdout, err := runCLI(t, "estate", "history", historyRef, "--insecure")
+	stdout, err := runCLI(t, "estate", "history", historyRef, "--insecure", "--allow-unverified")
 	if err != nil {
 		t.Fatalf("history: %v\n%s", err, stdout)
 	}
@@ -311,7 +319,7 @@ func TestEnvironmentCredentialsReachOnlyTheirRegistry(t *testing.T) {
 		return strings.Join(offered, " ")
 	}
 
-	for _, args := range [][]string{{"estate", "history", ref}, {"evidence", "list", ref}} {
+	for _, args := range [][]string{{"estate", "history", ref, "--allow-unverified"}, {"evidence", "list", ref}} {
 		if stdout, err := runCLI(t, args...); err == nil {
 			t.Fatalf("%v: authenticated without credentials:\n%s", args, stdout)
 		}
@@ -323,7 +331,7 @@ func TestEnvironmentCredentialsReachOnlyTheirRegistry(t *testing.T) {
 	// The explicit pair is for the registry the command names.
 	t.Setenv("REGISTRY_USER", "ci-bot")
 	t.Setenv("REGISTRY_TOKEN", "s3cret")
-	_, _ = runCLI(t, "estate", "history", ref)
+	_, _ = runCLI(t, "estate", "history", ref, "--allow-unverified")
 	if !strings.Contains(seen(), basic("ci-bot", "s3cret")) {
 		t.Errorf("the explicit credentials weren't offered to the named registry: %q", seen())
 	}

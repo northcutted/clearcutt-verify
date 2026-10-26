@@ -127,8 +127,8 @@ func ReadTrustPolicy(path string) (report.TrustPolicy, error) {
 	}
 	for i, s := range t.Signers {
 		for _, r := range s.Roles {
-			if r != "image" && r != "stack" {
-				return report.TrustPolicy{}, fmt.Errorf("%s: signers[%d]: role %q must be image or stack", path, i, r)
+			if r != "image" && r != "stack" && r != "estate" {
+				return report.TrustPolicy{}, fmt.Errorf("%s: signers[%d]: role %q must be image, stack, or estate", path, i, r)
 			}
 		}
 		if _, err := signerFlags(s.Signer()); err != nil {
@@ -136,6 +136,44 @@ func ReadTrustPolicy(path string) (report.TrustPolicy, error) {
 		}
 	}
 	return t, nil
+}
+
+// ReadEstateSigners reads the signers with role estate (who may sign estate
+// report bundles and history indexes) from a TrustPolicy file, or from the
+// TrustPolicy a VerificationPolicy names (trustPolicy:), for estate pull and
+// estate history. It refuses a file that names none: pulling on nobody's
+// word is what --allow-unverified is for.
+func ReadEstateSigners(policyPath, trustPolicyPath string) ([]report.Signer, error) {
+	path := trustPolicyPath
+	if policyPath != "" {
+		raw, err := os.ReadFile(policyPath)
+		if err != nil {
+			return nil, err
+		}
+		var f PolicyFile
+		if err := yaml.UnmarshalStrict(raw, &f); err != nil {
+			return nil, fmt.Errorf("%s: %w", policyPath, err)
+		}
+		if f.APIVersion != report.APIVersion || f.Kind != "VerificationPolicy" {
+			return nil, fmt.Errorf("%s: expected apiVersion %s and kind VerificationPolicy", policyPath, report.APIVersion)
+		}
+		if f.TrustPolicy == "" {
+			return nil, fmt.Errorf("%s names no trustPolicy, and estate signers (role estate) come from a trust policy", policyPath)
+		}
+		path = f.TrustPolicy
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(filepath.Dir(policyPath), path)
+		}
+	}
+	t, err := ReadTrustPolicy(path)
+	if err != nil {
+		return nil, err
+	}
+	signers := t.For("estate")
+	if len(signers) == 0 {
+		return nil, fmt.Errorf("%s names no signer with role estate (who may sign estate bundles and history indexes)", path)
+	}
+	return signers, nil
 }
 
 // keyPath resolves a key file relative to dir, the directory of the file

@@ -36,6 +36,17 @@ When a release is cut, move these entries under a heading for its version.
   under a new ID once; `estate verify` renames the rows of earlier runs in
   the history it extends when exactly one current image had the old ID. The
   fixture and example bundles use the new IDs.
+- **`estate history` verifies the history index's signature.** It read the
+  index on nobody's word. Like `estate pull`, it now needs who signed it: a
+  trust policy's signers with role `estate` (`--trust-policy FILE`, or
+  `--policy FILE` through its `trustPolicy`), or cosign's flags
+  (`--certificate-identity`/`-regexp` with `--certificate-oidc-issuer`, or
+  `--key` with `--insecure-ignore-tlog`); an index nobody trusted signed is
+  refused (exit 1), and `--allow-unverified` reads it anyway with a warning.
+  A job that appends to a history (`estate push --history`) signs the index
+  digest the push prints, as it signs the bundle's. `estate pull` takes the
+  same `--trust-policy`/`--policy` flags. A new trust-policy signer role,
+  `estate`, names those signers; clearcutt-factory accepts and ignores it.
 - **`estate pull` verifies the signature of what it pulls.** It checked only
   the artifact's media type, so anyone who could push to the repository could
   hand the next scheduled run a history of their making. It now writes
@@ -58,6 +69,14 @@ When a release is cut, move these entries under a heading for its version.
 
 ### Added
 
+- **`sourceRepositoryOwner` is validated and described.** A trusted signer's
+  `sourceRepositoryOwner` must be exactly `https://github.com/OWNER`; the
+  policy is refused otherwise (before, a wrong value silently matched nothing
+  and every signature came out failed). The trust-policy schema now describes
+  every signer field, and docs/verify-estate.md states the exact rule: the
+  certificate's Source Repository URI must be `https://github.com/OWNER/<repo>`
+  (its owner segment exactly `OWNER`), and that repository is then required
+  of cosign (`--certificate-github-workflow-repository`).
 - **`estate verify --rescan`: today's findings beside the publisher's.** The
   run scans each image's *verified* SBOMs itself with grype (on `PATH`, or
   `--grype-path`; checked before the run, exit 1 without it) and reports the
