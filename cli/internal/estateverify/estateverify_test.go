@@ -411,7 +411,7 @@ func TestVerdict(t *testing.T) {
 		t.Errorf("failed signature: %+v", v)
 	}
 	p = report.Policy{MaxDaysBehind: 7, TrustedSigners: acme}
-	img.Base = &report.BaseLink{DaysBehind: 9, Drift: "stale"}
+	img.Base = &report.BaseLink{DaysBehind: 9, Drift: "stale", Strength: "proof", Method: "layer-prefix"}
 	if v := verdict(img, p); v.Status != "failed" {
 		t.Errorf("stale base: %+v", v)
 	}

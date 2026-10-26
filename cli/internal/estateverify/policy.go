@@ -238,9 +238,14 @@ func verdictAt(img report.Image, p report.Policy, now time.Time) report.Verdict 
 		}
 	}
 	if p.MaxDaysBehind > 0 {
+		// Only drift from a base proven by layer digests can fail an image:
+		// drift from a base its author claims is as good as the claim, so at
+		// worst it leaves the image unverified.
 		switch b := img.Base; {
-		case b != nil && b.DaysBehind > p.MaxDaysBehind:
+		case b != nil && b.Strength == "proof" && b.DaysBehind > p.MaxDaysBehind:
 			failed = append(failed, fmt.Sprintf("base is %d days behind its newest version (limit %d)", b.DaysBehind, p.MaxDaysBehind))
+		case b != nil && b.DaysBehind > p.MaxDaysBehind:
+			unverified = append(unverified, fmt.Sprintf("its base is %d days behind its newest version (limit %d) by what the image claims (%s, %s), which isn't proven by layer digests", b.DaysBehind, p.MaxDaysBehind, b.Strength, b.Method))
 		case b != nil && b.Drift == "stale" && b.DaysBehindUnknown:
 			unverified = append(unverified, "its base is behind its newest version, by how many days couldn't be measured")
 		case b != nil && b.Drift == "unknown", b == nil && img.Root == "":
@@ -252,7 +257,9 @@ func verdictAt(img report.Image, p report.Policy, now time.Time) report.Verdict 
 		switch r := img.Reproducibility; {
 		case r.Status == "not-reproduced":
 			failed = append(failed, "rebuilding gave a different digest")
-		case r.Status == "not-checked" && r.Method != "":
+		case r.Status == "not-checked":
+			// Including an image whose recipe or rebase record couldn't be
+			// read: whether there is anything to rebuild is unknown.
 			unverified = append(unverified, "reproducibility couldn't be checked")
 		}
 	}

@@ -193,7 +193,13 @@ shared one can use `tlog` once clearcutt-factory accepts the field too.
 `--reproduce` passes `--insecure-ignore-tlog=true` to `clearcutt-factory
 verify` for such a key, which needs a clearcutt-factory that accepts it.
 
-With `maxDaysBehind`, an image whose base couldn't be placed is `unverified`:
+With `maxDaysBehind`, only drift from a base **proven** by layer digests
+(`base.strength: proof`) fails an image. An image whose claimed base
+(`declared`, `assisted`, `weak`) is more than the limit behind is
+`unverified`, with the reason saying the drift rests on a claim: a label can't
+fail an image any more than it can pass one. Edges from `base.name` or build
+history (`oci-base-name`, `history`) identify no version, so their drift is
+`unknown`. An image whose base couldn't be placed is `unverified`:
 it might be behind. So is one whose base is behind its newest version by an
 unknown number of days (`base.daysBehindUnknown`: a creation time is missing,
 or zeroed by a reproducible build). Roots (images others are built on, with no
@@ -364,7 +370,10 @@ clearcutt-factory reports last (its final output line on success, its error
 on a mismatch), never from build output, and a rebuild that exits with an
 error is never `reproduced`; its `reproducibility.source` is `rebuild`.
 Without `--reproduce`, images with recipes and no verified reproduction
-attestation are `not-checked`.
+attestation are `not-checked`. With it, an image whose recipe or rebase
+record is `unknown` (couldn't be read) is `not-checked` too, and `unverified`:
+whether there was anything to rebuild is undecided, so it is never skipped as
+if it had no recipe.
 
 ## Limits
 

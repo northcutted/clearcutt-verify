@@ -141,6 +141,14 @@ Each edge carries:
 - `versionsBehind`: published versions between the matched base and the newest one
 - `daysBehind`: days between the matched base and the newest one
 
+Drift is measured only where the edge identifies the version the image is built on:
+`layer-prefix`, `oci-base-digest`, and `buildpacks-metadata`. An `oci-base-name` or
+`history` edge names a repository, not a version, so any observed version of it
+matches; such an edge names what the image claims (`baseRef`), carries no
+`baseDigest`, and has `drift: unknown` with `versionsBehind` and `daysBehind` 0. It
+never counts as a stale consumer: calling an image stale because it matched the
+oldest observed version first would be a finding made of a label.
+
 Reproducible builders zero the creation timestamp on purpose — Nix `dockerTools`
 stamps `1970-01-01T00:00:01Z` on everything. Those are treated as *no* timestamp
 rather than as a real date, so currency falls back to tag order, `daysBehind` stays

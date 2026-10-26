@@ -262,3 +262,52 @@ func TestTrivyScanIsNotACleanScan(t *testing.T) {
 	}
 	validateReport(t, r)
 }
+
+// maxDaysBehind fails an image only on drift from a base proven by layer
+// digests: drift from a claimed base leaves it unverified at worst, never
+// failed.
+func TestStalenessFromClaimsNeverFails(t *testing.T) {
+	p := report.Policy{TrustedSigners: []report.Signer{{IdentityRegexp: `^https://github\.com/acme/`, Issuer: ghIssuer}}, MaxDaysBehind: 30}
+	for _, tc := range []struct {
+		strength, method, drift string
+		days                    int
+		want                    string
+	}{
+		{"proof", "layer-prefix", "stale", 45, "failed"},
+		{"proof", "layer-prefix", "stale", 10, "verified"},
+		{"declared", "oci-base-digest", "stale", 45, "unverified"},
+		{"declared", "buildpacks-metadata", "stale", 45, "unverified"},
+		{"assisted", "oci-base-name", "unknown", 0, "unverified"},
+		{"weak", "history", "unknown", 0, "unverified"},
+		{"declared", "oci-base-digest", "stale", 10, "verified"},
+	} {
+		img := allVerified()
+		img.Base = &report.BaseLink{Repository: "r", Strength: tc.strength, Method: tc.method, Drift: tc.drift, DaysBehind: tc.days}
+		if got := verdictAt(img, p, built); got.Status != tc.want {
+			t.Errorf("%s base %d days behind (%s): %+v, want %s", tc.strength, tc.days, tc.drift, got, tc.want)
+		}
+	}
+}
+
+// --reproduce never skips an image because its recipe or rebase record
+// couldn't be read: whether it reproduces is unknown, so it is unverified.
+func TestReproduceDoesNotSkipAnUnknownRecipe(t *testing.T) {
+	p := report.Policy{TrustedSigners: []report.Signer{{IdentityRegexp: `^https://github\.com/acme/`, Issuer: ghIssuer}}, Reproduce: true}
+	img := allVerified()
+	img.Evidence.Recipe = report.EvidenceItem{Status: "unknown"}
+	img.Reproducibility = reproduce(context.Background(), &img, imageData{}, Options{Policy: p})
+	if img.Reproducibility.Status != "not-checked" {
+		t.Fatalf("reproducibility: %+v", img.Reproducibility)
+	}
+	if got := verdictAt(img, report.Policy{TrustedSigners: p.TrustedSigners, Reproduce: true}, built); got.Status != "unverified" ||
+		!strings.Contains(strings.Join(got.Reasons, ";"), "reproducibility couldn't be checked") {
+		t.Errorf("verdict: %+v", got)
+	}
+	// No recipe at all is nothing to rebuild.
+	img = allVerified()
+	img.Evidence.Recipe, img.Evidence.Rebase = report.EvidenceItem{Status: "missing"}, report.EvidenceItem{Status: "not-applicable"}
+	img.Reproducibility = reproduce(context.Background(), &img, imageData{}, Options{Policy: p})
+	if got := verdictAt(img, report.Policy{TrustedSigners: p.TrustedSigners, Reproduce: true}, built); img.Reproducibility.Status != "no-recipe" || got.Status != "verified" {
+		t.Errorf("no recipe: %+v %+v", img.Reproducibility, got)
+	}
+}

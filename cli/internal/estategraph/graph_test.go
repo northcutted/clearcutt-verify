@@ -735,3 +735,29 @@ func TestBuildGraphOmitsSharedLayerHintWhenNothingIsShared(t *testing.T) {
 		}
 	}
 }
+
+// A base name or a history line names the repository, not the version, so
+// the graph can't tell how far behind the image is: it doesn't pick the
+// oldest observed version and call the image stale.
+func TestBuildGraphNameAndHistoryEdgesHaveNoDrift(t *testing.T) {
+	old := obs("reg.test/base/go:v1", "2026-01-01T00:00:00Z", "os-old")
+	current := obs("reg.test/base/go:v2", "2026-03-01T00:00:00Z", "os")
+	named := obs("reg.test/apps/svc:v1", "2026-04-01T00:00:00Z", "squashed")
+	named.Labels["org.opencontainers.image.base.name"] = "reg.test/base/go:v2"
+	hist := obs("reg.test/apps/tool:v1", "2026-04-01T00:00:00Z", "squashed2")
+	hist.History = []HistoryObservation{{CreatedBy: "FROM reg.test/base/go"}}
+
+	graph := graphOf(t, GraphOptions{}, old, current, named, hist)
+	for ref, method := range map[string]string{"reg.test/apps/svc:v1": MethodOCIBaseName, "reg.test/apps/tool:v1": MethodHistory} {
+		edge := edgeFor(t, graph, ref)
+		if edge.Method != method || edge.Drift != DriftUnknown || edge.VersionsBehind != 0 || edge.DaysBehind != 0 || edge.BaseDigest != "" {
+			t.Errorf("%s: %+v", ref, edge)
+		}
+	}
+	if e := edgeFor(t, graph, "reg.test/apps/svc:v1"); e.BaseRef != "reg.test/base/go:v2" {
+		t.Errorf("a name edge names what the image claims: %q", e.BaseRef)
+	}
+	if graph.Summary.StaleConsumers != 0 {
+		t.Errorf("stale consumers from claims: %d", graph.Summary.StaleConsumers)
+	}
+}

@@ -64,6 +64,17 @@ When a release is cut, move these entries under a heading for its version.
   nothing, exiting 1, when either doesn't match, so a bug can't publish a
   bundle a portal would reject. A previous `estate-history.json` that isn't a
   valid history now stops the run instead of being extended.
+- **Staleness is never manufactured from a claim.** `maxDaysBehind` fails an
+  image only when its base is proven by layer digests (`base.strength:
+  proof`); an image more than the limit behind a base it only claims
+  (`declared`, `assisted`, `weak`) is `unverified`, with the reason saying
+  so. Graph edges from `org.opencontainers.image.base.name` or build history
+  (`oci-base-name`, `history`) no longer pick the oldest observed version of
+  the repository and call the image stale: they name the repository the image
+  claims, carry no `baseDigest`, have `drift: unknown`, and aren't counted as
+  stale consumers (`graph build --fail-on-stale` included). Under
+  `--reproduce`, an image whose recipe or rebase record is `unknown` is
+  `not-checked` and `unverified`, not skipped as if it had no recipe.
 - **`reproducibility.checkedAt` is the report's time** for images this run
   rebuilt (`--reproduce`), not the wall clock, so `--generated-at` makes the
   whole report reproducible.
