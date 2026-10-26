@@ -161,8 +161,10 @@ When a release is cut, move these entries under a heading for its version.
   so. Graph edges from `org.opencontainers.image.base.name` or build history
   (`oci-base-name`, `history`) no longer pick the oldest observed version of
   the repository and call the image stale: they name the repository the image
-  claims, carry no `baseDigest`, have `drift: unknown`, and aren't counted as
-  stale consumers (`graph build --fail-on-stale` included). Under
+  claims, carry no `baseDigest` (and the report's `base.imageId` is empty:
+  no observed image is identified as the version), have `drift: unknown`,
+  and aren't counted as stale consumers (`graph build --fail-on-stale`
+  included). Under
   `--reproduce`, an image whose recipe or rebase record is `unknown` is
   `not-checked` and `unverified`, not skipped as if it had no recipe.
 - **`reproducibility.checkedAt` is the report's time** for images this run

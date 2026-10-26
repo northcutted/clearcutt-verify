@@ -11,6 +11,8 @@ import (
 
 	ggcrregistry "github.com/google/go-containerregistry/pkg/registry"
 
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
+
 	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
@@ -287,6 +289,51 @@ func TestStalenessFromClaimsNeverFails(t *testing.T) {
 			t.Errorf("%s base %d days behind (%s): %+v, want %s", tc.strength, tc.days, tc.drift, got, tc.want)
 		}
 	}
+}
+
+// A base named only by repository (base.name, a history line) identifies no
+// version, so the edge has no digest. Linking it must not resolve the empty
+// digest to an image that couldn't be read (which has no digest either).
+func TestNamedBaseIsNotLinkedToAnUnreadableImage(t *testing.T) {
+	srv := httptest.NewServer(ggcrregistry.New(ggcrregistry.Logger(log.New(io.Discard, "", 0)), ggcrregistry.WithReferrersSupport(true)))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	pushIndex(t, host+"/base:latest", nil, built, nil)
+	pushIndex(t, host+"/app:1", nil, built, nil)
+	observations := observe(t, host, "base:latest", "app:1")
+	for i := range observations.Images {
+		if observations.Images[i].ID == "app" {
+			observations.Images[i].Labels["org.opencontainers.image.base.name"] = host + "/base:latest"
+		}
+	}
+	// Unreadable images in either position: the bug kept the last one.
+	broken := func(id string) estategraph.Observation {
+		return estategraph.Observation{ID: id, SourceRef: host + "/" + id + ":1", Platforms: []string{}, Entrypoint: []string{}, Cmd: []string{},
+			Labels: map[string]string{}, Annotations: map[string]string{}, Layers: []estategraph.LayerObservation{},
+			History: []estategraph.HistoryObservation{}, Warnings: []string{"the image couldn't be read"}}
+	}
+	observations.Images = append([]estategraph.Observation{broken("broken-a")}, append(observations.Images, broken("broken-z"))...)
+
+	verifier := acmeVerifier()
+	r, err := Build(context.Background(), observations, Options{
+		Name: "named-base", Version: "test", GeneratedAt: "2026-10-26T00:00:00Z", Verifier: verifier,
+		Policy: report.Policy{TrustedSigners: verifier.Signers},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, img := range r.Images {
+		if img.ID != "app" {
+			continue
+		}
+		if img.Base == nil || img.Base.Method != estategraph.MethodOCIBaseName || img.Base.Digest != "" {
+			t.Fatalf("app base: %+v", img.Base)
+		}
+		if img.Base.ImageID != "" {
+			t.Errorf("a base named by repository was linked to image %q", img.Base.ImageID)
+		}
+	}
+	validateReport(t, r)
 }
 
 // --reproduce never skips an image because its recipe or rebase record

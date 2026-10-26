@@ -109,12 +109,19 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 	// own, and ones whose layers couldn't be read.
 	notRoots := map[string]bool{}
 	for _, o := range observations.Images {
-		ids[o.DigestRef] = o.ID
-		ids[normalizeRepo(o.DigestRef)] = o.ID
-		ids[o.ManifestDigest] = o.ID
+		// An image that couldn't be read has no digest: keying it by "" would
+		// link every edge that names no version (base.name, history) to it.
+		for _, k := range []string{o.DigestRef, normalizeRepo(o.DigestRef), o.ManifestDigest} {
+			if k != "" {
+				ids[k] = o.ID
+			}
+		}
 		_, d := splitDigestRef(o.DigestRef)
-		created[firstNonEmpty(d, o.ManifestDigest)] = o.Created
-		created[o.ManifestDigest] = o.Created
+		for _, k := range []string{d, o.ManifestDigest} {
+			if k != "" {
+				created[k] = o.Created
+			}
+		}
 		if len(o.Layers) == 0 {
 			notRoots[o.ID] = true
 		}
@@ -412,8 +419,14 @@ func baseOf(img *report.Image, obs estategraph.Observation, graph estategraph.Gr
 		if e.ConsumerID != obs.ID {
 			continue
 		}
+		// An edge that names only the repository identifies no version, so
+		// no observed image is the one it is built on.
+		var imageID string
+		if e.BaseDigest != "" {
+			imageID = firstNonEmpty(ids[e.BaseDigest], ids[e.BaseRepository+"@"+e.BaseDigest])
+		}
 		img.Base = &report.BaseLink{
-			ImageID: firstNonEmpty(ids[e.BaseDigest], ids[e.BaseRepository+"@"+e.BaseDigest]), Repository: e.BaseRepository,
+			ImageID: imageID, Repository: e.BaseRepository,
 			Ref: e.BaseRef, Digest: e.BaseDigest, Method: e.Method, Strength: strengthOf(e.Method),
 			Drift: firstNonEmpty(e.Drift, "unknown"), VersionsBehind: e.VersionsBehind, DaysBehind: e.DaysBehind,
 			CurrentRef: e.CurrentBaseRef, CurrentDigest: e.CurrentBaseDigest,
@@ -422,7 +435,7 @@ func baseOf(img *report.Image, obs estategraph.Observation, graph estategraph.Gr
 			img.Base.ProvenOn = observedPlatform(obs)
 		}
 		// Days behind are counted between the two versions' creation times.
-		img.Base.DaysBehindUnknown = e.Drift == "stale" && (!dated(e.BaseCreated) || !dated(created[e.CurrentBaseDigest]))
+		img.Base.DaysBehindUnknown = e.Drift == "stale" && (!dated(e.BaseCreated) || e.CurrentBaseDigest == "" || !dated(created[e.CurrentBaseDigest]))
 		return
 	}
 	for _, root := range graph.Roots {
@@ -685,9 +698,13 @@ func basesOf(images []report.Image) []report.Base {
 	created := map[string]string{}
 	for _, img := range images {
 		for _, p := range img.Platforms {
-			created[p.Digest] = img.Created
+			if p.Digest != "" {
+				created[p.Digest] = img.Created
+			}
 		}
-		created[img.Digest] = img.Created
+		if img.Digest != "" {
+			created[img.Digest] = img.Created
+		}
 	}
 	out := make([]report.Base, 0, len(byRepo))
 	for repo, b := range byRepo {
