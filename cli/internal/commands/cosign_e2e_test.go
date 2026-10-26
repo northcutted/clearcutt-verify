@@ -205,7 +205,6 @@ required: [signature, sbom, vulnerabilityScan, provenance]
 trustedSigners:
   - key: trusted.pub
     tlog: false
-failOn: critical
 `
 	if keyless {
 		// The workflow that runs this test, in this repository.
@@ -214,6 +213,7 @@ failOn: critical
     sourceRepository: https://github.com/northcutted/clearcutt-verify
 `
 	}
+	policyText += "failOn: critical\n"
 	if err := os.WriteFile(policy, []byte(policyText), 0o644); err != nil {
 		t.Fatal(err)
 	}
