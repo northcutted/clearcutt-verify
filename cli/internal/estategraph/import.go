@@ -241,6 +241,15 @@ func AssignIDs(refs []string) []string {
 	return out
 }
 
+// CanonicalRef spells a reference the one way (canonicalRef), or returns it
+// trimmed when it isn't one.
+func CanonicalRef(ref string) string {
+	if c, err := canonicalRef(ref); err == nil {
+		return c
+	}
+	return strings.TrimSpace(ref)
+}
+
 // canonicalRef spells a reference the one way: registry (Docker Hub as
 // docker.io), repository, and tag or digest.
 func canonicalRef(ref string) (string, error) {

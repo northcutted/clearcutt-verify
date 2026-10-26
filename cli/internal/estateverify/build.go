@@ -7,6 +7,7 @@ import (
 	"io"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -224,7 +225,6 @@ func uniqueImages(images []estategraph.Observation) []estategraph.Observation {
 	for _, o := range out {
 		count[o.ID]++
 	}
-	var refs []string
 	var redo []int
 	taken := map[string]bool{}
 	for i, o := range out {
@@ -233,7 +233,20 @@ func uniqueImages(images []estategraph.Observation) []estategraph.Observation {
 			continue
 		}
 		redo = append(redo, i)
-		refs = append(refs, firstNonEmpty(o.SourceRef, o.DigestRef, o.ID))
+	}
+	// Images given the same ID (one reference observed at two digests, say)
+	// are told apart by -2, -3 in this order, which must not be the order
+	// they came in: by canonical reference, then digest, then the rest of
+	// what makes them different observations.
+	sortKey := func(o estategraph.Observation) []string {
+		ref := firstNonEmpty(o.SourceRef, o.DigestRef, o.ID)
+		_, digest := splitDigestRef(o.DigestRef)
+		return []string{estategraph.CanonicalRef(ref), firstNonEmpty(digest, o.ManifestDigest), ref, o.DigestRef, o.SourceRef, o.ID}
+	}
+	sort.SliceStable(redo, func(a, b int) bool { return slices.Compare(sortKey(out[redo[a]]), sortKey(out[redo[b]])) < 0 })
+	refs := make([]string, len(redo))
+	for k, i := range redo {
+		refs[k] = firstNonEmpty(out[i].SourceRef, out[i].DigestRef, out[i].ID)
 	}
 	ids := estategraph.AssignIDs(refs)
 	for k, i := range redo {

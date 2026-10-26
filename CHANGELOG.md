@@ -31,8 +31,10 @@ When a release is cut, move these entries under a heading for its version.
   reference appended, so IDs no longer depend on input order. This applies to
   `import images`, `registry scan`, and `estate verify --refs`; `estate
   verify` also gives any observation whose ID is missing, repeated, or not a
-  URL path segment the ID its reference gives. A reference listed twice is
-  imported once. Readers that kept IDs (links, compare-runs) see each image
+  URL path segment the ID its reference gives (observations that still share
+  one, such as a reference observed at two digests, get `-2`, `-3` by
+  canonical reference and then digest, not by input order). A reference
+  listed twice is imported once. Readers that kept IDs (links, compare-runs) see each image
   under a new ID once; `estate verify` renames the rows of earlier runs in
   the history it extends when exactly one current image had the old ID,
   computed from the reference as it was written (a reference without a tag
