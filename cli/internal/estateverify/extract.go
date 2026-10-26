@@ -22,7 +22,31 @@ type grypeResult struct {
 	Descriptor     struct {
 		Name    string `json:"name"`
 		Version string `json:"version"`
+		// Timestamp is when grype ran (RFC 3339, local offset).
+		Timestamp string `json:"timestamp"`
+		DB        struct {
+			Status struct {
+				SchemaVersion string `json:"schemaVersion"`
+				Built         string `json:"built"`
+			} `json:"status"`
+			// Older grype printed the status fields at this level.
+			SchemaVersion string `json:"schemaVersion"`
+			Built         string `json:"built"`
+		} `json:"db"`
 	} `json:"descriptor"`
+}
+
+// database is the vulnerability database the output says it used.
+func (r grypeResult) database() *report.ScannerDatabase {
+	d := r.Descriptor.DB
+	db := &report.ScannerDatabase{Built: firstNonEmpty(d.Status.Built, d.Built), Schema: firstNonEmpty(d.Status.SchemaVersion, d.SchemaVersion)}
+	if db.Built == "" && db.Schema == "" {
+		return nil
+	}
+	if t, err := time.Parse(time.RFC3339, db.Built); err == nil {
+		db.Built = t.UTC().Format(time.RFC3339)
+	}
+	return db
 }
 
 type grypeMatch struct {
@@ -34,17 +58,35 @@ type grypeMatch struct {
 			State    string   `json:"state"`
 		} `json:"fix"`
 	} `json:"vulnerability"`
+	// RelatedVulnerabilities are the IDs the match is also known by (a GHSA's
+	// CVE, for one).
+	RelatedVulnerabilities []struct {
+		ID string `json:"id"`
+	} `json:"relatedVulnerabilities"`
 	Artifact struct {
 		Name    string `json:"name"`
 		Version string `json:"version"`
+		PURL    string `json:"purl"`
 	} `json:"artifact"`
+	// AppliedIgnoreRules say why an ignored match was ignored (namespace vex
+	// for a VEX statement).
+	AppliedIgnoreRules []struct {
+		Namespace string `json:"namespace"`
+		MatchType string `json:"match-type"`
+		VEXStatus string `json:"vex-status"`
+	} `json:"appliedIgnoreRules"`
 }
 
-// vulnScan is one platform's vulnerability attestation, read.
+// vulnScan is one platform's vulnerability scan, read: the publisher's
+// attestation, or this run's own.
 type vulnScan struct {
 	Scanner   string
 	ScannedAt string
 	Result    grypeResult
+	Database  *report.ScannerDatabase
+	// suppressedBy names what suppressed each ignored match (this run's
+	// scans), by index into Result.IgnoredMatches.
+	suppressedBy []*report.Suppression
 }
 
 // readVulnPredicate reads a cosign vuln/v1 predicate holding grype output,
@@ -119,26 +161,35 @@ func scannerName(uri string) string {
 // mergeVulnerabilities combines per-platform scans into the image's
 // findings, counting each finding once however many platforms have it.
 func mergeVulnerabilities(scans map[string]vulnScan) *report.Vulnerabilities {
+	return mergeScans(scans, "attestation")
+}
+
+// mergeScans combines per-platform scans of the given source.
+func mergeScans(scans map[string]vulnScan, source string) *report.Vulnerabilities {
 	if len(scans) == 0 {
 		return nil
 	}
-	out := &report.Vulnerabilities{Source: "attestation", Findings: []report.Finding{}}
+	out := &report.Vulnerabilities{Source: source, Findings: []report.Finding{}}
 	byKey := map[string]*report.Finding{}
 	var keys []string
-	add := func(platform string, m grypeMatch, suppressed bool) {
+	add := func(platform string, m grypeMatch, suppressed bool, by *report.Suppression) {
 		key := m.Vulnerability.ID + "|" + m.Artifact.Name + "|" + m.Artifact.Version
 		f, ok := byKey[key]
 		if !ok {
 			f = &report.Finding{
 				ID: m.Vulnerability.ID, Severity: normalizeSeverity(m.Vulnerability.Severity),
 				Package: m.Artifact.Name, Version: m.Artifact.Version,
-				FixedIn: m.Vulnerability.Fix.Versions, Suppressed: suppressed,
+				FixedIn: m.Vulnerability.Fix.Versions, Suppressed: suppressed, SuppressedBy: by,
 			}
 			byKey[key] = f
 			keys = append(keys, key)
 		}
 		f.Platforms = appendUnique(f.Platforms, platform)
+		// Suppressed on every platform, or counted.
 		f.Suppressed = f.Suppressed && suppressed
+		if !f.Suppressed {
+			f.SuppressedBy = nil
+		}
 	}
 	platforms := make([]string, 0, len(scans))
 	for p := range scans {
@@ -149,11 +200,18 @@ func mergeVulnerabilities(scans map[string]vulnScan) *report.Vulnerabilities {
 	for _, p := range platforms {
 		s := scans[p]
 		out.Scanner = firstNonEmpty(out.Scanner, s.Scanner)
-		for _, m := range s.Result.Matches {
-			add(p, m, false)
+		if out.Database == nil {
+			out.Database = s.Database
 		}
-		for _, m := range s.Result.IgnoredMatches {
-			add(p, m, true)
+		for _, m := range s.Result.Matches {
+			add(p, m, false, nil)
+		}
+		for i, m := range s.Result.IgnoredMatches {
+			var by *report.Suppression
+			if i < len(s.suppressedBy) {
+				by = s.suppressedBy[i]
+			}
+			add(p, m, true, by)
 		}
 	}
 	sort.Slice(keys, func(i, j int) bool {
@@ -509,6 +567,35 @@ func readProvenanceSource(pred json.RawMessage) (*report.SourceRef, bool) {
 		return nil, false
 	}
 	return s, true
+}
+
+// readProvenanceDetails reads who SLSA provenance says built the image
+// (runDetails.builder.id in v1, builder.id in v0.2) and the build type. It
+// is read, not evaluated, unless the policy names trusted builders.
+func readProvenanceDetails(pred json.RawMessage) *report.Provenance {
+	var p struct {
+		BuildDefinition struct {
+			BuildType string `json:"buildType"`
+		} `json:"buildDefinition"`
+		RunDetails struct {
+			Builder struct {
+				ID string `json:"id"`
+			} `json:"builder"`
+		} `json:"runDetails"`
+		// SLSA v0.2.
+		Builder struct {
+			ID string `json:"id"`
+		} `json:"builder"`
+		BuildType string `json:"buildType"`
+	}
+	if json.Unmarshal(pred, &p) != nil {
+		return nil
+	}
+	out := &report.Provenance{BuilderID: firstNonEmpty(p.RunDetails.Builder.ID, p.Builder.ID), BuildType: firstNonEmpty(p.BuildDefinition.BuildType, p.BuildType)}
+	if out.BuilderID == "" && out.BuildType == "" {
+		return nil
+	}
+	return out
 }
 
 // gitURL turns git+https://github.com/o/r@refs/heads/main into

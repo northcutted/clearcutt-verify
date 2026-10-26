@@ -386,6 +386,23 @@ func TestReadProvenanceSource(t *testing.T) {
 	}
 }
 
+func TestReadProvenanceDetails(t *testing.T) {
+	for raw, want := range map[string]*report.Provenance{
+		`{"buildDefinition":{"buildType":"https://actions.github.io/buildtypes/workflow/v1"},"runDetails":{"builder":{"id":"https://github.com/actions/runner"}}}`: {
+			BuilderID: "https://github.com/actions/runner", BuildType: "https://actions.github.io/buildtypes/workflow/v1"},
+		// SLSA v0.2.
+		`{"builder":{"id":"https://ci.example/b"},"buildType":"https://ci.example/t"}`: {BuilderID: "https://ci.example/b", BuildType: "https://ci.example/t"},
+		`{"buildDefinition":{"buildType":"https://ci.example/t"}}`:                     {BuildType: "https://ci.example/t"},
+		`{}`: nil,
+		`[`:  nil,
+	} {
+		got := readProvenanceDetails(json.RawMessage(raw))
+		if (got == nil) != (want == nil) || (got != nil && *got != *want) {
+			t.Errorf("%s: %+v, want %+v", raw, got, want)
+		}
+	}
+}
+
 func TestVerdict(t *testing.T) {
 	ok := report.EvidenceItem{Status: "verified"}
 	// A rebased image: its verified rebase record stands in for the recipe.
@@ -411,7 +428,7 @@ func TestVerdict(t *testing.T) {
 		t.Errorf("failed signature: %+v", v)
 	}
 	p = report.Policy{MaxDaysBehind: 7, TrustedSigners: acme}
-	img.Base = &report.BaseLink{DaysBehind: 9, Drift: "stale"}
+	img.Base = &report.BaseLink{DaysBehind: 9, Drift: "stale", Strength: "proof", Method: "layer-prefix"}
 	if v := verdict(img, p); v.Status != "failed" {
 		t.Errorf("stale base: %+v", v)
 	}
@@ -595,12 +612,23 @@ func fakeCosign(ctx context.Context, forged map[string]bool, args []string) ([]b
 func observe(t *testing.T, host string, refs ...string) estategraph.Observations {
 	t.Helper()
 	var observations estategraph.Observations
+	repos := map[string]int{}
+	for _, ref := range refs {
+		repo, _, _ := strings.Cut(ref, ":")
+		repos[repo]++
+	}
 	for _, ref := range refs {
 		obs, err := estategraph.RegistryObserver{}.Observe(context.Background(), host+"/"+ref)
 		if err != nil {
 			t.Fatal(err)
 		}
-		obs.ID, _, _ = strings.Cut(ref, ":")
+		// IDs are URL path segments: the repository, with the tag when the
+		// repository is listed more than once.
+		repo, tag, _ := strings.Cut(ref, ":")
+		obs.ID = strings.ReplaceAll(repo, "/", "-")
+		if repos[repo] > 1 {
+			obs.ID += "-" + tag
+		}
 		observations.Images = append(observations.Images, obs)
 	}
 	return observations

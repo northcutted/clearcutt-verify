@@ -123,7 +123,7 @@ func TestEstateDependents(t *testing.T) {
 	}
 	stdout, err = runCLI(t, "--format", "json", "estate", "dependents", "--report", fixture, "--base", "cgr.dev/chainguard/wolfi-base")
 	var res DependentsResult
-	if err != nil || json.Unmarshal([]byte(stdout), &res) != nil || len(res.Dependents) != 1 || res.Dependents[0].ImageID != "platform-tools" {
+	if err != nil || json.Unmarshal([]byte(stdout), &res) != nil || len(res.Dependents) != 1 || res.Dependents[0].ImageID != "ghcr-io-northcutted-images-platform-tools" {
 		t.Fatalf("json: %v\n%s", err, stdout)
 	}
 	if stdout, err := runCLI(t, "estate", "dependents", "--report", fixture, "--base", "ghcr.io/acme/none"); err != nil || !strings.Contains(stdout, "no images") {
@@ -151,12 +151,12 @@ func TestEstateVerifyTrustPolicyFlag(t *testing.T) {
 	estateVerifyOpts = saved
 	estateVerifyOpts.policy, estateVerifyOpts.trustPolicy, estateVerifyOpts.require = "", trust, []string{"signature"}
 	estateVerifyOpts.identityRegexp, estateVerifyOpts.issuer, estateVerifyOpts.sourceOwner, estateVerifyOpts.sourceMatches = "", "", "", false
-	p, err := estatePolicy()
+	p, _, err := estatePolicy()
 	if err != nil || len(p.TrustedSigners) != 1 || p.TrustedSigners[0].Identity == "" {
 		t.Fatalf("policy %+v, %v", p, err)
 	}
 	estateVerifyOpts.trustPolicy = filepath.Join(dir, "missing.yaml")
-	if _, err := estatePolicy(); err == nil {
+	if _, _, err := estatePolicy(); err == nil {
 		t.Error("read a missing trust policy")
 	}
 }
@@ -193,14 +193,14 @@ func TestFixtureHistoryRows(t *testing.T) {
 		byID[row.ID] = row
 	}
 	// debian-tools has 25 critical and 116 high findings, 12 of them fixable.
-	if row := byID["debian-tools"]; len(row.FixableFindings) == 0 || len(row.FixableFindings) > 12 || !strings.HasPrefix(row.PackagesDigest, "sha256:") {
+	if row := byID["ghcr-io-northcutted-images-debian-tools"]; len(row.FixableFindings) == 0 || len(row.FixableFindings) > 12 || !strings.HasPrefix(row.PackagesDigest, "sha256:") {
 		t.Errorf("debian-tools row: %+v", row)
 	}
 	// hello-app has no findings; Docker Hub's debian has no verified scan or SBOM.
-	if row := byID["hello-app"]; row.Vulnerabilities == nil || row.FixableFindings != nil || row.PackagesDigest == "" {
+	if row := byID["ghcr-io-northcutted-images-hello-app"]; row.Vulnerabilities == nil || row.FixableFindings != nil || row.PackagesDigest == "" {
 		t.Errorf("hello-app row: %+v", row)
 	}
-	if row := byID["debian-trixie-slim"]; row.Vulnerabilities != nil || row.FixableFindings != nil || row.PackagesDigest != "" {
+	if row := byID["docker-io-library-debian-trixie-slim"]; row.Vulnerabilities != nil || row.FixableFindings != nil || row.PackagesDigest != "" {
 		t.Errorf("debian-trixie-slim row: %+v", row)
 	}
 }
@@ -254,4 +254,100 @@ func TestEstateVerifyNeedsItsTools(t *testing.T) {
 
 	withCosign(t, "v3.1.3", nil)
 	check("no clearcutt-factory", "clearcutt-factory, which is not available", "--reproduce", "--factory-path", filepath.Join(dir, "no-such-factory"))
+}
+
+// Rows of earlier runs keyed by the IDs images had before v0.17.0 carry on
+// under the IDs they have now, when that is certain.
+func TestHistoryKeepsImagesAcrossTheIDChange(t *testing.T) {
+	const digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	r := &report.Report{Metadata: report.Metadata{Name: "acme", GeneratedAt: "2026-10-18T00:00:00Z"}, Images: []report.Image{
+		{ID: "ghcr-io-acme-billing-1-2", Repository: "ghcr.io/acme/billing", Tags: []string{"1.2"}},
+		{ID: "ghcr-io-acme-web", Repository: "ghcr.io/acme/web", Tags: []string{"latest"}},
+		// Two images with the same old ID: neither inherits its rows.
+		{ID: "ghcr-io-acme-api-1", Repository: "ghcr.io/acme/api", Tags: []string{"1"}},
+		{ID: "ghcr-io-other-api-1", Repository: "ghcr.io/other/api", Tags: []string{"1"}},
+		// A reference without a tag: its old ID was the repository's (the
+		// tag is latest), not the digest's.
+		{ID: "ghcr-io-acme-app", Repository: "ghcr.io/acme/app", Tags: []string{}, Digest: digest},
+		// Digest references, with a tag or without: the digest's.
+		{ID: "ghcr-io-acme-tool-sha256-0123456789ab", Repository: "ghcr.io/acme/tool", Tags: []string{}, Digest: digest},
+		{ID: "ghcr-io-acme-job-2-sha256-0123456789ab", Repository: "ghcr.io/acme/job", Tags: []string{"2"}, Digest: digest},
+		// No reference known: nothing is inferred.
+		{ID: "ghcr-io-acme-cron-1", Repository: "ghcr.io/acme/cron", Tags: []string{"1"}},
+	}}
+	refs := map[string]string{
+		"ghcr-io-acme-billing-1-2":               "ghcr.io/acme/billing:1.2",
+		"ghcr-io-acme-web":                       "ghcr.io/acme/web:latest",
+		"ghcr-io-acme-api-1":                     "ghcr.io/acme/api:1",
+		"ghcr-io-other-api-1":                    "ghcr.io/other/api:1",
+		"ghcr-io-acme-app":                       "ghcr.io/acme/app",
+		"ghcr-io-acme-tool-sha256-0123456789ab":  "ghcr.io/acme/tool@" + digest,
+		"ghcr-io-acme-job-2-sha256-0123456789ab": "ghcr.io/acme/job:2@" + digest,
+	}
+	dir := t.TempDir()
+	prev := report.History{APIVersion: report.APIVersion, Kind: report.KindHistory, Name: "acme", Entries: []report.HistoryEntry{{
+		GeneratedAt: "2026-10-17T00:00:00Z",
+		Images: []report.HistoryImage{{ID: "billing-1-2"}, {ID: "web"}, {ID: "api-1"}, {ID: "gone"}, {ID: "app"},
+			{ID: "tool-sha256-0123456789ab"}, {ID: "job-sha256-0123456789ab"}, {ID: "job-2"}, {ID: "cron-1"}},
+	}}}
+	path := filepath.Join(dir, "history.json")
+	if err := writeReportJSON(path, &prev); err != nil {
+		t.Fatal(err)
+	}
+	h, err := extendHistory(r, refs, path, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, row := range h.Entries[1].Images {
+		ids = append(ids, row.ID)
+	}
+	if strings.Join(ids, ",") != "ghcr-io-acme-billing-1-2,ghcr-io-acme-web,api-1,gone,ghcr-io-acme-app,"+
+		"ghcr-io-acme-tool-sha256-0123456789ab,ghcr-io-acme-job-2-sha256-0123456789ab,job-2,cron-1" {
+		t.Errorf("earlier rows: %v", ids)
+	}
+}
+
+// A bundle that breaks the contract is never written: the report and the
+// history are checked against the schemas first.
+func TestEstateVerifyWritesNothingInvalid(t *testing.T) {
+	withCosign(t, "", nil)
+	srv := httptest.NewServer(registry.New(registry.Logger(log.New(io.Discard, "", 0)), registry.WithReferrersSupport(true)))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	img, err := random.Image(64, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, _ := name.ParseReference(host + "/acme/app:1")
+	if err := remote.Write(ref, img); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	refs := filepath.Join(dir, "refs.txt")
+	if err := os.WriteFile(refs, []byte(host+"/acme/app:1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// A history whose summary has no evidence counts (null) isn't one.
+	history := filepath.Join(dir, "old-history.json")
+	if err := os.WriteFile(history, []byte(`{"apiVersion":"clearcutt.dev/v1","kind":"EstateHistory","name":"acme","entries":[{"generatedAt":"2026-10-01T00:00:00Z","summary":{"images":1}}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "estate")
+	_, err = runCLI(t, "estate", "verify", "--refs", refs, "--name", "acme", "--out", out, "--history", history, "--generated-at", "2026-10-06T00:00:00Z")
+	if err == nil || errors.Is(err, ErrCheckFailed) || !strings.Contains(err.Error(), "nothing was written") {
+		t.Fatalf("want an operational error, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(out, report.ReportFile)); err == nil {
+		t.Error("a report was written beside an invalid history")
+	}
+	// The run's own documents are valid.
+	if _, err := runCLI(t, "estate", "verify", "--refs", refs, "--name", "acme", "--out", out, "--generated-at", "2026-10-06T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	var r report.Report
+	readJSON(t, filepath.Join(out, report.ReportFile), &r)
+	if len(r.Images) != 1 || r.Images[0].ID != strings.NewReplacer(".", "-", ":", "-", "/", "-").Replace(host)+"-acme-app-1" {
+		t.Errorf("IDs: %+v", r.Images)
+	}
 }

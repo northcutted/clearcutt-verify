@@ -31,10 +31,30 @@ instead.
    `failed`, never quietly accepted. Evidence cosign couldn't check (it
    couldn't reach the registry or the transparency log, the registry refused
    it, or cosign couldn't run) is `unknown`, not `failed`, and its `detail`
-   says what went wrong; whether a trusted signer signed it is undecided.
+   says what went wrong (for the trusted root, what TUF said too); whether a
+   trusted signer signed it is undecided.
    Before reading anything, the run checks that cosign is there and is cosign
    v3 (the version whose bundles and output it reads), and stops with exit 1
-   if not. cosign is asked for exactly the signer
+   if not. When the policy trusts a keyless signer, or a key signer whose
+   evidence must be in the transparency log (no `tlog: false`), it then
+   fetches Sigstore's trusted root once (`cosign initialize`) and hands the
+   cached `trusted_root.json` (the one from the mirror `cosign initialize`
+   used: `TUF_MIRROR`, else the default) to every verification that needs it
+   (`cosign --trusted-root`), so no verification fetches it from the TUF
+   repository itself: each cosign run
+   otherwise refreshes TUF metadata over the network into the shared cache
+   (`~/.sigstore/root`), and with verifications running concurrently one
+   could find the repository unreachable, or a sibling's half-written file,
+   and fail the evidence as if its signature were bad (cosign v3.0.x reports
+   that as "trusted root is required when using new bundle format"). A fetch
+   that fails stops the run (exit 1). Should the file not be in the cache
+   where it is looked for (a cosign that caches elsewhere), the run warns on
+   standard error (a GitHub Actions `::warning` too) and in the report's
+   `warnings`, and each verification fetches the root itself, as before. An
+   air-gapped setup passes its own file
+   with `--trusted-root`, and one that sets `SIGSTORE_ROOT_FILE` and the
+   other individual-target variables is left to cosign. cosign is asked for
+   exactly the signer
    the evidence's certificate names (its identity and issuer, and for GitHub
    Actions the repository and ref of the run), once a trusted signer accepts
    that signer, so the signer the report shows on verified evidence is the
@@ -103,7 +123,139 @@ verified on every platform is `unverified` even when the scan says it is
 clean: its vulnerabilities are unknown. `maxScanAgeDays` measures the oldest
 platform's scan, so every platform must have been scanned recently, and an
 image with no verified scan of every platform is `unverified` under it: there
-is no age to measure.
+is no age to measure. The publisher's scan is as old as the image: what was
+published since is unknown until the image is rescanned (below).
+
+### Rescanning: today's findings beside the publisher's
+
+```bash
+clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --out dist/estate --rescan
+```
+
+`--rescan` scans each image's **verified** SBOMs itself, with grype (on
+`PATH`, or `--grype-path`; the run checks it is there first and exits 1 if
+not), against a vulnerability database of today, and reports the result
+beside the attested scan: `vulnerabilities` stays what the publisher's
+verified scan found, on its day; `rescan` is what the same packages look like
+now (`rescan.vulnerabilities`, with `scanner`, `scannedAt`, and
+`database.built`, the database's build time). Only SBOMs a trusted signer
+verified are scanned, one per platform image: an image with no verified SBOM
+on some platform, or not all of whose platform images could be read, or that
+grype couldn't scan, has `rescan.status: unknown` with the reason, and its
+current vulnerabilities are unknown, never clean. The database is grype's
+own, where grype's settings put it (`GRYPE_DB_CACHE_DIR`,
+`GRYPE_DB_UPDATE_URL`, and the rest of grype's `GRYPE_DB_*` environment).
+Before reading anything, the run updates it once (`grype db update`), and
+every scan then uses it as it is (`GRYPE_DB_AUTO_UPDATE=false`), so
+concurrent scans don't each check for, and on a fresh runner download, the
+database at once; an update that fails stops the run (exit 1), as a missing
+grype does. With `GRYPE_DB_AUTO_UPDATE=false` already set (a database
+imported with `grype db import`, for an air-gapped run), nothing is
+downloaded: the run only checks that grype has a database (`grype db
+status`) and stops (exit 1) if it hasn't. When grype
+couldn't scan any image at all, the report is written (every rescan
+`unknown`) and the run exits 1: a run that found out nothing isn't a result.
+
+With `--rescan`, the policy's `scanSource` says which scan `failOn` gates
+on:
+
+```yaml
+scanSource: worst   # attestation, rescan, or worst (the default with --rescan)
+```
+
+`attestation` gates on the publisher's scan, as without `--rescan`; `rescan`
+on this run's; `worst` on both: an image fails when either finds enough, and
+is `unverified` when either is unknown. `scanSource: rescan` or `worst`
+without `--rescan` is an error: there is nothing to gate on. With a
+`scanned` rescan, `maxScanAgeDays` measures the rescan by its database's
+build time (findings know nothing published after it), so a stale local
+database leaves the image `unverified` as a stale attestation would. The
+flag form is `--scan-source`.
+
+#### VEX
+
+```yaml
+vex: [vex/openssl.openvex.json, vex/estate.openvex.json]   # relative to the policy file
+```
+
+OpenVEX documents the policy names are applied to the rescans. Every finding
+they suppress is still listed in `rescan.vulnerabilities.findings`, marked
+`suppressed: true`, not counted, and attributed in `suppressedBy` to the
+statement that did it (the document's `file` as the policy named it, its
+`@id`, the statement's `product` as written, `status`, and
+`justification`); a finding grype's own rules suppressed says `source:
+scanner`. Nothing is dropped silently. The report's `policy.vex` lists the
+documents, and a statement about an image that isn't in the estate is
+warned about. The flag form is `--vex FILE` (relative to the working
+directory).
+
+grype applies VEX itself, but it scans an SBOM here, not an image, so a
+statement whose product is the image wouldn't be applied and one whose
+product is a package would apply to every image. So `clearcutt-verify` scopes
+the statements before grype sees them, by this rule (clearcutt-factory
+applies the same one to its build-time scans):
+
+- A product that is an **image purl** (`pkg:oci/…` or `pkg:docker/…`) names
+  the image when its version (percent-decoded) is the image's digest or one of
+  its platform images' digests (then it applies to that platform only), or,
+  with no version, when its `repository_url` qualifier is the image's
+  repository (and its `tag` qualifier, if any, one of the image's tags).
+  `pkg:oci/app?repository_url=ghcr.io/acme/app` and
+  `pkg:oci/app@sha256%3A…` both work; a bare `pkg:oci/app` names no image
+  and is applied nowhere (the run warns).
+- A product that **isn't a purl** names the image when it is the image's
+  repository, `repository:tag`, `repository@digest`, or a bare digest the
+  image or one of its platform images has.
+- A product that is any **other purl** is a package: it applies to every
+  image, to the packages grype matches it to (grype matches a purl by type,
+  namespace, and name; by version when the product has one; and by each
+  qualifier the product has, so `pkg:apk/wolfi/openssl@3.0.1-r0` matches
+  `pkg:apk/wolfi/openssl@3.0.1-r0?arch=x86_64`).
+- A statement about an image applies to the packages its `subcomponents`
+  name; with no subcomponents, to every package in the image's SBOM, for that
+  vulnerability. A statement's `vulnerability.name` and `aliases` both count
+  (grype's GHSA and the CVE it tracks are the same finding).
+
+For each scan, the statements about the image are rewritten as
+package-scoped statements (each subcomponent, or each package of the SBOM,
+as the product) and handed to grype with the package-scoped statements as
+they are; statements about other images aren't. What grype then reports as
+ignored is matched back to the statement that caused it.
+
+### Observe-only images
+
+```yaml
+observe: ["cgr.dev/chainguard/*", "ghcr.io/acme/app:canary"]
+```
+
+Images matching an `observe` pattern (a path glob over the repository, or
+over `repository:tag`) are in the report with a verdict like any other, but
+don't gate: they are counted in `summary.verdicts.observeOnly` instead of
+`verified`, `failed`, or `unverified`, and `--fail-on` ignores them. The
+report marks each with `observeOnly: true`. Use it for an upstream base you
+watch but don't own, so its findings are visible without failing the
+estate. The flag form is `--observe PATTERN`.
+
+### Provenance: what is and isn't checked
+
+A `verified` `provenance` means cosign verified the attestation's signature
+against a trusted signer and that the statement is about the image, and the
+source repository and commit were read from it (`source`, `basis:
+provenance`). The builder ID, build type, and materials are **read, not
+evaluated**: the report shows the builder and build type in `provenance`,
+and `evidence.provenance.detail` says so. To check the builder, name the
+ones you trust:
+
+```yaml
+provenanceBuilders: ["https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/tags/v0.3.0"]
+```
+
+Verified provenance naming another builder (`runDetails.builder.id`, or
+`builder.id` in SLSA v0.2), or naming none, is then `failed`, and nothing is
+read from it: no `source` from it, no `provenance`. One naming a listed
+builder records `provenance.builderChecked: true`. Each entry must be a
+builder ID; an empty one is refused when the policy is read. Build type and
+materials still aren't evaluated.
 
 ### Identity checks
 
@@ -167,7 +319,35 @@ signers:
 
 Name it from a verification policy (`trustPolicy: trust.yaml`, relative to the
 policy) or pass `--trust-policy trust.yaml`; its image signers join the
-policy's `trustedSigners`.
+policy's `trustedSigners`. A third role, `estate`, names who may sign the
+estate's own artifacts in the registry (the report bundle `estate push`
+stores and the history index it appends to): `estate pull --trust-policy
+trust.yaml` (or `--policy policy.yaml`, through its `trustPolicy`) verifies
+against those signers instead of cosign's flags, and so does `estate
+history`. clearcutt-factory accepts the role and ignores it.
+
+```yaml
+  - name: estate-job
+    roles: [estate]
+    identity: https://github.com/acme/estate/.github/workflows/estate.yml@refs/heads/main
+    issuer: https://token.actions.githubusercontent.com
+```
+
+`sourceRepositoryOwner: https://github.com/OWNER` accepts a keyless signer's
+runs in any repository of that owner: the certificate's Source Repository
+URI (`1.3.6.1.4.1.57264.1.12`, or the v1 workflow repository extension) must
+be `https://github.com/OWNER/<repo>`, i.e. its owner segment must be
+`OWNER` exactly (`acme-evil` is not `acme`), and that repository is then
+required of cosign exactly (`--certificate-github-workflow-repository
+OWNER/<repo>`), so the report shows the repository that signed. With
+`sourceRepository` or `sourceMatchesImage` as well, the repository they
+resolve to must be the owner's. The value must be exactly
+`https://github.com/OWNER` (a trailing slash is allowed); anything else is
+refused when the policy is read, and the constraint needs the GitHub Actions
+issuer. Evidence signed by a reusable workflow under a signer that names
+none of `sourceRepository`, `sourceRepositoryOwner`, or `sourceMatchesImage`
+stays `present`, never `verified`: the identity alone would trust every
+caller.
 
 A signer's `key:` file is relative to the file that names it (the trust
 policy, or the verification policy), as clearcutt-factory reads it, so cosign
@@ -193,7 +373,13 @@ shared one can use `tlog` once clearcutt-factory accepts the field too.
 `--reproduce` passes `--insecure-ignore-tlog=true` to `clearcutt-factory
 verify` for such a key, which needs a clearcutt-factory that accepts it.
 
-With `maxDaysBehind`, an image whose base couldn't be placed is `unverified`:
+With `maxDaysBehind`, only drift from a base **proven** by layer digests
+(`base.strength: proof`) fails an image. An image whose claimed base
+(`declared`, `assisted`, `weak`) is more than the limit behind is
+`unverified`, with the reason saying the drift rests on a claim: a label can't
+fail an image any more than it can pass one. Edges from `base.name` or build
+history (`oci-base-name`, `history`) identify no version, so their drift is
+`unknown`. An image whose base couldn't be placed is `unverified`:
 it might be behind. So is one whose base is behind its newest version by an
 unknown number of days (`base.daysBehindUnknown`: a creation time is missing,
 or zeroed by a reproducible build). Roots (images others are built on, with no
@@ -209,11 +395,22 @@ Without a file, the same policy can be given with `--require`,
 
 `--out DIR` receives a bundle: `estate-report.json` and `estate-history.json`.
 The history gains an entry per run; pass `--history` to extend a history kept
-elsewhere. The command prints a summary table (`--verbose` adds why each
+elsewhere. Both are checked against the contract's schemas before anything is
+written; a report or history that doesn't match (a bug, or a history file that
+isn't one) writes nothing and exits 1. Each image's `id` comes from its whole
+reference (`ghcr.io/acme/billing:1.2` is `ghcr-io-acme-billing-1-2`; see
+[the contract](../contract/README.md)), so it is the same in every run and
+never depends on the order of `refs.txt`. A reference listed twice is one
+image. History rows written before v0.17.0, under the old short IDs
+(`billing-1-2`), are renamed to the image's current ID when exactly one image
+had that old ID, so its history carries on. The command prints a summary table (`--verbose` adds why each
 image that isn't verified isn't; `--quiet` prints nothing but errors and the
 `--fail-on` result; `--format json` or `yaml` prints the report itself
 instead), and `--fail-on failed` (or `unverified`) makes it exit 2 when any
-image falls short, for CI.
+image falls short, for CI. A run that could check nothing (every piece of
+evidence of every image `unknown`: cosign, the registries, or the images
+unreachable) writes its report, which says so, and exits 1: it isn't a
+result, and shouldn't pass a gate that only looks at the exit code.
 
 ### Stacks
 
@@ -268,12 +465,18 @@ reference (nothing yet on the first run); any other failure fails, including a
 stored bundle whose files can't be read, so a run never starts a fresh
 history and pushes it over one it couldn't read. The push prints the
 artifact's digest; the job signs it, and the next run's pull writes nothing
-until cosign has verified that signature against the job's identity
+until cosign has verified that signature against the trust policy's `estate`
+signers (`--trust-policy trust.yaml`, or `--policy policy.yaml` through its
+`trustPolicy`), or against the job's identity given as cosign's flags
 (`--certificate-identity` or `--certificate-identity-regexp` with
 `--certificate-oidc-issuer`, or `--key`, as `cosign verify` takes them).
 Without it, anyone who can push to the repository could hand the next run a
 history of their making. `--allow-unverified` writes an unverified bundle
-anyway, and warns.
+anyway, and warns. `estate push --history REF` appends the snapshot to a
+history index and prints the index's digest too; a job signs that digest the
+same way (`cosign sign --yes REPOSITORY@INDEX_DIGEST`), and `estate history
+REF` reads the index only once cosign has verified it against the same
+signers (the same flags), refusing it otherwise unless `--allow-unverified`.
 
 ## Other fields readers use
 
@@ -356,7 +559,10 @@ clearcutt-factory reports last (its final output line on success, its error
 on a mismatch), never from build output, and a rebuild that exits with an
 error is never `reproduced`; its `reproducibility.source` is `rebuild`.
 Without `--reproduce`, images with recipes and no verified reproduction
-attestation are `not-checked`.
+attestation are `not-checked`. With it, an image whose recipe or rebase
+record is `unknown` (couldn't be read) is `not-checked` too, and `unverified`:
+whether there was anything to rebuild is undecided, so it is never skipped as
+if it had no recipe.
 
 ## Limits
 

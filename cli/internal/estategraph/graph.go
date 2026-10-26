@@ -675,6 +675,21 @@ func buildEdge(consumer Observation, family *baseFamily, version Observation, me
 	if detail != "" {
 		edge.Notes = append(edge.Notes, detail)
 	}
+	if method == MethodOCIBaseName || method == MethodHistory {
+		// A base name or a history line names the repository, not the
+		// version: any observed version matches it, and drift measured from
+		// one of them (the oldest, which matches first) would be made up. The
+		// edge names what the image claims and leaves drift unknown.
+		edge.BaseRef, edge.BaseDigest, edge.BaseCreated = family.repository, "", ""
+		if declared := strings.TrimSpace(consumer.Labels["org.opencontainers.image.base.name"]); method == MethodOCIBaseName && declared != "" {
+			edge.BaseRef = declared
+		}
+		edge.Notes = append(edge.Notes, "drift unknown: the version it is built on isn't identified, only the repository")
+		if method == MethodOCIBaseName {
+			edge.Notes = append(edge.Notes, "base.name names the repository but not a digest; the specific version is inferred, not proven")
+		}
+		return edge
+	}
 
 	switch {
 	case edge.BaseDigest == "" || edge.CurrentBaseDigest == "":
@@ -685,9 +700,6 @@ func buildEdge(consumer Observation, family *baseFamily, version Observation, me
 		edge.Drift = DriftStale
 		edge.VersionsBehind = versionsBehind(family, version)
 		edge.DaysBehind = daysBetween(version.Created, current.Created)
-	}
-	if method == MethodOCIBaseName {
-		edge.Notes = append(edge.Notes, "base.name names the repository but not a digest; the specific version is inferred, not proven")
 	}
 	return edge
 }

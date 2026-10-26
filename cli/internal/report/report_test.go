@@ -125,3 +125,91 @@ func TestSchemaDescribesStatuses(t *testing.T) {
 		}
 	}
 }
+
+// The schemas the binary validates its output against are the published
+// ones, descriptions aside.
+func TestValidateUsesThePublishedSchemas(t *testing.T) {
+	plain, err := schemas(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range plain {
+		published, err := os.ReadFile(filepath.Join(contractDir, f.Name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var a, b any
+		if err := json.Unmarshal(published, &a); err != nil {
+			t.Fatal(err)
+		}
+		_ = json.Unmarshal(f.Content, &b)
+		if !sameJSON(t, mustJSON(stripDescriptions(a)), mustJSON(stripDescriptions(b))) {
+			t.Errorf("%s: the binary's schema differs from the published one", f.Name)
+		}
+	}
+}
+
+// stripDescriptions drops descriptions, and the allOf wrapper a described
+// $ref gets.
+func stripDescriptions(v any) any {
+	switch x := v.(type) {
+	case map[string]any:
+		out := map[string]any{}
+		for k, val := range x {
+			if k == "description" {
+				continue
+			}
+			out[k] = stripDescriptions(val)
+		}
+		if all, ok := out["allOf"].([]any); ok && len(out) == 1 && len(all) == 1 {
+			return all[0]
+		}
+		return out
+	case []any:
+		out := make([]any, len(x))
+		for i := range x {
+			out[i] = stripDescriptions(x[i])
+		}
+		return out
+	}
+	return v
+}
+
+func mustJSON(v any) []byte {
+	b, _ := json.Marshal(v)
+	return b
+}
+
+func TestValidate(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(contractDir, "examples", "minimal", "estate-report.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Validate(raw); err != nil {
+		t.Fatalf("the minimal example: %v", err)
+	}
+	var r Report
+	if err := json.Unmarshal(raw, &r); err != nil {
+		t.Fatal(err)
+	}
+	if err := Validate(&r); err != nil {
+		t.Fatalf("the minimal example, as a Report: %v", err)
+	}
+	for name, breakIt := range map[string]func(r *Report){
+		"null platforms":       func(r *Report) { r.Images[0].Platforms = nil },
+		"null warnings":        func(r *Report) { r.Warnings = nil },
+		"unknown status":       func(r *Report) { r.Images[0].Evidence.Signature.Status = "ok" },
+		"unknown verdict":      func(r *Report) { r.Images[0].Verdict.Status = "pass" },
+		"null verdict reasons": func(r *Report) { r.Images[0].Verdict.Reasons = nil },
+	} {
+		var broken Report
+		_ = json.Unmarshal(raw, &broken)
+		breakIt(&broken)
+		if err := Validate(&broken); err == nil {
+			t.Errorf("%s: a report that breaks the contract validated", name)
+		}
+	}
+	if err := Validate([]byte(`{"kind":"Mystery"}`)); err == nil {
+		t.Error("an unknown kind validated")
+	}
+}

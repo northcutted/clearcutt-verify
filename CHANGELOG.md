@@ -20,6 +20,37 @@ When a release is cut, move these entries under a heading for its version.
 
 ### Breaking
 
+- **Image IDs come from the whole reference.** An image's `id` was its
+  repository's last path segment and tag (`billing-1-2`), with `-2`, `-3`
+  added to repeats in the order references were listed, so two registries'
+  `static` images could swap IDs between runs. It is now the registry,
+  repository path, and tag (or a digest's first 12 hex digits), lower-cased,
+  with other characters made dashes and the tag `latest` left out:
+  `ghcr-io-acme-billing-1-2`, `cgr-dev-chainguard-static`. References that
+  spell the same ID each get the first 8 hex digits of the sha256 of the
+  reference appended, so IDs no longer depend on input order. This applies to
+  `import images`, `registry scan`, and `estate verify --refs`; `estate
+  verify` also gives any observation whose ID is missing, repeated, or not a
+  URL path segment the ID its reference gives (observations that still share
+  one, such as a reference observed at two digests, get `-2`, `-3` by
+  canonical reference and then digest, not by input order). A reference
+  listed twice is imported once. Readers that kept IDs (links, compare-runs) see each image
+  under a new ID once; `estate verify` renames the rows of earlier runs in
+  the history it extends when exactly one current image had the old ID,
+  computed from the reference as it was written (a reference without a tag
+  had the repository's ID, a digest reference the digest's, tag or not). The
+  fixture and example bundles use the new IDs.
+- **`estate history` verifies the history index's signature.** It read the
+  index on nobody's word. Like `estate pull`, it now needs who signed it: a
+  trust policy's signers with role `estate` (`--trust-policy FILE`, or
+  `--policy FILE` through its `trustPolicy`), or cosign's flags
+  (`--certificate-identity`/`-regexp` with `--certificate-oidc-issuer`, or
+  `--key` with `--insecure-ignore-tlog`); an index nobody trusted signed is
+  refused (exit 1), and `--allow-unverified` reads it anyway with a warning.
+  A job that appends to a history (`estate push --history`) signs the index
+  digest the push prints, as it signs the bundle's. `estate pull` takes the
+  same `--trust-policy`/`--policy` flags. A new trust-policy signer role,
+  `estate`, names those signers; clearcutt-factory accepts and ignores it.
 - **`estate pull` verifies the signature of what it pulls.** It checked only
   the artifact's media type, so anyone who could push to the repository could
   hand the next scheduled run a history of their making. It now writes
@@ -40,8 +71,124 @@ When a release is cut, move these entries under a heading for its version.
   bundle pushed before the job signed them needs signing once (or one run with
   `--allow-unverified`).
 
+### Added
+
+- **`sourceRepositoryOwner` is validated and described.** A trusted signer's
+  `sourceRepositoryOwner` must be exactly `https://github.com/OWNER`; the
+  policy is refused otherwise (before, a wrong value silently matched nothing
+  and every signature came out failed). The trust-policy schema now describes
+  every signer field, and docs/verify-estate.md states the exact rule: the
+  certificate's Source Repository URI must be `https://github.com/OWNER/<repo>`
+  (its owner segment exactly `OWNER`), and that repository is then required
+  of cosign (`--certificate-github-workflow-repository`).
+- **`estate verify --rescan`: today's findings beside the publisher's.** The
+  run scans each image's *verified* SBOMs itself with grype (on `PATH`, or
+  `--grype-path`; checked before the run, exit 1 without it) and reports the
+  result as `images[].rescan` beside `vulnerabilities`: the attested scan,
+  on its day, and the same packages against a vulnerability database of
+  today (`rescan.vulnerabilities`, with `scanner`, `scannedAt`, and
+  `database.built`). Only SBOMs a trusted signer verified are scanned, per
+  platform image; an image with no verified SBOM on a platform, not all of
+  whose platform images could be read, or that grype couldn't scan is
+  `rescan.status: unknown` with the reason, never clean. `summary.rescan`
+  totals them; history rows carry `rescanVulnerabilities`. The policy's
+  `scanSource` (`attestation`, `rescan`, or `worst`; `--scan-source`) says
+  which scan `failOn` gates on, `worst` by default with `--rescan`: an image
+  fails when either finds enough and is `unverified` when either is unknown.
+  With a scanned rescan, `maxScanAgeDays` measures the rescan by its
+  database's build time. grype's database is updated once before the run
+  (`grype db update`; an update that fails exits 1 before anything is read),
+  and the scans then use it as it is (`GRYPE_DB_AUTO_UPDATE=false`), so
+  concurrent scans don't each download it; with `GRYPE_DB_AUTO_UPDATE=false`
+  set, the database is left as it is and only checked to be there (`grype db
+  status`). grype's other database settings (`GRYPE_DB_*`) are left to grype.
+  When grype couldn't scan any image, the report is written and the run exits
+  1.
+- **VEX for rescans.** A policy's `vex:` list of OpenVEX documents (relative
+  to the policy file; `--vex FILE`) is applied to the rescans, scoped per
+  image before grype sees it: statements whose product is the image
+  (`pkg:oci/…` by digest or `repository_url`, or a plain reference) are
+  rewritten to their subcomponents (or every package of the SBOM), and
+  package-scoped statements apply estate-wide. Every suppressed finding is
+  listed with `suppressed: true` and `suppressedBy` (the document's file and
+  `@id`, the statement's product, status, and justification; or `source:
+  scanner` for grype's own rules), never dropped. `policy.vex` lists the
+  documents; a statement about an image that isn't in the estate is warned
+  about. The scoping rule is documented in docs/verify-estate.md.
+- **Observe-only images.** A policy's `observe:` patterns (path globs over
+  the repository, or `repository:tag`; `--observe PATTERN`) mark images that
+  are reported with a verdict but don't gate: `images[].observeOnly: true`,
+  counted in `summary.verdicts.observeOnly` (so `verified + failed +
+  unverified + observeOnly` is `images`), ignored by `--fail-on`, and marked
+  in the history rows.
+- **Provenance: read, not evaluated, and said so.** Verified SLSA provenance
+  now records what it says about the build in `images[].provenance`
+  (`builderId`, `buildType`), and `evidence.provenance.detail` states what
+  was checked (the signature, that the statement is about the image; the
+  source read from it) and what wasn't (builder, build type, materials). A
+  policy's `provenanceBuilders:` list makes the builder a check: provenance
+  naming another builder, or none, is `failed`, and neither its source nor
+  its builder is read from it (no `source` with `basis: provenance`, no
+  `images[].provenance`); one naming a listed builder records
+  `provenance.builderChecked: true`. An empty entry in the list is refused
+  when the policy is read.
+
+### Fixed
+
+- **Keyless evidence no longer fails when cosign loses Sigstore's trusted
+  root.** Each cosign run refreshes TUF metadata over the network into the
+  shared `~/.sigstore/root` cache, so with verifications running
+  concurrently one could find the TUF repository unreachable, or a sibling's
+  half-written file, and come out `failed` ("not signed by a trusted signer:
+  … trusted root is required when using new bundle format"; cosign v3.0.x
+  only warns what TUF said). This made a verified image's vulnerability scan
+  read as failed on the showcase estate on some days. `estate verify` and
+  `estate pull` now fetch the trusted root once (`cosign initialize`) before
+  verifying anything, when the policy trusts a keyless signer or a key
+  signer that checks the transparency log (no `tlog: false`), and pass the
+  cached `trusted_root.json` of the mirror `cosign initialize` used to every
+  verification that needs it (`--trusted-root`, key verifications that check
+  the log included); a fetch that fails is an operational error (exit 1). If
+  that file can't be found in the TUF cache, the run says so loudly (a
+  `WARNING` on standard error, a GitHub Actions `::warning`, and the report's
+  `warnings`) and verifies as before, each cosign run fetching the root
+  itself. `--trusted-root FILE`
+  supplies one instead (air-gapped setups), and `SIGSTORE_ROOT_FILE` and the
+  other individual-target variables are left to cosign. Should cosign still
+  lose the root, the evidence is `unknown`, with TUF's own message in its
+  detail, never `failed` (the legacy TUF client's errors about its cache,
+  `initializing tuf`, `tuf: failed to decode`, included). The action installs cosign v3.1.4 (the installer's
+  default was v3.0.6).
+
 ### Changed
 
+- **A run that could check nothing exits 1, not 0.** When every piece of
+  evidence of every image is `unknown` (cosign, the registries, or the
+  images couldn't be reached), `estate verify` writes the report, which says
+  so, and exits with the operational code: a report in which nothing could be
+  checked is not a pass, whatever `--fail-on` says.
+- **Every report and history is checked against the contract before it is
+  written.** `estate verify` validates both documents against the schemas in
+  `contract/` (compiled into the binary from the same types) and writes
+  nothing, exiting 1, when either doesn't match, so a bug can't publish a
+  bundle a portal would reject. A previous `estate-history.json` that isn't a
+  valid history now stops the run instead of being extended.
+- **Staleness is never manufactured from a claim.** `maxDaysBehind` fails an
+  image only when its base is proven by layer digests (`base.strength:
+  proof`); an image more than the limit behind a base it only claims
+  (`declared`, `assisted`, `weak`) is `unverified`, with the reason saying
+  so. Graph edges from `org.opencontainers.image.base.name` or build history
+  (`oci-base-name`, `history`) no longer pick the oldest observed version of
+  the repository and call the image stale: they name the repository the image
+  claims, carry no `baseDigest` (and the report's `base.imageId` is empty:
+  no observed image is identified as the version), have `drift: unknown`,
+  and aren't counted as stale consumers (`graph build --fail-on-stale`
+  included). Under
+  `--reproduce`, an image whose recipe or rebase record is `unknown` is
+  `not-checked` and `unverified`, not skipped as if it had no recipe.
+- **`reproducibility.checkedAt` is the report's time** for images this run
+  rebuilt (`--reproduce`), not the wall clock, so `--generated-at` makes the
+  whole report reproducible.
 - **An untrusted rebase record no longer satisfies a required `recipe`.** Any
   rebase record that wasn't `missing` (one signed by someone else, `failed`;
   one no trusted signer applied to, `present`) made the recipe

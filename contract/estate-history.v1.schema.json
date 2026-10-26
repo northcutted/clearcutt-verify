@@ -113,6 +113,10 @@
         "id": {
           "type": "string"
         },
+        "observeOnly": {
+          "description": "ObserveOnly marks an image that didn't gate in that run.",
+          "type": "boolean"
+        },
         "packagesDigest": {
           "description": "PackagesDigest identifies the image's package set, read from verified SBOMs: sha256:<hex> of its package versions as \"type name version\" lines, sorted, each ending in a newline. It changes when any package does. Absent when the package set is unknown.",
           "type": "string"
@@ -124,6 +128,14 @@
         "rebasedFrom": {
           "description": "RebasedFrom is the image whose layers were rebased into this one.",
           "type": "string"
+        },
+        "rescanVulnerabilities": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SeverityCounts"
+            }
+          ],
+          "description": "RescanVulnerabilities are the counted findings of this run's own scan (policy.rescan); absent when the run didn't rescan the image."
         },
         "verdict": {
           "type": "string"
@@ -184,6 +196,64 @@
         "notReproduced",
         "reproduced"
       ],
+      "type": "object"
+    },
+    "RescanSummary": {
+      "additionalProperties": false,
+      "description": "RescanSummary totals this run's own vulnerability scans.",
+      "properties": {
+        "counts": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SeverityCounts"
+            }
+          ],
+          "description": "Counts and Fixable total the rescans' counted findings."
+        },
+        "database": {
+          "$ref": "#/$defs/ScannerDatabase"
+        },
+        "fixable": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "scanned": {
+          "description": "Scanned is how many images every platform image of which was rescanned; Unknown how many weren't (no verified SBOM, or grype couldn't scan it): their current vulnerabilities are unknown, not zero.",
+          "type": "integer"
+        },
+        "scanner": {
+          "description": "Scanner is the scanner that rescanned, e.g. grype 0.120.1, and Database its vulnerability database.",
+          "type": "string"
+        },
+        "suppressed": {
+          "description": "Suppressed is how many findings VEX statements suppressed across rescans.",
+          "type": "integer"
+        },
+        "unknown": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "counts",
+        "fixable",
+        "scanned",
+        "suppressed",
+        "unknown"
+      ],
+      "type": "object"
+    },
+    "ScannerDatabase": {
+      "additionalProperties": false,
+      "description": "ScannerDatabase is the vulnerability database a scan used.",
+      "properties": {
+        "built": {
+          "description": "Built is when the database was built (RFC 3339): findings know nothing published after it.",
+          "type": "string"
+        },
+        "schema": {
+          "description": "Schema is the database schema version, e.g. v6.1.10.",
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "SeverityCounts": {
@@ -281,6 +351,14 @@
           ],
           "description": "Reproducibility counts images by reproducibility.status."
         },
+        "rescan": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RescanSummary"
+            }
+          ],
+          "description": "Rescan totals this run's own scans (policy.rescan); absent when the run didn't rescan."
+        },
         "verdicts": {
           "allOf": [
             {
@@ -314,6 +392,10 @@
       "description": "VerdictCounts counts images by verdict.",
       "properties": {
         "failed": {
+          "type": "integer"
+        },
+        "observeOnly": {
+          "description": "ObserveOnly counts the images that are observe-only (policy.observe): they have a verdict but aren't counted above, so verified + failed + unverified + observeOnly is summary.images.",
           "type": "integer"
         },
         "unverified": {

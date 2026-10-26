@@ -420,6 +420,14 @@
           "description": "Suppressed says a VEX statement covers it (it is not counted).",
           "type": "boolean"
         },
+        "suppressedBy": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Suppression"
+            }
+          ],
+          "description": "SuppressedBy names the statement, for findings this run's rescan suppressed with the policy's VEX documents. Absent on a suppressed finding, the publisher's scan suppressed it with a statement this run didn't see."
+        },
         "version": {
           "type": "string"
         }
@@ -492,6 +500,10 @@
           "description": "ID is unique within the report and stable across runs for the same repository, e.g. ghcr-io-acme-images-billing.",
           "type": "string"
         },
+        "observeOnly": {
+          "description": "ObserveOnly marks an image the policy observes but doesn't gate on (policy.observe): it has a verdict, but isn't counted in summary.verdicts and doesn't fail estate verify --fail-on. Absent, the image gates.",
+          "type": "boolean"
+        },
         "packages": {
           "description": "Packages is how many package versions the image ships, when known.",
           "type": "integer"
@@ -510,12 +522,28 @@
           },
           "type": "array"
         },
+        "provenance": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Provenance"
+            }
+          ],
+          "description": "Provenance is what the image's verified SLSA provenance says about who built it, read but (unless policy.provenanceBuilders names it) not evaluated: a reader shouldn't take it as checked."
+        },
         "repository": {
           "description": "Repository is registry/path without tag or digest.",
           "type": "string"
         },
         "reproducibility": {
           "$ref": "#/$defs/Reproducibility"
+        },
+        "rescan": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Rescan"
+            }
+          ],
+          "description": "Rescan is this run's own scan of the image's verified SBOMs (estate verify --rescan), beside the publisher's: what a vulnerability database of this run's day says about the same packages. Absent when the run didn't rescan."
         },
         "root": {
           "description": "Root says why the image has no parent, when it is a root.",
@@ -552,7 +580,7 @@
               "$ref": "#/$defs/Vulnerabilities"
             }
           ],
-          "description": "Vulnerabilities is absent when the image has no vulnerability data; that means unknown, not clean. Findings come only from verified vulnerability attestations."
+          "description": "Vulnerabilities is absent when the image has no vulnerability data; that means unknown, not clean. Findings come only from verified vulnerability attestations: what the publisher's scan found, on the day it ran (scannedAt)."
         },
         "warnings": {
           "items": {
@@ -738,9 +766,23 @@
           "description": "MaxScanAgeDays leaves images unverified whose vulnerability scan is older than this many days at the time of the report (what was found since is unknown); 0 accepts any age.",
           "type": "integer"
         },
+        "observe": {
+          "description": "Observe lists the patterns (path globs over repository, or repository:tag) of the images that are observe-only: in the report with a verdict, but not gating (not counted in summary.verdicts, and not failing --fail-on).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "onlyFixed": {
           "description": "OnlyFixed counts only vulnerabilities that have a fix toward FailOn.",
           "type": "boolean"
+        },
+        "provenanceBuilders": {
+          "description": "ProvenanceBuilders, when set, are the builder IDs verified SLSA provenance must name (runDetails.builder.id, or builder.id in v0.2); provenance naming another is failed. Without it, the builder isn't evaluated.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "reproduce": {
           "description": "Reproduce reports whether this run checked that images reproduce: those without a verified reproduction attestation were rebuilt, and one that doesn't reproduce, or couldn't be checked, falls short.",
@@ -760,6 +802,18 @@
           },
           "type": "array"
         },
+        "rescan": {
+          "description": "Rescan reports whether this run scanned each image's verified SBOMs itself (estate verify --rescan); each image's rescan says what it found.",
+          "type": "boolean"
+        },
+        "scanSource": {
+          "description": "ScanSource says which vulnerability findings FailOn gated on: attestation (the publisher's verified scan; the default without Rescan), rescan (this run's own scan), or worst (both: an image fails when either finds enough, and is unverified when either is unknown; the default with Rescan).",
+          "enum": [
+            "attestation",
+            "rescan",
+            "worst"
+          ]
+        },
         "stackSigners": {
           "description": "StackSigners are who may sign clearcutt-factory stacks: a trust policy's stack signers. Registry stacks the estate's apps are built on are verified against them.",
           "items": {
@@ -773,6 +827,13 @@
             "$ref": "#/$defs/Signer"
           },
           "type": "array"
+        },
+        "vex": {
+          "description": "VEX lists the OpenVEX documents applied to this run's rescans. Every finding they suppressed is still listed, marked suppressed, with the statement that did it.",
+          "items": {
+            "$ref": "#/$defs/VEXDocument"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -780,6 +841,25 @@
         "required",
         "trustedSigners"
       ],
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "description": "Provenance is what verified SLSA provenance says about the build, as read: clearcutt-verify checks the provenance's signature and reads the source repository and commit from it (source, basis provenance); it doesn't evaluate the builder, the build type, or the materials unless the policy asks (policy.provenanceBuilders).",
+      "properties": {
+        "buildType": {
+          "description": "BuildType is buildDefinition.buildType (v1) or buildType (v0.2).",
+          "type": "string"
+        },
+        "builderChecked": {
+          "description": "BuilderChecked is true when the policy's provenanceBuilders named the builder and it matched; false (absent), the builder wasn't evaluated.",
+          "type": "boolean"
+        },
+        "builderId": {
+          "description": "BuilderID is runDetails.builder.id (SLSA v1) or builder.id (v0.2).",
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "Reproducibility": {
@@ -903,6 +983,100 @@
         },
         "workflow": {
           "description": "Workflow is the workflow the run belongs to (on GitHub Actions, the calling workflow's ref), and Job the job in it.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Rescan": {
+      "additionalProperties": false,
+      "description": "Rescan is this run's own vulnerability scan of an image: grype over the image's verified SBOMs, one per platform image, against a database of the run's day (estate verify --rescan). It is read only from SBOMs a trusted signer verified; an unverified SBOM is never scanned.",
+      "properties": {
+        "detail": {
+          "description": "Detail explains an unknown status.",
+          "type": "string"
+        },
+        "platforms": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Platforms gives the status per platform image.",
+          "type": "object"
+        },
+        "status": {
+          "description": "Status is scanned (every platform image's verified SBOM was scanned) or unknown (some platform image has no verified SBOM, not every platform image could be read, or grype couldn't scan it): the image's current vulnerabilities are then unknown, never clean.",
+          "enum": [
+            "scanned",
+            "unknown"
+          ]
+        },
+        "vulnerabilities": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/Vulnerabilities"
+            }
+          ],
+          "description": "Vulnerabilities are the findings (source scan), when scanned."
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    "RescanSummary": {
+      "additionalProperties": false,
+      "description": "RescanSummary totals this run's own vulnerability scans.",
+      "properties": {
+        "counts": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SeverityCounts"
+            }
+          ],
+          "description": "Counts and Fixable total the rescans' counted findings."
+        },
+        "database": {
+          "$ref": "#/$defs/ScannerDatabase"
+        },
+        "fixable": {
+          "$ref": "#/$defs/SeverityCounts"
+        },
+        "scanned": {
+          "description": "Scanned is how many images every platform image of which was rescanned; Unknown how many weren't (no verified SBOM, or grype couldn't scan it): their current vulnerabilities are unknown, not zero.",
+          "type": "integer"
+        },
+        "scanner": {
+          "description": "Scanner is the scanner that rescanned, e.g. grype 0.120.1, and Database its vulnerability database.",
+          "type": "string"
+        },
+        "suppressed": {
+          "description": "Suppressed is how many findings VEX statements suppressed across rescans.",
+          "type": "integer"
+        },
+        "unknown": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "counts",
+        "fixable",
+        "scanned",
+        "suppressed",
+        "unknown"
+      ],
+      "type": "object"
+    },
+    "ScannerDatabase": {
+      "additionalProperties": false,
+      "description": "ScannerDatabase is the vulnerability database a scan used.",
+      "properties": {
+        "built": {
+          "description": "Built is when the database was built (RFC 3339): findings know nothing published after it.",
+          "type": "string"
+        },
+        "schema": {
+          "description": "Schema is the database schema version, e.g. v6.1.10.",
           "type": "string"
         }
       },
@@ -1170,6 +1344,14 @@
           ],
           "description": "Reproducibility counts images by reproducibility.status."
         },
+        "rescan": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/RescanSummary"
+            }
+          ],
+          "description": "Rescan totals this run's own scans (policy.rescan); absent when the run didn't rescan."
+        },
         "verdicts": {
           "allOf": [
             {
@@ -1195,6 +1377,68 @@
         "reproducibility",
         "verdicts",
         "vulnerabilities"
+      ],
+      "type": "object"
+    },
+    "Suppression": {
+      "additionalProperties": false,
+      "description": "Suppression is what suppressed a finding in this run's rescan.",
+      "properties": {
+        "document": {
+          "type": "string"
+        },
+        "file": {
+          "description": "File is the document's path as the policy named it, and Document its @id (source vex).",
+          "type": "string"
+        },
+        "justification": {
+          "type": "string"
+        },
+        "product": {
+          "description": "Product is the statement's product @id as written in the document: the image (pkg:oci/…, or a reference) or a package purl.",
+          "type": "string"
+        },
+        "source": {
+          "description": "Source is vex (a statement in one of the policy's OpenVEX documents) or scanner (a rule of grype's own, such as the one for kernel headers).",
+          "enum": [
+            "vex",
+            "scanner"
+          ]
+        },
+        "status": {
+          "description": "Status is the statement's status (not_affected or fixed) and Justification its justification, when it gives one.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "type": "object"
+    },
+    "VEXDocument": {
+      "additionalProperties": false,
+      "description": "VEXDocument is an OpenVEX document a policy applied.",
+      "properties": {
+        "author": {
+          "description": "Author is the document's author.",
+          "type": "string"
+        },
+        "file": {
+          "description": "File is the path the policy named, as written there.",
+          "type": "string"
+        },
+        "id": {
+          "description": "ID is the document's @id.",
+          "type": "string"
+        },
+        "statements": {
+          "description": "Statements is how many statements it holds.",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "file",
+        "statements"
       ],
       "type": "object"
     },
@@ -1231,6 +1475,10 @@
         "failed": {
           "type": "integer"
         },
+        "observeOnly": {
+          "description": "ObserveOnly counts the images that are observe-only (policy.observe): they have a verdict but aren't counted above, so verified + failed + unverified + observeOnly is summary.images.",
+          "type": "integer"
+        },
         "unverified": {
           "type": "integer"
         },
@@ -1251,6 +1499,14 @@
       "properties": {
         "counts": {
           "$ref": "#/$defs/SeverityCounts"
+        },
+        "database": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/ScannerDatabase"
+            }
+          ],
+          "description": "Database is the vulnerability database the scan used, when known (source scan)."
         },
         "findings": {
           "description": "Findings are deduplicated across platforms.",

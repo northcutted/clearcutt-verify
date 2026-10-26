@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -38,6 +41,10 @@ type Options struct {
 	// Reproducer, when set, rebuilds images from their recipes or repeats
 	// their rebases (Policy.Reproduce).
 	Reproducer Reproducer
+	// Scanner, when set, scans each image's verified SBOMs for
+	// vulnerabilities (Policy.Rescan), with the policy's VEX documents applied.
+	Scanner Scanner
+	VEX     []VEXDocument
 	// RemoteOptions reach the registries (auth, transport).
 	RemoteOptions []remote.Option
 	Log           io.Writer
@@ -54,6 +61,8 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 	if generatedAt == "" {
 		generatedAt = time.Now().UTC().Format(time.RFC3339)
 	}
+	opts.GeneratedAt = generatedAt
+	observations.Images = uniqueImages(observations.Images)
 	graph, err := estategraph.BuildGraph(observations, estategraph.GraphOptions{GeneratedAt: generatedAt})
 	if err != nil {
 		return nil, fmt.Errorf("base graph: %w", err)
@@ -101,12 +110,19 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 	// own, and ones whose layers couldn't be read.
 	notRoots := map[string]bool{}
 	for _, o := range observations.Images {
-		ids[o.DigestRef] = o.ID
-		ids[normalizeRepo(o.DigestRef)] = o.ID
-		ids[o.ManifestDigest] = o.ID
+		// An image that couldn't be read has no digest: keying it by "" would
+		// link every edge that names no version (base.name, history) to it.
+		for _, k := range []string{o.DigestRef, normalizeRepo(o.DigestRef), o.ManifestDigest} {
+			if k != "" {
+				ids[k] = o.ID
+			}
+		}
 		_, d := splitDigestRef(o.DigestRef)
-		created[firstNonEmpty(d, o.ManifestDigest)] = o.Created
-		created[o.ManifestDigest] = o.Created
+		for _, k := range []string{d, o.ManifestDigest} {
+			if k != "" {
+				created[k] = o.Created
+			}
+		}
 		if len(o.Layers) == 0 {
 			notRoots[o.ID] = true
 		}
@@ -148,8 +164,103 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 		r.Images[i].Verdict = verdictAt(r.Images[i], opts.Policy, now)
 	}
 	r.Packages = packageIndex(observations, packagesByImage)
+	if opts.Scanner != nil {
+		r.Warnings = append(r.Warnings, unusedVEX(opts.VEX, r.Images)...)
+	}
 	r.Summary = summarize(r)
 	return r, nil
+}
+
+// observeOnly reports whether the policy observes the image without gating
+// on it: one of its patterns (path globs) matches the image's repository, or
+// its repository:tag.
+func observeOnly(patterns []string, repository string, tags []string) bool {
+	for _, pat := range patterns {
+		pat = strings.TrimSpace(pat)
+		if pat == "" {
+			continue
+		}
+		if ok, _ := path.Match(pat, repository); ok {
+			return true
+		}
+		for _, t := range tags {
+			if ok, _ := path.Match(pat, repository+":"+t); ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// SourceRefs maps the ID Build gives each observed image to the reference
+// it was observed by (empty when the observation doesn't say).
+func SourceRefs(observations estategraph.Observations) map[string]string {
+	out := map[string]string{}
+	for _, o := range uniqueImages(observations.Images) {
+		out[o.ID] = o.SourceRef
+	}
+	return out
+}
+
+// idPattern is what an image ID may be: one URL path segment.
+var idPattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
+// uniqueImages lists each observed image once, with an ID the report can use:
+// unique, and one URL path segment (readers name pages after it). The same
+// reference observed twice is one image. An observation whose ID is missing,
+// isn't a path segment, or is shared with another gets the ID its reference
+// gives (estategraph.AssignIDs), which depends only on the reference, so the
+// result doesn't depend on the order observations come in.
+func uniqueImages(images []estategraph.Observation) []estategraph.Observation {
+	var out []estategraph.Observation
+	listed := map[string]bool{}
+	for _, o := range images {
+		key := o.ID + "\x00" + o.SourceRef + "\x00" + o.DigestRef
+		if !listed[key] {
+			listed[key] = true
+			out = append(out, o)
+		}
+	}
+	count := map[string]int{}
+	for _, o := range out {
+		count[o.ID]++
+	}
+	var redo []int
+	taken := map[string]bool{}
+	for i, o := range out {
+		if count[o.ID] == 1 && idPattern.MatchString(o.ID) {
+			taken[o.ID] = true
+			continue
+		}
+		redo = append(redo, i)
+	}
+	// Images given the same ID (one reference observed at two digests, say)
+	// are told apart by -2, -3 in this order, which must not be the order
+	// they came in: by canonical reference, then digest, then the rest of
+	// what makes them different observations.
+	sortKey := func(o estategraph.Observation) []string {
+		ref := firstNonEmpty(o.SourceRef, o.DigestRef, o.ID)
+		_, digest := splitDigestRef(o.DigestRef)
+		return []string{estategraph.CanonicalRef(ref), firstNonEmpty(digest, o.ManifestDigest), ref, o.DigestRef, o.SourceRef, o.ID}
+	}
+	sort.SliceStable(redo, func(a, b int) bool { return slices.Compare(sortKey(out[redo[a]]), sortKey(out[redo[b]])) < 0 })
+	refs := make([]string, len(redo))
+	for k, i := range redo {
+		refs[k] = firstNonEmpty(out[i].SourceRef, out[i].DigestRef, out[i].ID)
+	}
+	ids := estategraph.AssignIDs(refs)
+	for k, i := range redo {
+		id := ids[k]
+		for n := 2; taken[id] || !idPattern.MatchString(id); n++ {
+			id = fmt.Sprintf("%s-%d", ids[k], n)
+			if !idPattern.MatchString(id) {
+				id = fmt.Sprintf("image-%d", n)
+			}
+		}
+		taken[id] = true
+		out[i].ID = id
+	}
+	return out
 }
 
 // platformSelection is the --platforms selection as the report records it:
@@ -219,7 +330,7 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 			item.Status, item.Detail = "unknown", detail
 		}
 		data.vulns, data.unreadableScans = nil, nil
-		data.packages, data.packagesKnown, data.sbomPlatforms = nil, false, nil
+		data.packages, data.packagesKnown, data.sbomPlatforms, data.sboms = nil, false, nil, nil
 	}
 	if f := data.factory; f != nil && f.Kind == "" && f.RebasedFrom != "" && data.rebaseVerified {
 		test, err := originalRecipe(ctx, f, claimedSource, opts)
@@ -238,6 +349,11 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 		named = claimedBase(ctx, &img, platforms, ids, data.lockBase, opts.RemoteOptions)
 	}
 	img.Evidence = ev
+	img.ObserveOnly = observeOnly(opts.Policy.Observe, repo, img.Tags)
+	img.Provenance = data.provenance
+	if opts.Scanner != nil {
+		img.Rescan = rescanImage(ctx, &img, platforms, platformsErr, data, opts)
+	}
 	img.Vulnerabilities = mergeVulnerabilities(data.vulns)
 	if len(data.unreadableScans) > 0 {
 		// Findings from some platforms only would read as the image's.
@@ -326,8 +442,14 @@ func baseOf(img *report.Image, obs estategraph.Observation, graph estategraph.Gr
 		if e.ConsumerID != obs.ID {
 			continue
 		}
+		// An edge that names only the repository identifies no version, so
+		// no observed image is the one it is built on.
+		var imageID string
+		if e.BaseDigest != "" {
+			imageID = firstNonEmpty(ids[e.BaseDigest], ids[e.BaseRepository+"@"+e.BaseDigest])
+		}
 		img.Base = &report.BaseLink{
-			ImageID: firstNonEmpty(ids[e.BaseDigest], ids[e.BaseRepository+"@"+e.BaseDigest]), Repository: e.BaseRepository,
+			ImageID: imageID, Repository: e.BaseRepository,
 			Ref: e.BaseRef, Digest: e.BaseDigest, Method: e.Method, Strength: strengthOf(e.Method),
 			Drift: firstNonEmpty(e.Drift, "unknown"), VersionsBehind: e.VersionsBehind, DaysBehind: e.DaysBehind,
 			CurrentRef: e.CurrentBaseRef, CurrentDigest: e.CurrentBaseDigest,
@@ -336,7 +458,7 @@ func baseOf(img *report.Image, obs estategraph.Observation, graph estategraph.Gr
 			img.Base.ProvenOn = observedPlatform(obs)
 		}
 		// Days behind are counted between the two versions' creation times.
-		img.Base.DaysBehindUnknown = e.Drift == "stale" && (!dated(e.BaseCreated) || !dated(created[e.CurrentBaseDigest]))
+		img.Base.DaysBehindUnknown = e.Drift == "stale" && (!dated(e.BaseCreated) || e.CurrentBaseDigest == "" || !dated(created[e.CurrentBaseDigest]))
 		return
 	}
 	for _, root := range graph.Roots {
@@ -599,9 +721,13 @@ func basesOf(images []report.Image) []report.Base {
 	created := map[string]string{}
 	for _, img := range images {
 		for _, p := range img.Platforms {
-			created[p.Digest] = img.Created
+			if p.Digest != "" {
+				created[p.Digest] = img.Created
+			}
 		}
-		created[img.Digest] = img.Created
+		if img.Digest != "" {
+			created[img.Digest] = img.Created
+		}
 	}
 	out := make([]report.Base, 0, len(byRepo))
 	for repo, b := range byRepo {
@@ -652,8 +778,12 @@ type imageData struct {
 	rebaseSigner     *report.Signer
 	recipeVerified   bool
 	rebaseVerified   bool
-	// sbomPlatforms are the platform images whose SBOMs were read.
+	// sbomPlatforms are the platform images whose SBOMs were read, and
+	// sboms the verified documents themselves, by platform, for rescanning.
 	sbomPlatforms []string
+	sboms         map[string]sbomDoc
+	// provenance is what verified provenance says about the builder.
+	provenance *report.Provenance
 	// recipeTest describes the smoke test a verified recipe declares.
 	recipeTest string
 	// rebaseTest is the smoke test a verified rebase record says ran.
@@ -678,7 +808,7 @@ var perPlatform = map[string]bool{KindSBOM: true, KindVulnerabilityScan: true}
 // gatherEvidence discovers and verifies every kind of evidence on the image
 // (index-level kinds) and its platform images (SBOMs and scans).
 func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platforms []report.Platform, opts Options) (report.Evidence, imageData) {
-	data := imageData{vulns: map[string]vulnScan{}, statements: map[string]string{}}
+	data := imageData{vulns: map[string]vulnScan{}, statements: map[string]string{}, sboms: map[string]sbomDoc{}}
 	type subject struct{ platform, digest string }
 	subjects := []subject{{"", digest}}
 	for _, p := range platforms {
@@ -855,6 +985,13 @@ func verifyKind(ctx context.Context, repo, digest, kind, imageSource string, fou
 			if platform != "" {
 				data.sbomPlatforms = append(data.sbomPlatforms, platform)
 			}
+			doc := sbomDoc{raw: pred}
+			for _, p := range pkgs {
+				if p.PURL != "" {
+					doc.purls = appendUnique(doc.purls, p.PURL)
+				}
+			}
+			data.sboms[firstNonEmpty(platform, "default")] = doc
 		}
 	case KindRecipe:
 		if fi, base, ok := readRecipe(pred); ok {
@@ -876,11 +1013,39 @@ func verifyKind(ctx context.Context, repo, digest, kind, imageSource string, fou
 			data.rebaseTest = readRebaseTest(pred)
 		}
 	case KindProvenance:
+		details := readProvenanceDetails(pred)
+		// What was checked: the signature, and the statement being about the
+		// image; the source was read. The builder is evaluated only when the
+		// policy names the builders it trusts.
+		note := "cosign verified its signature and that it is about this image; the source repository and commit were read from it. Its builder, build type, and materials weren't evaluated."
+		if builders := opts.Policy.ProvenanceBuilders; len(builders) > 0 {
+			id := ""
+			if details != nil {
+				id = details.BuilderID
+			}
+			// Provenance that names no builder names none of them, whatever
+			// the list holds; and nothing is read from failed evidence.
+			if id == "" || !contains(builders, id) {
+				item.Detail = strings.TrimSpace(item.Detail + " Its builder is " + firstNonEmpty(quoteOrNone(id), "unnamed") + ", not one of the policy's provenanceBuilders, so it is failed; nothing was read from it.")
+				return "failed"
+			}
+			details.BuilderChecked = true
+			note = "cosign verified its signature and that it is about this image; the source repository and commit were read from it, and its builder (" + id + ") is one of the policy's provenanceBuilders. Its build type and materials weren't evaluated."
+		}
+		data.provenance = details
 		if s, ok := readProvenanceSource(pred); ok {
 			data.provenanceSource = s
 		}
+		item.Detail = strings.TrimSpace(item.Detail + " " + strings.ToUpper(note[:1]) + note[1:])
 	}
 	return got.Status
+}
+
+func quoteOrNone(s string) string {
+	if s == "" {
+		return ""
+	}
+	return fmt.Sprintf("%q", s)
 }
 
 // originalRecipe names a rebased image after the recipe it was first built
@@ -1053,7 +1218,9 @@ func reproduceLocally(ctx context.Context, img *report.Image, data imageData, op
 		bound = report.Signer{Identity: signer.Identity, Issuer: signer.Issuer, SourceRepository: signer.SourceRepository}
 	}
 	got, err := opts.Reproducer.Reproduce(ctx, img.Repository+"@"+img.Digest, bound)
-	r := report.Reproducibility{Method: method, CheckedAt: time.Now().UTC().Format(time.RFC3339), Digest: got, Source: "rebuild"}
+	// When this run checked it: the report's time, so --generated-at makes
+	// the report reproducible.
+	r := report.Reproducibility{Method: method, CheckedAt: opts.GeneratedAt, Digest: got, Source: "rebuild"}
 	switch {
 	case got == img.Digest:
 		r.Status = "reproduced"

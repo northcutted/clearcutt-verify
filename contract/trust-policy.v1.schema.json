@@ -5,15 +5,18 @@
       "description": "TrustedSigner is one signer and what it may sign. Its identity fields mean what they mean in Signer.",
       "properties": {
         "identity": {
+          "description": "Identity is the keyless certificate identity, exactly (a GitHub Actions workflow: https://github.com/OWNER/REPO/.github/workflows/ FILE@REF); IdentityRegexp matches it instead, anchored with ^ and naming the owner exactly (ending it with /), never a wildcard.",
           "type": "string"
         },
         "identityRegexp": {
           "type": "string"
         },
         "issuer": {
+          "description": "Issuer is the OIDC issuer of the certificate, e.g. https://token.actions.githubusercontent.com.",
           "type": "string"
         },
         "key": {
+          "description": "Key is a public key (a file relative to this document, or a KMS URI) instead of a certificate identity.",
           "type": "string"
         },
         "name": {
@@ -21,25 +24,30 @@
           "type": "string"
         },
         "roles": {
-          "description": "Roles is what the signer may sign: image (an image's signature and attestations; the default) and/or stack (a clearcutt-factory stack).",
+          "description": "Roles is what the signer may sign: image (an image's signature and attestations; the default), stack (a clearcutt-factory stack), and/or estate (an estate report bundle or history index in a registry, as clearcutt-verify estate pull and estate history read them).",
           "items": {
             "enum": [
               "image",
-              "stack"
+              "stack",
+              "estate"
             ]
           },
           "type": "array"
         },
         "sourceMatchesImage": {
+          "description": "SourceMatchesImage requires the signing run to be in the repository the image names as its source (org.opencontainers.image.source).",
           "type": "boolean"
         },
         "sourceRef": {
+          "description": "SourceRef is the ref the signing run must be on, e.g. refs/heads/main.",
           "type": "string"
         },
         "sourceRepository": {
+          "description": "SourceRepository is the one repository (https://github.com/OWNER/REPO) whose workflow runs may sign: the certificate's Source Repository URI must be it. For a reusable workflow, the calling repository.",
           "type": "string"
         },
         "sourceRepositoryOwner": {
+          "description": "SourceRepositoryOwner accepts runs in any repository of one owner (https://github.com/OWNER): the certificate's Source Repository URI must be https://github.com/OWNER/<repo>, i.e. its owner segment must be OWNER, and that repository is then required of cosign exactly (--certificate-github-workflow-repository). An alternative to SourceRepository for a reusable workflow every repository of an organization calls; with SourceRepository or SourceMatchesImage too, the repository they resolve to must be the owner's.",
           "type": "string"
         },
         "tlog": {

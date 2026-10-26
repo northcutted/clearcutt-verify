@@ -35,6 +35,17 @@ import (
 //
 // It signs with key pairs and no transparency log, so it needs no network
 // beyond the registry, and no OIDC identity (fork pull requests run it too).
+// Evidence is stored both ways cosign v3 can: as Sigstore bundles (the
+// default; referrers, or the referrers tag on registry:2) and, for the
+// legacy image, as cosign v2's .sig and .att tags (--new-bundle-format=false).
+//
+// Two extras run when asked: CLEARCUTT_E2E_RESCAN=1 adds --rescan (grype on
+// PATH; it downloads its database), and CLEARCUTT_E2E_KEYLESS=1 also signs
+// an image keylessly with the ambient OIDC identity (a GitHub Actions job
+// with id-token: write) against the public Sigstore, which exercises the
+// trusted-root fetch (cosign initialize) and the real Fulcio, Rekor, and TUF.
+// CLEARCUTT_E2E_BUNDLE_OUT names a directory to copy the bundle to, for the
+// portal contract gate.
 func TestRealCosign(t *testing.T) {
 	reg := os.Getenv("CLEARCUTT_E2E_REGISTRY")
 	if reg == "" {
@@ -60,13 +71,22 @@ func TestRealCosign(t *testing.T) {
 	cosign("generate-key-pair", "--output-key-prefix", "other")
 	// A signing config naming no services: no Fulcio, no Rekor, no TSA.
 	cosign("signing-config", "create", "--out", "no-tlog.json")
-	sign := func(key, ref string) {
-		t.Helper()
-		cosign("sign", "--yes", "--key", key+".key", "--signing-config", "no-tlog.json", ref)
+	// Bundles by default (a signing config naming no transparency log);
+	// legacy stores cosign v2's .sig/.att tags instead, which cosign v3 writes
+	// only without a signing config.
+	formatFlags := func(legacy bool) []string {
+		if legacy {
+			return []string{"--use-signing-config=false", "--tlog-upload=false", "--new-bundle-format=false"}
+		}
+		return []string{"--signing-config", "no-tlog.json"}
 	}
-	attest := func(key, typ, predicate, ref string) {
+	sign := func(key, ref string, legacy bool) {
 		t.Helper()
-		cosign("attest", "--yes", "--key", key+".key", "--signing-config", "no-tlog.json", "--type", typ, "--predicate", predicate, ref)
+		cosign(append(append([]string{"sign", "--yes", "--key", key + ".key"}, formatFlags(legacy)...), ref)...)
+	}
+	attest := func(key, typ, predicate, ref string, legacy bool) {
+		t.Helper()
+		cosign(append(append([]string{"attest", "--yes", "--key", key + ".key", "--type", typ, "--predicate", predicate}, formatFlags(legacy)...), ref)...)
 	}
 	write := func(file string, v any) {
 		t.Helper()
@@ -75,8 +95,11 @@ func TestRealCosign(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// lodash 4.17.15 has advisories grype matches by purl alone (an apk package
+	// needs the distro in the SBOM), so a rescan finds something.
 	write("sbom.json", map[string]any{"bomFormat": "CycloneDX", "specVersion": "1.5", "version": 1, "components": []any{
-		map[string]string{"type": "library", "name": "openssl", "version": "3.0.1", "purl": "pkg:apk/wolfi/openssl@3.0.1"}}})
+		map[string]string{"type": "library", "name": "openssl", "version": "3.0.1", "purl": "pkg:apk/wolfi/openssl@3.0.1"},
+		map[string]string{"type": "library", "name": "lodash", "version": "4.17.15", "purl": "pkg:npm/lodash@4.17.15"}}})
 	write("grype.json", map[string]any{
 		"invocation": map[string]any{"parameters": nil, "uri": "", "event_id": "", "builder.id": ""},
 		"scanner": map[string]any{"uri": "pkg:github/anchore/grype@0.100.0", "version": "0.100.0", "result": map[string]any{
@@ -134,47 +157,94 @@ func TestRealCosign(t *testing.T) {
 		}
 		return ref.Context().Name() + "@" + d.String(), platforms
 	}
-	evidence := func(repo, key, scan string) {
+	evidence := func(repo, key, scan string, legacy bool) {
 		t.Helper()
 		index, platforms := push(repo)
-		sign(key, index)
-		attest(key, "slsaprovenance1", "provenance.json", index)
+		sign(key, index, legacy)
+		attest(key, "slsaprovenance1", "provenance.json", index, legacy)
 		for _, p := range platforms {
-			attest(key, "cyclonedx", "sbom.json", p)
-			attest(key, "vuln", scan, p)
+			attest(key, "cyclonedx", "sbom.json", p, legacy)
+			attest(key, "vuln", scan, p, legacy)
 		}
 	}
-	evidence("app", "trusted", "grype.json") // all evidence, signed by the trusted key
-	evidence("evil", "other", "grype.json")  // the same evidence, signed by another key
-	evidence("trivy", "trusted", "trivy.json")
+	evidence("app", "trusted", "grype.json", false) // all evidence, signed by the trusted key
+	evidence("evil", "other", "grype.json", false)  // the same evidence, signed by another key
+	evidence("trivy", "trusted", "trivy.json", false)
+	evidence("legacy", "trusted", "grype.json", true) // the same as app, as cosign v2 tags
 	push("unsigned")
+	repos := []string{"app", "evil", "trivy", "legacy", "unsigned"}
+
+	keyless := os.Getenv("CLEARCUTT_E2E_KEYLESS") != ""
+	if keyless {
+		// The job's own identity signs, against the public Sigstore.
+		index, platforms := push("keyless")
+		cosign("sign", "--yes", index)
+		cosign("attest", "--yes", "--type", "cyclonedx", "--predicate", "sbom.json", platforms[0])
+		cosign("attest", "--yes", "--type", "cyclonedx", "--predicate", "sbom.json", platforms[1])
+		repos = append(repos, "keyless")
+	}
+	rescan := os.Getenv("CLEARCUTT_E2E_RESCAN") != ""
+	if rescan {
+		if _, err := exec.LookPath("grype"); err != nil {
+			t.Fatalf("CLEARCUTT_E2E_RESCAN is set, but grype isn't on PATH: %v", err)
+		}
+	}
 
 	refs := filepath.Join(dir, "refs.txt")
 	var lines []string
-	for _, repo := range []string{"app", "evil", "trivy", "unsigned"} {
+	for _, repo := range repos {
 		lines = append(lines, reg+"/clearcutt-e2e/"+repo+":"+run)
 	}
 	if err := os.WriteFile(refs, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	policy := filepath.Join(dir, "policy.yaml")
-	if err := os.WriteFile(policy, []byte(`apiVersion: clearcutt.dev/v1
+	policyText := `apiVersion: clearcutt.dev/v1
 kind: VerificationPolicy
 required: [signature, sbom, vulnerabilityScan, provenance]
 trustedSigners:
   - key: trusted.pub
     tlog: false
-failOn: critical
-`), 0o644); err != nil {
+`
+	if keyless {
+		// The workflow that runs this test, in this repository.
+		policyText += `  - identityRegexp: ^https://github\.com/northcutted/clearcutt-verify/\.github/workflows/
+    issuer: https://token.actions.githubusercontent.com
+    sourceRepository: https://github.com/northcutted/clearcutt-verify
+`
+	}
+	policyText += "failOn: critical\n"
+	if err := os.WriteFile(policy, []byte(policyText), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	out := filepath.Join(dir, "estate")
-	stdout, err := runCLI(t, "estate", "verify", "--refs", refs, "--policy", policy, "--name", "e2e", "--out", out,
-		"--platforms", "linux/amd64,linux/arm64", "--fail-on", "failed", "--verbose")
+	verifyArgs := []string{"estate", "verify", "--refs", refs, "--policy", policy, "--name", "e2e", "--out", out,
+		"--platforms", "linux/amd64,linux/arm64", "--fail-on", "failed", "--verbose"}
+	if rescan {
+		verifyArgs = append(verifyArgs, "--rescan")
+	}
+	stdout, err := runCLI(t, verifyArgs...)
 	if !errors.Is(err, ErrCheckFailed) {
 		t.Fatalf("estate verify: want the gate to fail (evil and unsigned), got %v\n%s", err, stdout)
 	}
 	t.Log(stdout)
+	if keyless && !strings.Contains(stdout, "cosign initialize fetched it once") {
+		t.Errorf("keyless: the trusted root wasn't fetched once for the run:\n%s", stdout)
+	}
+	if bundleOut := os.Getenv("CLEARCUTT_E2E_BUNDLE_OUT"); bundleOut != "" {
+		if err := os.MkdirAll(bundleOut, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range []string{report.ReportFile, report.HistoryFile} {
+			b, err := os.ReadFile(filepath.Join(out, f))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(bundleOut, f), b, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 	raw, err := os.ReadFile(filepath.Join(out, report.ReportFile))
 	if err != nil {
 		t.Fatal(err)
@@ -204,7 +274,7 @@ failOn: critical
 	if v := a.Vulnerabilities; v == nil || v.Counts.High != 1 || !strings.HasPrefix(v.Scanner, "grype") || v.ScannedAt != "2026-10-18T00:01:00Z" {
 		t.Errorf("app vulnerabilities: %+v", a.Vulnerabilities)
 	}
-	if a.Packages == nil || *a.Packages != 1 || a.Source == nil || a.Source.Basis != "provenance" || a.Source.Revision != "0123456789abcdef0123456789abcdef01234567" {
+	if a.Packages == nil || *a.Packages != 2 || a.Source == nil || a.Source.Basis != "provenance" || a.Source.Revision != "0123456789abcdef0123456789abcdef01234567" {
 		t.Errorf("app packages %v, source %+v", a.Packages, a.Source)
 	}
 	if a.Verdict.Status != "verified" {
@@ -224,6 +294,49 @@ failOn: critical
 	if u := img["unsigned"]; u.Evidence.Signature.Status != "missing" || u.Verdict.Status != "failed" {
 		t.Errorf("unsigned: %+v %+v", u.Evidence.Signature, u.Verdict)
 	}
+	// The same evidence stored as cosign v2 tags verifies the same way, and
+	// says where it is.
+	l := img["legacy"]
+	for kind, item := range map[string]report.EvidenceItem{"signature": l.Evidence.Signature, "sbom": l.Evidence.SBOM, "vulnerabilityScan": l.Evidence.VulnerabilityScan, "provenance": l.Evidence.Provenance} {
+		want := ".att"
+		if kind == "signature" {
+			want = ".sig"
+		}
+		if item.Status != "verified" || !strings.HasSuffix(item.Ref, want) || item.Signer == nil || !strings.HasSuffix(item.Signer.Key, "trusted.pub") {
+			t.Errorf("legacy %s: %+v", kind, item)
+		}
+	}
+	if l.Verdict.Status != "verified" || l.Vulnerabilities == nil || l.Vulnerabilities.Counts.High != 1 || l.Packages == nil || *l.Packages != 2 {
+		t.Errorf("legacy: verdict %+v vulnerabilities %+v packages %v", l.Verdict, l.Vulnerabilities, l.Packages)
+	}
+	if keyless {
+		k := img["keyless"]
+		for kind, item := range map[string]report.EvidenceItem{"signature": k.Evidence.Signature, "sbom": k.Evidence.SBOM} {
+			if item.Status != "verified" || item.Signer == nil || item.Signer.Issuer != "https://token.actions.githubusercontent.com" || item.Signer.SourceRepository != "https://github.com/northcutted/clearcutt-verify" {
+				t.Errorf("keyless %s: %+v (signer %+v)", kind, item, item.Signer)
+			}
+		}
+		if k.Evidence.VulnerabilityScan.Status != "missing" || k.Evidence.Provenance.Status != "missing" || k.Verdict.Status != "failed" {
+			t.Errorf("keyless (signature and SBOM only): %+v %+v", k.Evidence, k.Verdict)
+		}
+	}
+	if rescan {
+		// The verified SBOM (openssl 3.0.1) is rescanned; the one signed by
+		// another key isn't, so evil's current vulnerabilities are unknown.
+		if a.Rescan == nil || a.Rescan.Status != "scanned" || a.Rescan.Vulnerabilities == nil || len(a.Rescan.Vulnerabilities.Findings) == 0 ||
+			a.Rescan.Vulnerabilities.Database == nil || a.Rescan.Vulnerabilities.Database.Built == "" || !strings.HasPrefix(a.Rescan.Vulnerabilities.Scanner, "grype ") {
+			t.Errorf("app rescan: %+v", a.Rescan)
+		}
+		if l.Rescan == nil || l.Rescan.Status != "scanned" {
+			t.Errorf("legacy rescan: %+v", l.Rescan)
+		}
+		if e.Rescan == nil || e.Rescan.Status != "unknown" || e.Rescan.Vulnerabilities != nil || !strings.Contains(e.Rescan.Detail, "no verified SBOM") {
+			t.Errorf("evil rescan: %+v", e.Rescan)
+		}
+		if r.Summary.Rescan == nil || r.Summary.Rescan.Scanned < 2 || !r.Policy.Rescan {
+			t.Errorf("rescan summary: %+v policy %+v", r.Summary.Rescan, r.Policy)
+		}
+	}
 
 	// The bundle, kept in the registry and signed, reads back only for the
 	// key that signed it.
@@ -239,7 +352,7 @@ failOn: critical
 		}
 	}
 	repo, _, _ := strings.Cut(estateRef, ":"+run)
-	sign("trusted", repo+"@"+digest)
+	sign("trusted", repo+"@"+digest, false)
 	pulled := filepath.Join(dir, "pulled")
 	stdout, err = runCLI(t, "estate", "pull", estateRef, "--output", pulled, "--key", filepath.Join(dir, "trusted.pub"), "--insecure-ignore-tlog")
 	if err != nil || !strings.Contains(stdout, "signature verified") {
@@ -255,6 +368,40 @@ failOn: critical
 	}
 	if _, err := os.Stat(filepath.Join(refused, report.ReportFile)); err == nil {
 		t.Error("estate pull wrote a bundle another key was named for")
+	}
+
+	// A trust policy's estate signers name the key too, for pull and for the
+	// history index, which the pushing job signs like the bundle.
+	trust := filepath.Join(dir, "trust.yaml")
+	if err := os.WriteFile(trust, []byte("apiVersion: clearcutt.dev/v1\nkind: TrustPolicy\nsigners:\n  - name: estate-job\n    roles: [estate]\n    key: trusted.pub\n    tlog: false\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if stdout, err := runCLI(t, "estate", "pull", estateRef, "--output", filepath.Join(dir, "pulled-policy"), "--trust-policy", trust); err != nil || !strings.Contains(stdout, "signature verified") {
+		t.Errorf("estate pull with the trust policy: %v\n%s", err, stdout)
+	}
+	historyRef := reg + "/clearcutt-e2e/estate:history-" + run
+	stdout, err = runCLI(t, "estate", "push", estateRef, "--dir", out, "--file", report.ReportFile, "--history", historyRef, "--generated-at", "2026-10-26T00:00:00Z")
+	if err != nil {
+		t.Fatalf("estate push --history: %v\n%s", err, stdout)
+	}
+	historyDigest := ""
+	for _, line := range strings.Split(stdout, "\n") {
+		if _, rest, ok := strings.Cut(line, "appended to history "); ok {
+			historyDigest = strings.TrimSuffix(strings.TrimSpace(rest[strings.LastIndex(rest, "(")+1:]), ")")
+		}
+	}
+	if !strings.HasPrefix(historyDigest, "sha256:") {
+		t.Fatalf("no history digest in:\n%s", stdout)
+	}
+	if _, err := runCLI(t, "estate", "history", historyRef, "--trust-policy", trust); err == nil || !strings.Contains(err.Error(), "refusing the history index") {
+		t.Errorf("estate history, unsigned index: %v", err)
+	}
+	sign("trusted", repo+"@"+historyDigest, false)
+	if stdout, err := runCLI(t, "estate", "history", historyRef, "--trust-policy", trust); err != nil || !strings.Contains(stdout, "history index signature verified") {
+		t.Errorf("estate history, signed index: %v\n%s", err, stdout)
+	}
+	if _, err := runCLI(t, "estate", "history", historyRef, "--key", filepath.Join(dir, "other.pub"), "--insecure-ignore-tlog"); err == nil || !strings.Contains(err.Error(), "refusing") {
+		t.Errorf("estate history, another key: %v", err)
 	}
 }
 

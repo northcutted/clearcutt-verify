@@ -24,6 +24,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       go: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.go }}
+      # The keyless e2e signs with the job's OIDC identity, which pull
+      # requests from forks don't get.
+      keyless: ${{ (github.event_name == 'workflow_dispatch' || steps.filter.outputs.go == 'true') && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -138,9 +141,12 @@ jobs:
   # estate verify and estate pull make of them (a wrong signer included), so
   # a change in cosign's bundle format or output can't pass unnoticed.
   # registry:2 has no Referrers API (cosign and clearcutt-verify use the
-  # referrers tag); registry:3 has one. It signs with key pairs and no
+  # referrers tag); registry:3 has one. Evidence is stored both as Sigstore
+  # bundles and as cosign v2's .sig/.att tags. It signs with key pairs and no
   # transparency log: no OIDC token and no network beyond the registry, so
-  # pull requests from forks run it too.
+  # pull requests from forks run it too. The registry:3 leg also rescans the
+  # verified SBOMs with grype (which downloads its database) and keeps its
+  # bundle for the portal contract gate.
   cosign-e2e:
     name: Real-Cosign End-To-End (${{ matrix.name }})
     needs: [changes]
@@ -150,11 +156,15 @@ jobs:
       matrix:
         include:
           - name: registry 2, referrers tag
+            slug: registry2
             image: registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
+            rescan: ""
           - name: registry 3, Referrers API
+            slug: registry3
             image: registry:3.1.2@sha256:ddf754342cfc8acc51a56d5d0ab6af06826461864460636d8bd5c546dab2a7b8
+            rescan: "1"
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     services:
       registry:
         image: ${{ matrix.image }}
@@ -179,11 +189,132 @@ jobs:
         with:
           version: source
 
+      # A pinned release, checked against its published checksum (no
+      # curl | sh), for --rescan.
+      - name: Install grype (pinned, checksum-verified)
+        if: ${{ matrix.rescan != '' }}
+        env:
+          GRYPE_VERSION: "0.120.1"
+          GRYPE_SHA256: 0a9ee97ef5ae2ee953b0a80098105052e846cdbe319a57d808b519c33cd1343d
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/grype"
+          mkdir -p "$dir"
+          curl -fsSL --retry 3 -o "$dir/grype.tar.gz" \
+            "https://github.com/anchore/grype/releases/download/v${GRYPE_VERSION}/grype_${GRYPE_VERSION}_linux_amd64.tar.gz"
+          echo "${GRYPE_SHA256}  $dir/grype.tar.gz" | sha256sum -c -
+          tar -xzf "$dir/grype.tar.gz" -C "$dir" grype
+          echo "$dir" >> "$GITHUB_PATH"
+          "$dir/grype" version
+
       - name: Sign, Attest, And Verify With Real cosign
         working-directory: cli
         env:
           CLEARCUTT_E2E_REGISTRY: localhost:5000
-        run: go test -count=1 -timeout 5m -run '^TestRealCosign$' -v ./internal/commands
+          CLEARCUTT_E2E_RESCAN: ${{ matrix.rescan }}
+          CLEARCUTT_E2E_BUNDLE_OUT: ${{ runner.temp }}/e2e-bundle
+        run: go test -count=1 -timeout 10m -run '^TestRealCosign$' -v ./internal/commands
+
+      - name: Keep The Bundle For The Portal Contract Gate
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-bundle-${{ matrix.slug }}
+          path: ${{ runner.temp }}/e2e-bundle
+          retention-days: 7
+          if-no-files-found: error
+
+  # The same test, also signing keylessly with the job's own OIDC identity
+  # against the public Sigstore: the real Fulcio, Rekor, and TUF, and the
+  # trusted-root fetch that failed one attestation a day on the showcase.
+  # Needs id-token, which forks' pull requests don't get (skipped then).
+  cosign-keyless-e2e:
+    name: Real-Cosign End-To-End (keyless, public Sigstore)
+    needs: [changes]
+    if: ${{ needs.changes.outputs.keyless == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    services:
+      registry:
+        image: registry:3.1.2@sha256:ddf754342cfc8acc51a56d5d0ab6af06826461864460636d8bd5c546dab2a7b8
+        ports:
+          - 5000:5000
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: 'cli/go.mod'
+          cache-dependency-path: 'cli/go.sum'
+          cache: true
+
+      - name: Install cosign Through The Action
+        uses: ./
+        with:
+          version: source
+
+      - name: Sign Keylessly, Then Verify
+        working-directory: cli
+        env:
+          CLEARCUTT_E2E_REGISTRY: localhost:5000
+          CLEARCUTT_E2E_KEYLESS: "1"
+        run: go test -count=1 -timeout 10m -run '^TestRealCosign$' -v ./internal/commands
+
+  # The contract gate (Phase D): a released clearcutt-portal must still read
+  # what this clearcutt-verify writes. It builds the site from the fresh
+  # bundle the e2e wrote (new fields included) and from the previous
+  # release's fixture, so a breaking contract change fails here rather than
+  # in the portal a week later. Pinned to clearcutt-portal's main by commit:
+  # the documented invocation (and its warnings for unknown fields) landed
+  # after v0.1.0; move the pin to the next release's commit when it ships.
+  portal-contract:
+    name: Portal Contract Gate
+    needs: [changes, cosign-e2e]
+    if: ${{ needs.changes.outputs.go == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Fresh Bundle From The Real-Cosign e2e
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: e2e-bundle-registry3
+          path: ${{ runner.temp }}/fresh-bundle
+
+      - name: The Previous Release's Fixture
+        env:
+          PREVIOUS: v0.16.0
+          OUT: ${{ runner.temp }}/previous-bundle
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          for f in estate-report.json estate-history.json; do
+            git show "$PREVIOUS:contract/fixtures/northcutted-images/$f" > "$OUT/$f"
+          done
+          ls -l "$OUT"
+
+      - name: Portal Builds The Fresh Bundle
+        uses: northcutted/clearcutt-portal@b183f2ee027a3214bb60e84c089b574d7093e446 # main (after v0.1.0)
+        with:
+          bundle: ${{ runner.temp }}/fresh-bundle
+          output: ${{ runner.temp }}/fresh-site
+
+      - name: Portal Builds The Previous Release's Fixture
+        uses: northcutted/clearcutt-portal@b183f2ee027a3214bb60e84c089b574d7093e446 # main (after v0.1.0)
+        with:
+          bundle: ${{ runner.temp }}/previous-bundle
+          output: ${{ runner.temp }}/previous-site
 
   pr-gate-summary:
     name: PR Gate Summary
@@ -192,6 +323,8 @@ jobs:
       - go-ci
       - action-install
       - cosign-e2e
+      - cosign-keyless-e2e
+      - portal-contract
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -216,6 +349,8 @@ jobs:
               "go-ci": enabled("go"),
               "action-install": enabled("go"),
               "cosign-e2e": enabled("go"),
+              "cosign-keyless-e2e": enabled("keyless"),
+              "portal-contract": enabled("go"),
           }
 
           lines = [
@@ -226,7 +361,7 @@ jobs:
               "| Surface | Selected |",
               "| --- | --- |",
           ]
-          for name in ["go"]:
+          for name in ["go", "keyless"]:
               lines.append(f"| `{name}` | `{enabled(name)}` |")
 
           lines.extend([

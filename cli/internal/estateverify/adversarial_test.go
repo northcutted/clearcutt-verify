@@ -11,6 +11,8 @@ import (
 
 	ggcrregistry "github.com/google/go-containerregistry/pkg/registry"
 
+	"github.com/northcutted/clearcutt-verify/internal/estategraph"
+
 	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
@@ -261,4 +263,98 @@ func TestTrivyScanIsNotACleanScan(t *testing.T) {
 		t.Errorf("summary %+v", r.Summary.Vulnerabilities)
 	}
 	validateReport(t, r)
+}
+
+// maxDaysBehind fails an image only on drift from a base proven by layer
+// digests: drift from a claimed base leaves it unverified at worst, never
+// failed.
+func TestStalenessFromClaimsNeverFails(t *testing.T) {
+	p := report.Policy{TrustedSigners: []report.Signer{{IdentityRegexp: `^https://github\.com/acme/`, Issuer: ghIssuer}}, MaxDaysBehind: 30}
+	for _, tc := range []struct {
+		strength, method, drift string
+		days                    int
+		want                    string
+	}{
+		{"proof", "layer-prefix", "stale", 45, "failed"},
+		{"proof", "layer-prefix", "stale", 10, "verified"},
+		{"declared", "oci-base-digest", "stale", 45, "unverified"},
+		{"declared", "buildpacks-metadata", "stale", 45, "unverified"},
+		{"assisted", "oci-base-name", "unknown", 0, "unverified"},
+		{"weak", "history", "unknown", 0, "unverified"},
+		{"declared", "oci-base-digest", "stale", 10, "verified"},
+	} {
+		img := allVerified()
+		img.Base = &report.BaseLink{Repository: "r", Strength: tc.strength, Method: tc.method, Drift: tc.drift, DaysBehind: tc.days}
+		if got := verdictAt(img, p, built); got.Status != tc.want {
+			t.Errorf("%s base %d days behind (%s): %+v, want %s", tc.strength, tc.days, tc.drift, got, tc.want)
+		}
+	}
+}
+
+// A base named only by repository (base.name, a history line) identifies no
+// version, so the edge has no digest. Linking it must not resolve the empty
+// digest to an image that couldn't be read (which has no digest either).
+func TestNamedBaseIsNotLinkedToAnUnreadableImage(t *testing.T) {
+	srv := httptest.NewServer(ggcrregistry.New(ggcrregistry.Logger(log.New(io.Discard, "", 0)), ggcrregistry.WithReferrersSupport(true)))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	pushIndex(t, host+"/base:latest", nil, built, nil)
+	pushIndex(t, host+"/app:1", nil, built, nil)
+	observations := observe(t, host, "base:latest", "app:1")
+	for i := range observations.Images {
+		if observations.Images[i].ID == "app" {
+			observations.Images[i].Labels["org.opencontainers.image.base.name"] = host + "/base:latest"
+		}
+	}
+	// Unreadable images in either position: the bug kept the last one.
+	broken := func(id string) estategraph.Observation {
+		return estategraph.Observation{ID: id, SourceRef: host + "/" + id + ":1", Platforms: []string{}, Entrypoint: []string{}, Cmd: []string{},
+			Labels: map[string]string{}, Annotations: map[string]string{}, Layers: []estategraph.LayerObservation{},
+			History: []estategraph.HistoryObservation{}, Warnings: []string{"the image couldn't be read"}}
+	}
+	observations.Images = append([]estategraph.Observation{broken("broken-a")}, append(observations.Images, broken("broken-z"))...)
+
+	verifier := acmeVerifier()
+	r, err := Build(context.Background(), observations, Options{
+		Name: "named-base", Version: "test", GeneratedAt: "2026-10-26T00:00:00Z", Verifier: verifier,
+		Policy: report.Policy{TrustedSigners: verifier.Signers},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, img := range r.Images {
+		if img.ID != "app" {
+			continue
+		}
+		if img.Base == nil || img.Base.Method != estategraph.MethodOCIBaseName || img.Base.Digest != "" {
+			t.Fatalf("app base: %+v", img.Base)
+		}
+		if img.Base.ImageID != "" {
+			t.Errorf("a base named by repository was linked to image %q", img.Base.ImageID)
+		}
+	}
+	validateReport(t, r)
+}
+
+// --reproduce never skips an image because its recipe or rebase record
+// couldn't be read: whether it reproduces is unknown, so it is unverified.
+func TestReproduceDoesNotSkipAnUnknownRecipe(t *testing.T) {
+	p := report.Policy{TrustedSigners: []report.Signer{{IdentityRegexp: `^https://github\.com/acme/`, Issuer: ghIssuer}}, Reproduce: true}
+	img := allVerified()
+	img.Evidence.Recipe = report.EvidenceItem{Status: "unknown"}
+	img.Reproducibility = reproduce(context.Background(), &img, imageData{}, Options{Policy: p})
+	if img.Reproducibility.Status != "not-checked" {
+		t.Fatalf("reproducibility: %+v", img.Reproducibility)
+	}
+	if got := verdictAt(img, report.Policy{TrustedSigners: p.TrustedSigners, Reproduce: true}, built); got.Status != "unverified" ||
+		!strings.Contains(strings.Join(got.Reasons, ";"), "reproducibility couldn't be checked") {
+		t.Errorf("verdict: %+v", got)
+	}
+	// No recipe at all is nothing to rebuild.
+	img = allVerified()
+	img.Evidence.Recipe, img.Evidence.Rebase = report.EvidenceItem{Status: "missing"}, report.EvidenceItem{Status: "not-applicable"}
+	img.Reproducibility = reproduce(context.Background(), &img, imageData{}, Options{Policy: p})
+	if got := verdictAt(img, report.Policy{TrustedSigners: p.TrustedSigners, Reproduce: true}, built); img.Reproducibility.Status != "no-recipe" || got.Status != "verified" {
+		t.Errorf("no recipe: %+v %+v", img.Reproducibility, got)
+	}
 }

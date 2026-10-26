@@ -75,19 +75,19 @@ func TestBuildAttributesAppsToTheirRunImage(t *testing.T) {
 	for _, i := range r.Images {
 		img[i.ID] = i
 	}
-	if b := img["apps/catalog"].Base; b == nil || b.Repository != host+"/platform/run-python" || b.Strength != "proof" || b.Drift != "current" || b.ImageID != "platform/run-python" {
+	if b := img["apps-catalog"].Base; b == nil || b.Repository != host+"/platform/run-python" || b.Strength != "proof" || b.Drift != "current" || b.ImageID != "platform-run-python" {
 		t.Fatalf("catalog base: %+v", b)
 	}
-	if b := img["platform/run-python"].Base; b == nil || b.Repository != host+"/chainguard/wolfi-base" || b.Strength != "proof" {
+	if b := img["platform-run-python"].Base; b == nil || b.Repository != host+"/chainguard/wolfi-base" || b.Strength != "proof" {
 		t.Errorf("run image base: %+v", b)
 	}
-	if img["chainguard/wolfi-base"].Root == "" {
-		t.Errorf("upstream base isn't a root: %+v", img["chainguard/wolfi-base"])
+	if img["chainguard-wolfi-base"].Root == "" {
+		t.Errorf("upstream base isn't a root: %+v", img["chainguard-wolfi-base"])
 	}
-	if got := Dependents(r, host+"/platform/run-python", "proof", false); len(got) != 1 || got[0].ImageID != "apps/catalog" {
+	if got := Dependents(r, host+"/platform/run-python", "proof", false); len(got) != 1 || got[0].ImageID != "apps-catalog" {
 		t.Errorf("run image dependents: %+v", got)
 	}
-	if got := Dependents(r, host+"/chainguard/wolfi-base", "proof", true); len(got) != 2 || got[0].ImageID != "platform/run-python" || got[1].Depth != 2 {
+	if got := Dependents(r, host+"/chainguard/wolfi-base", "proof", true); len(got) != 2 || got[0].ImageID != "platform-run-python" || got[1].Depth != 2 {
 		t.Errorf("upstream base dependents: %+v", got)
 	}
 }

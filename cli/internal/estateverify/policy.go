@@ -1,8 +1,10 @@
 package estateverify
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -41,6 +43,16 @@ type PolicyFile struct {
 	// TrustPolicy names a TrustPolicy file (relative to this one) whose
 	// image signers are trusted too, the same file clearcutt-factory reads.
 	TrustPolicy string `json:"trustPolicy"`
+	// ScanSource says which findings failOn gates on with --rescan:
+	// attestation, rescan, or worst (the default with --rescan).
+	ScanSource string `json:"scanSource"`
+	// VEX names OpenVEX documents (relative to this file) applied to rescans.
+	VEX []string `json:"vex"`
+	// Observe lists path globs of repositories (or repository:tag) that are
+	// observe-only: reported, not gating.
+	Observe []string `json:"observe"`
+	// ProvenanceBuilders are the builder IDs verified provenance must name.
+	ProvenanceBuilders []string `json:"provenanceBuilders"`
 }
 
 // ReadPolicy reads a VerificationPolicy file.
@@ -68,7 +80,15 @@ func ReadPolicy(path string) (report.Policy, error) {
 			signers[i].Key = keyPath(dir, signers[i].Key)
 		}
 	}
-	p := report.Policy{Required: f.Required, TrustedSigners: f.TrustedSigner, FailOn: f.FailOn, OnlyFixed: f.OnlyFixed, MaxDaysBehind: f.MaxDaysBehind, MaxScanAgeDays: f.MaxScanAgeDays, StackSigners: f.StackSigners}
+	p := report.Policy{Required: f.Required, TrustedSigners: f.TrustedSigner, FailOn: f.FailOn, OnlyFixed: f.OnlyFixed, MaxDaysBehind: f.MaxDaysBehind, MaxScanAgeDays: f.MaxScanAgeDays, StackSigners: f.StackSigners,
+		ScanSource: f.ScanSource, Observe: f.Observe, ProvenanceBuilders: f.ProvenanceBuilders}
+	if len(f.VEX) > 0 {
+		docs, err := ReadVEX(dir, f.VEX)
+		if err != nil {
+			return report.Policy{}, fmt.Errorf("%s: %w", path, err)
+		}
+		p.VEX = describeVEX(docs)
+	}
 	if f.TrustPolicy != "" {
 		tp := f.TrustPolicy
 		if !filepath.IsAbs(tp) {
@@ -108,8 +128,8 @@ func ReadTrustPolicy(path string) (report.TrustPolicy, error) {
 	}
 	for i, s := range t.Signers {
 		for _, r := range s.Roles {
-			if r != "image" && r != "stack" {
-				return report.TrustPolicy{}, fmt.Errorf("%s: signers[%d]: role %q must be image or stack", path, i, r)
+			if r != "image" && r != "stack" && r != "estate" {
+				return report.TrustPolicy{}, fmt.Errorf("%s: signers[%d]: role %q must be image, stack, or estate", path, i, r)
 			}
 		}
 		if _, err := signerFlags(s.Signer()); err != nil {
@@ -117,6 +137,44 @@ func ReadTrustPolicy(path string) (report.TrustPolicy, error) {
 		}
 	}
 	return t, nil
+}
+
+// ReadEstateSigners reads the signers with role estate (who may sign estate
+// report bundles and history indexes) from a TrustPolicy file, or from the
+// TrustPolicy a VerificationPolicy names (trustPolicy:), for estate pull and
+// estate history. It refuses a file that names none: pulling on nobody's
+// word is what --allow-unverified is for.
+func ReadEstateSigners(policyPath, trustPolicyPath string) ([]report.Signer, error) {
+	path := trustPolicyPath
+	if policyPath != "" {
+		raw, err := os.ReadFile(policyPath)
+		if err != nil {
+			return nil, err
+		}
+		var f PolicyFile
+		if err := yaml.UnmarshalStrict(raw, &f); err != nil {
+			return nil, fmt.Errorf("%s: %w", policyPath, err)
+		}
+		if f.APIVersion != report.APIVersion || f.Kind != "VerificationPolicy" {
+			return nil, fmt.Errorf("%s: expected apiVersion %s and kind VerificationPolicy", policyPath, report.APIVersion)
+		}
+		if f.TrustPolicy == "" {
+			return nil, fmt.Errorf("%s names no trustPolicy, and estate signers (role estate) come from a trust policy", policyPath)
+		}
+		path = f.TrustPolicy
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(filepath.Dir(policyPath), path)
+		}
+	}
+	t, err := ReadTrustPolicy(path)
+	if err != nil {
+		return nil, err
+	}
+	signers := t.For("estate")
+	if len(signers) == 0 {
+		return nil, fmt.Errorf("%s names no signer with role estate (who may sign estate bundles and history indexes)", path)
+	}
+	return signers, nil
 }
 
 // keyPath resolves a key file relative to dir, the directory of the file
@@ -139,6 +197,21 @@ func ValidatePolicy(p report.Policy) error {
 	if p.FailOn != "" && severityRank(p.FailOn) == 0 {
 		return fmt.Errorf("failOn %q must be negligible, low, medium, high, or critical", p.FailOn)
 	}
+	switch p.ScanSource {
+	case "", "attestation", "rescan", "worst":
+	default:
+		return fmt.Errorf("scanSource %q must be attestation, rescan, or worst", p.ScanSource)
+	}
+	for _, b := range p.ProvenanceBuilders {
+		if strings.TrimSpace(b) == "" {
+			return errors.New("provenanceBuilders lists an empty builder ID; name each builder (runDetails.builder.id, or builder.id in SLSA v0.2) exactly")
+		}
+	}
+	for _, pat := range p.Observe {
+		if _, err := path.Match(pat, ""); err != nil {
+			return fmt.Errorf("observe pattern %q: %w", pat, err)
+		}
+	}
 	for _, s := range append(append([]report.Signer{}, p.TrustedSigners...), p.StackSigners...) {
 		if _, err := signerFlags(s); err != nil {
 			return err
@@ -146,8 +219,25 @@ func ValidatePolicy(p report.Policy) error {
 		if s.Key != "" && (constrainsCaller(s) || s.SourceRef != "") {
 			return fmt.Errorf("trusted signer %s: source constraints apply to keyless (GitHub Actions) signers, not keys", s.Key)
 		}
+		if o := s.SourceRepositoryOwner; o != "" {
+			if rest, ok := strings.CutPrefix(strings.TrimSuffix(o, "/"), "https://github.com/"); !ok || rest == "" || strings.Contains(rest, "/") {
+				return fmt.Errorf("trusted signer %s: sourceRepositoryOwner %q must be https://github.com/OWNER", firstNonEmpty(s.IdentityRegexp, s.Identity), o)
+			}
+		}
 	}
 	return nil
+}
+
+// scanSource is what failOn gates on: the policy's scanSource, or
+// attestation without a rescan and worst with one.
+func scanSource(p report.Policy) string {
+	if p.ScanSource != "" {
+		return p.ScanSource
+	}
+	if p.Rescan {
+		return "worst"
+	}
+	return "attestation"
 }
 
 // verdict decides whether an image meets the policy. A requirement that
@@ -198,28 +288,52 @@ func verdictAt(img report.Image, p report.Policy, now time.Time) report.Verdict 
 		}
 	}
 	if p.FailOn != "" {
-		// Findings come only from verified scans; a scan that isn't verified
-		// on every platform leaves the rest unknown, never clean.
-		scan := img.Evidence.VulnerabilityScan.Status
-		if v := img.Vulnerabilities; v != nil {
-			if n := countAtOrAbove(v, p.FailOn, p.OnlyFixed); n > 0 {
-				fixable := ""
-				if p.OnlyFixed {
-					fixable = " fixable"
+		fixable := ""
+		if p.OnlyFixed {
+			fixable = " fixable"
+		}
+		source := scanSource(p)
+		if source != "rescan" {
+			// The publisher's scan. Findings come only from verified scans; a
+			// scan that isn't verified on every platform leaves the rest
+			// unknown, never clean.
+			scan := img.Evidence.VulnerabilityScan.Status
+			if v := img.Vulnerabilities; v != nil {
+				if n := countAtOrAbove(v, p.FailOn, p.OnlyFixed); n > 0 {
+					failed = append(failed, fmt.Sprintf("%d%s vulnerabilities at %s or above", n, fixable, p.FailOn))
 				}
-				failed = append(failed, fmt.Sprintf("%d%s vulnerabilities at %s or above", n, fixable, p.FailOn))
+			}
+			switch {
+			case img.Vulnerabilities == nil && (scan == "missing" || scan == ""):
+				unverified = append(unverified, "vulnerabilities are unknown (no scan)")
+			case scan != "verified":
+				unverified = append(unverified, "vulnerabilities are unknown (the vulnerability scan is "+scan+", not verified)")
+			case img.Vulnerabilities == nil:
+				unverified = append(unverified, "vulnerabilities are unknown (the verified scan couldn't be read)")
 			}
 		}
-		switch {
-		case img.Vulnerabilities == nil && (scan == "missing" || scan == ""):
-			unverified = append(unverified, "vulnerabilities are unknown (no scan)")
-		case scan != "verified":
-			unverified = append(unverified, "vulnerabilities are unknown (the vulnerability scan is "+scan+", not verified)")
-		case img.Vulnerabilities == nil:
-			unverified = append(unverified, "vulnerabilities are unknown (the verified scan couldn't be read)")
+		if source != "attestation" {
+			// This run's own scan of the verified SBOMs.
+			switch r := img.Rescan; {
+			case r == nil:
+				unverified = append(unverified, "current vulnerabilities are unknown (this run didn't rescan the image)")
+			case r.Status != "scanned" || r.Vulnerabilities == nil:
+				unverified = append(unverified, "current vulnerabilities are unknown (the rescan is "+r.Status+": "+strings.TrimSuffix(r.Detail, ".")+")")
+			default:
+				if n := countAtOrAbove(r.Vulnerabilities, p.FailOn, p.OnlyFixed); n > 0 {
+					failed = append(failed, fmt.Sprintf("%d%s vulnerabilities at %s or above in this run's scan (%s)", n, fixable, p.FailOn, describeScan(r.Vulnerabilities)))
+				}
+			}
 		}
 	}
-	if p.MaxScanAgeDays > 0 {
+	if p.MaxScanAgeDays > 0 && img.Rescan != nil && img.Rescan.Status == "scanned" {
+		// This run's scan is as fresh as its database.
+		if age, ok := rescanAge(img.Rescan, now); !ok {
+			unverified = append(unverified, "the rescan's age is unknown (no database build time or scan time)")
+		} else if age > time.Duration(p.MaxScanAgeDays)*24*time.Hour {
+			unverified = append(unverified, fmt.Sprintf("the rescan's vulnerability database is %d days old (limit %d); what was published since is unknown", int(age.Hours()/24), p.MaxScanAgeDays))
+		}
+	} else if p.MaxScanAgeDays > 0 {
 		// The age is measured on verified scans of every platform; with none
 		// to measure, how old its findings are is unknown.
 		var scanned time.Time
@@ -238,9 +352,14 @@ func verdictAt(img report.Image, p report.Policy, now time.Time) report.Verdict 
 		}
 	}
 	if p.MaxDaysBehind > 0 {
+		// Only drift from a base proven by layer digests can fail an image:
+		// drift from a base its author claims is as good as the claim, so at
+		// worst it leaves the image unverified.
 		switch b := img.Base; {
-		case b != nil && b.DaysBehind > p.MaxDaysBehind:
+		case b != nil && b.Strength == "proof" && b.DaysBehind > p.MaxDaysBehind:
 			failed = append(failed, fmt.Sprintf("base is %d days behind its newest version (limit %d)", b.DaysBehind, p.MaxDaysBehind))
+		case b != nil && b.DaysBehind > p.MaxDaysBehind:
+			unverified = append(unverified, fmt.Sprintf("its base is %d days behind its newest version (limit %d) by what the image claims (%s, %s), which isn't proven by layer digests", b.DaysBehind, p.MaxDaysBehind, b.Strength, b.Method))
 		case b != nil && b.Drift == "stale" && b.DaysBehindUnknown:
 			unverified = append(unverified, "its base is behind its newest version, by how many days couldn't be measured")
 		case b != nil && b.Drift == "unknown", b == nil && img.Root == "":
@@ -252,7 +371,9 @@ func verdictAt(img report.Image, p report.Policy, now time.Time) report.Verdict 
 		switch r := img.Reproducibility; {
 		case r.Status == "not-reproduced":
 			failed = append(failed, "rebuilding gave a different digest")
-		case r.Status == "not-checked" && r.Method != "":
+		case r.Status == "not-checked":
+			// Including an image whose recipe or rebase record couldn't be
+			// read: whether there is anything to rebuild is unknown.
 			unverified = append(unverified, "reproducibility couldn't be checked")
 		}
 	}
@@ -263,6 +384,15 @@ func verdictAt(img report.Image, p report.Policy, now time.Time) report.Verdict 
 		return report.Verdict{Status: "unverified", Reasons: unverified}
 	}
 	return report.Verdict{Status: "verified", Reasons: []string{}}
+}
+
+// describeScan names a scan: its scanner and database build day.
+func describeScan(v *report.Vulnerabilities) string {
+	s := firstNonEmpty(v.Scanner, "grype")
+	if v.Database != nil && v.Database.Built != "" {
+		s += ", database built " + strings.SplitN(v.Database.Built, "T", 2)[0]
+	}
+	return s
 }
 
 // anyVerified reports whether any of the image's evidence verified against a
@@ -313,14 +443,39 @@ func summarize(r *report.Report) report.Summary {
 	for _, k := range Kinds {
 		s.Evidence[k] = report.StatusCounts{}
 	}
+	if r.Policy.Rescan {
+		s.Rescan = &report.RescanSummary{}
+	}
 	for _, img := range r.Images {
-		switch img.Verdict.Status {
-		case "verified":
+		switch {
+		case img.ObserveOnly:
+			// Observed, not gating: its verdict is its own, not the estate's.
+			s.Verdicts.ObserveOnly++
+		case img.Verdict.Status == "verified":
 			s.Verdicts.Verified++
-		case "failed":
+		case img.Verdict.Status == "failed":
 			s.Verdicts.Failed++
 		default:
 			s.Verdicts.Unverified++
+		}
+		if s.Rescan != nil {
+			switch rs := img.Rescan; {
+			case rs != nil && rs.Status == "scanned" && rs.Vulnerabilities != nil:
+				s.Rescan.Scanned++
+				addCounts(&s.Rescan.Counts, rs.Vulnerabilities.Counts)
+				addCounts(&s.Rescan.Fixable, rs.Vulnerabilities.Fixable)
+				for _, f := range rs.Vulnerabilities.Findings {
+					if f.Suppressed {
+						s.Rescan.Suppressed++
+					}
+				}
+				s.Rescan.Scanner = firstNonEmpty(s.Rescan.Scanner, rs.Vulnerabilities.Scanner)
+				if s.Rescan.Database == nil {
+					s.Rescan.Database = rs.Vulnerabilities.Database
+				}
+			default:
+				s.Rescan.Unknown++
+			}
 		}
 		for _, k := range Kinds {
 			c := s.Evidence[k]
