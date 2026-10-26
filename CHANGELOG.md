@@ -34,7 +34,9 @@ When a release is cut, move these entries under a heading for its version.
   URL path segment the ID its reference gives. A reference listed twice is
   imported once. Readers that kept IDs (links, compare-runs) see each image
   under a new ID once; `estate verify` renames the rows of earlier runs in
-  the history it extends when exactly one current image had the old ID. The
+  the history it extends when exactly one current image had the old ID,
+  computed from the reference as it was written (a reference without a tag
+  had the repository's ID, a digest reference the digest's, tag or not). The
   fixture and example bundles use the new IDs.
 - **`estate history` verifies the history index's signature.** It read the
   index on nobody's word. Like `estate pull`, it now needs who signed it: a

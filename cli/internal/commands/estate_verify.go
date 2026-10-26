@@ -263,7 +263,7 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	history, err := extendHistory(r, o.history, o.out)
+	history, err := extendHistory(r, estateverify.SourceRefs(observations), o.history, o.out)
 	if err != nil {
 		return err
 	}
@@ -411,8 +411,9 @@ func sourcesOf(observations estategraph.Observations) []report.Source {
 }
 
 // extendHistory prepends this run to the previous history (from path, or
-// the bundle directory).
-func extendHistory(r *report.Report, path, out string) (*report.History, error) {
+// the bundle directory). refs maps each image ID to the reference it was
+// observed by.
+func extendHistory(r *report.Report, refs map[string]string, path, out string) (*report.History, error) {
 	h := &report.History{APIVersion: report.APIVersion, Kind: report.KindHistory, Name: r.Metadata.Name, Entries: []report.HistoryEntry{}}
 	if path == "" {
 		path = filepath.Join(out, report.HistoryFile)
@@ -437,29 +438,31 @@ func extendHistory(r *report.Report, path, out string) (*report.History, error) 
 				h.Entries = append(h.Entries, e)
 			}
 		}
-		renameLegacyIDs(h.Entries, r)
+		renameLegacyIDs(h.Entries, r, refs)
 	}
 	h.Entries = append([]report.HistoryEntry{{GeneratedAt: r.Metadata.GeneratedAt, Ref: report.ReportFile, Summary: r.Summary, Images: historyImages(r)}}, h.Entries...)
 	return h, nil
 }
 
 // renameLegacyIDs gives rows of earlier runs the IDs images have now.
-// Before v0.17.0 an image's ID was its repository's last path segment and its
-// tag (billing-1-2); now it is the whole reference (ghcr-io-acme-billing-1-2).
-// A row whose ID is no current image's, and is the old ID of exactly one
-// current image, is that image's, so its history carries on. Anything less
-// certain is left as it was.
-func renameLegacyIDs(entries []report.HistoryEntry, r *report.Report) {
+// Before v0.17.0 an image's ID came from the reference as it was written:
+// its repository's last path segment and its tag (billing-1-2), the
+// segment alone for the tag latest, written or not (ghcr.io/acme/app was
+// app), or the segment and the digest's first 12 hex digits for a digest
+// reference (with or without a tag). Now it is the whole reference
+// (ghcr-io-acme-billing-1-2). refs maps each current image ID to the
+// reference it was observed by. A row whose ID is no current image's, and is
+// the old ID of exactly one current image, is that image's, so its history
+// carries on. Anything less certain, an image whose reference isn't known
+// included, is left as it was.
+func renameLegacyIDs(entries []report.HistoryEntry, r *report.Report, refs map[string]string) {
 	current := map[string]bool{}
 	legacy := map[string][]string{} // old ID → current IDs
 	for _, img := range r.Images {
 		current[img.ID] = true
-		tag := ""
-		if len(img.Tags) > 0 {
-			tag = img.Tags[0]
+		if old := legacyImageID(refs[img.ID]); old != "" {
+			legacy[old] = append(legacy[old], img.ID)
 		}
-		old := legacyImageID(img.Repository, tag, img.Digest)
-		legacy[old] = append(legacy[old], img.ID)
 	}
 	for i := range entries {
 		for j := range entries[i].Images {
@@ -471,16 +474,21 @@ func renameLegacyIDs(entries []report.HistoryEntry, r *report.Report) {
 	}
 }
 
-// legacyImageID is the ID clearcutt-verify gave an image before v0.17.0.
-func legacyImageID(repository, tag, digest string) string {
-	base := sanitizeLegacy(path.Base(repository))
-	switch {
-	case tag == "" && strings.HasPrefix(digest, "sha256:") && len(digest) >= 19:
-		return base + "-" + sanitizeLegacy(digest[:19])
-	case tag != "" && tag != "latest":
-		return strings.Trim(base+"-"+sanitizeLegacy(tag), "-")
+// legacyImageID is the ID clearcutt-verify gave the image referenced by ref
+// before v0.17.0, or "" when ref isn't a reference.
+func legacyImageID(ref string) string {
+	parsed, err := name.ParseReference(strings.TrimSpace(ref), name.WeakValidation)
+	if err != nil {
+		return ""
 	}
-	return strings.Trim(base, "-")
+	base := sanitizeLegacy(path.Base(parsed.Context().RepositoryStr()))
+	switch id := parsed.Identifier(); {
+	case strings.HasPrefix(id, "sha256:") && len(id) >= 19:
+		return strings.Trim(base+"-"+sanitizeLegacy(id[:19]), "-")
+	case id != "latest":
+		return strings.Trim(base+"-"+sanitizeLegacy(id), "-")
+	}
+	return base
 }
 
 func sanitizeLegacy(v string) string {

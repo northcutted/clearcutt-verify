@@ -191,6 +191,16 @@ func observeOnly(patterns []string, repository string, tags []string) bool {
 	return false
 }
 
+// SourceRefs maps the ID Build gives each observed image to the reference
+// it was observed by (empty when the observation doesn't say).
+func SourceRefs(observations estategraph.Observations) map[string]string {
+	out := map[string]string{}
+	for _, o := range uniqueImages(observations.Images) {
+		out[o.ID] = o.SourceRef
+	}
+	return out
+}
+
 // idPattern is what an image ID may be: one URL path segment.
 var idPattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 

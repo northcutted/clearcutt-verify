@@ -49,6 +49,13 @@ func TestUniqueImages(t *testing.T) {
 	if y := got["ghcr.io/acme/y:1"]; !strings.HasPrefix(y, "ghcr-io-acme-y-1-") {
 		t.Errorf("y: %q", y)
 	}
+	// The history rename reads each image's reference by the ID Build gives it.
+	refs := SourceRefs(estategraph.Observations{Images: obs})
+	for ref, id := range got {
+		if refs[id] != ref {
+			t.Errorf("SourceRefs[%s] = %q, want %q", id, refs[id], ref)
+		}
+	}
 	reversed := make([]estategraph.Observation, len(obs))
 	for i := range obs {
 		reversed[len(obs)-1-i] = obs[i]

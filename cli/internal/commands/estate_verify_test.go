@@ -259,23 +259,42 @@ func TestEstateVerifyNeedsItsTools(t *testing.T) {
 // Rows of earlier runs keyed by the IDs images had before v0.17.0 carry on
 // under the IDs they have now, when that is certain.
 func TestHistoryKeepsImagesAcrossTheIDChange(t *testing.T) {
+	const digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	r := &report.Report{Metadata: report.Metadata{Name: "acme", GeneratedAt: "2026-10-18T00:00:00Z"}, Images: []report.Image{
 		{ID: "ghcr-io-acme-billing-1-2", Repository: "ghcr.io/acme/billing", Tags: []string{"1.2"}},
 		{ID: "ghcr-io-acme-web", Repository: "ghcr.io/acme/web", Tags: []string{"latest"}},
 		// Two images with the same old ID: neither inherits its rows.
 		{ID: "ghcr-io-acme-api-1", Repository: "ghcr.io/acme/api", Tags: []string{"1"}},
 		{ID: "ghcr-io-other-api-1", Repository: "ghcr.io/other/api", Tags: []string{"1"}},
+		// A reference without a tag: its old ID was the repository's (the
+		// tag is latest), not the digest's.
+		{ID: "ghcr-io-acme-app", Repository: "ghcr.io/acme/app", Tags: []string{}, Digest: digest},
+		// Digest references, with a tag or without: the digest's.
+		{ID: "ghcr-io-acme-tool-sha256-0123456789ab", Repository: "ghcr.io/acme/tool", Tags: []string{}, Digest: digest},
+		{ID: "ghcr-io-acme-job-2-sha256-0123456789ab", Repository: "ghcr.io/acme/job", Tags: []string{"2"}, Digest: digest},
+		// No reference known: nothing is inferred.
+		{ID: "ghcr-io-acme-cron-1", Repository: "ghcr.io/acme/cron", Tags: []string{"1"}},
 	}}
+	refs := map[string]string{
+		"ghcr-io-acme-billing-1-2":               "ghcr.io/acme/billing:1.2",
+		"ghcr-io-acme-web":                       "ghcr.io/acme/web:latest",
+		"ghcr-io-acme-api-1":                     "ghcr.io/acme/api:1",
+		"ghcr-io-other-api-1":                    "ghcr.io/other/api:1",
+		"ghcr-io-acme-app":                       "ghcr.io/acme/app",
+		"ghcr-io-acme-tool-sha256-0123456789ab":  "ghcr.io/acme/tool@" + digest,
+		"ghcr-io-acme-job-2-sha256-0123456789ab": "ghcr.io/acme/job:2@" + digest,
+	}
 	dir := t.TempDir()
 	prev := report.History{APIVersion: report.APIVersion, Kind: report.KindHistory, Name: "acme", Entries: []report.HistoryEntry{{
 		GeneratedAt: "2026-10-17T00:00:00Z",
-		Images:      []report.HistoryImage{{ID: "billing-1-2"}, {ID: "web"}, {ID: "api-1"}, {ID: "gone"}},
+		Images: []report.HistoryImage{{ID: "billing-1-2"}, {ID: "web"}, {ID: "api-1"}, {ID: "gone"}, {ID: "app"},
+			{ID: "tool-sha256-0123456789ab"}, {ID: "job-sha256-0123456789ab"}, {ID: "job-2"}, {ID: "cron-1"}},
 	}}}
 	path := filepath.Join(dir, "history.json")
 	if err := writeReportJSON(path, &prev); err != nil {
 		t.Fatal(err)
 	}
-	h, err := extendHistory(r, path, dir)
+	h, err := extendHistory(r, refs, path, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +302,8 @@ func TestHistoryKeepsImagesAcrossTheIDChange(t *testing.T) {
 	for _, row := range h.Entries[1].Images {
 		ids = append(ids, row.ID)
 	}
-	if strings.Join(ids, ",") != "ghcr-io-acme-billing-1-2,ghcr-io-acme-web,api-1,gone" {
+	if strings.Join(ids, ",") != "ghcr-io-acme-billing-1-2,ghcr-io-acme-web,api-1,gone,ghcr-io-acme-app,"+
+		"ghcr-io-acme-tool-sha256-0123456789ab,ghcr-io-acme-job-2-sha256-0123456789ab,job-2,cron-1" {
 		t.Errorf("earlier rows: %v", ids)
 	}
 }
