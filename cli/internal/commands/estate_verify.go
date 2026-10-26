@@ -176,6 +176,7 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	// estate. A missing or unusable tool is an operational error (exit 1),
 	// never a policy result.
 	verifier := &estateverify.Verifier{Signers: append(append([]report.Signer{}, policy.TrustedSigners...), policy.StackSigners...), Cosign: o.cosignPath, Run: cosignRunner, TrustedRoot: o.trustedRoot}
+	var rootWarning string
 	if len(policy.TrustedSigners)+len(policy.StackSigners) > 0 {
 		if _, err := verifier.CheckCosign(ctx); err != nil {
 			return err
@@ -183,16 +184,20 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		// Sigstore's trusted root, once, before the concurrent verifications
 		// that read it; a fetch that fails is an operational error here, not
 		// unknown evidence everywhere.
-		root, err := verifier.PrepareTrustedRoot(ctx)
+		var root string
+		root, rootWarning, err = verifier.PrepareTrustedRoot(ctx)
 		if err != nil {
 			return err
 		}
 		switch {
-		case GlobalOpts.Quiet || root == "":
+		case GlobalOpts.Quiet:
+		case rootWarning != "":
+			warnLoudly(stderr, "[verify-estate]", "estate verify: no single trusted root", rootWarning)
+		case root == "":
 		case o.trustedRoot != "":
-			fprintf(stderr, "[verify-estate] keyless evidence is verified against %s (--trusted-root)\n", root)
+			fprintf(stderr, "[verify-estate] Sigstore evidence is verified against %s (--trusted-root)\n", root)
 		default:
-			fprintf(stderr, "[verify-estate] keyless evidence is verified against %s (cosign initialize fetched it once for this run)\n", root)
+			fprintf(stderr, "[verify-estate] Sigstore evidence is verified against %s (cosign initialize fetched it once for this run)\n", root)
 		}
 	}
 	verifier.Signers = policy.TrustedSigners
@@ -261,6 +266,10 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	r, err := estateverify.Build(ctx, observations, opts)
 	if err != nil {
 		return err
+	}
+	if rootWarning != "" {
+		// The report says so too: it is what readers see.
+		r.Warnings = append(r.Warnings, rootWarning)
 	}
 
 	history, err := extendHistory(r, estateverify.SourceRefs(observations), o.history, o.out)

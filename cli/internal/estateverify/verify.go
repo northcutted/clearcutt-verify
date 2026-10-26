@@ -223,7 +223,10 @@ func (v *Verifier) verifyWith(ctx context.Context, subj Subject, flags []string)
 		args = []string{"verify"}
 	}
 	args = append(append(args, "--output", "json"), flags...)
-	if v.TrustedRoot != "" && !contains(flags, "--key") {
+	// Keyless evidence, and evidence a key signed into the transparency log,
+	// are checked against the trusted root (a key that signs without the log
+	// needs none).
+	if v.TrustedRoot != "" && !contains(flags, "--insecure-ignore-tlog=true") {
 		args = append(args, "--trusted-root", v.TrustedRoot)
 	}
 	args = append(args, subj.Ref)

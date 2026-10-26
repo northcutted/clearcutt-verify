@@ -35,16 +35,23 @@ instead.
    trusted signer signed it is undecided.
    Before reading anything, the run checks that cosign is there and is cosign
    v3 (the version whose bundles and output it reads), and stops with exit 1
-   if not. When the policy trusts a keyless signer, it then fetches Sigstore's
-   trusted root once (`cosign initialize`) and hands the cached
-   `trusted_root.json` to every verification (`cosign --trusted-root`), so no
-   verification fetches it from the TUF repository itself: each cosign run
+   if not. When the policy trusts a keyless signer, or a key signer whose
+   evidence must be in the transparency log (no `tlog: false`), it then
+   fetches Sigstore's trusted root once (`cosign initialize`) and hands the
+   cached `trusted_root.json` (the one from the mirror `cosign initialize`
+   used: `TUF_MIRROR`, else the default) to every verification that needs it
+   (`cosign --trusted-root`), so no verification fetches it from the TUF
+   repository itself: each cosign run
    otherwise refreshes TUF metadata over the network into the shared cache
    (`~/.sigstore/root`), and with verifications running concurrently one
    could find the repository unreachable, or a sibling's half-written file,
    and fail the evidence as if its signature were bad (cosign v3.0.x reports
    that as "trusted root is required when using new bundle format"). A fetch
-   that fails stops the run (exit 1); an air-gapped setup passes its own file
+   that fails stops the run (exit 1). Should the file not be in the cache
+   where it is looked for (a cosign that caches elsewhere), the run warns on
+   standard error (a GitHub Actions `::warning` too) and in the report's
+   `warnings`, and each verification fetches the root itself, as before. An
+   air-gapped setup passes its own file
    with `--trusted-root`, and one that sets `SIGSTORE_ROOT_FILE` and the
    other individual-target variables is left to cosign. cosign is asked for
    exactly the signer

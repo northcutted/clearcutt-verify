@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -191,14 +192,26 @@ func verifyArtifact(ctx context.Context, signers []report.Signer, ref, repo, dig
 	if _, err := verifier.CheckCosign(ctx); err != nil {
 		return report.EvidenceItem{}, err
 	}
-	if _, err := verifier.PrepareTrustedRoot(ctx); err != nil {
+	if _, warning, err := verifier.PrepareTrustedRoot(ctx); err != nil {
 		return report.EvidenceItem{}, err
+	} else if warning != "" {
+		warnLoudly(errOut, "[estate]", "estate: no single trusted root", warning)
 	}
 	var ropts []remote.Option
 	if !estateOpts.insecure {
 		ropts = append(ropts, remote.WithAuthFromKeychain(registryauth.ForRefs(ref)))
 	}
 	return estateverify.VerifySignature(ctx, verifier, &estateverify.Discoverer{Options: ropts}, repo, digest), nil
+}
+
+// warnLoudly prints a warning where it can't be missed: on w (standard
+// error) and, in GitHub Actions, as a ::warning annotation there too (the
+// runner reads standard error, and standard output may be a report).
+func warnLoudly(w io.Writer, prefix, title, msg string) {
+	fprintf(w, "%s WARNING: %s\n", prefix, msg)
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		fprintf(w, "::warning title=%s::%s\n", title, msg)
+	}
 }
 
 // warnUnverified says, where it can't be missed, that what was pulled is

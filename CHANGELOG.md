@@ -137,13 +137,20 @@ When a release is cut, move these entries under a heading for its version.
   only warns what TUF said). This made a verified image's vulnerability scan
   read as failed on the showcase estate on some days. `estate verify` and
   `estate pull` now fetch the trusted root once (`cosign initialize`) before
-  verifying anything, when the policy trusts a keyless signer, and pass the
-  cached `trusted_root.json` to every verification (`--trusted-root`); a
-  fetch that fails is an operational error (exit 1). `--trusted-root FILE`
+  verifying anything, when the policy trusts a keyless signer or a key
+  signer that checks the transparency log (no `tlog: false`), and pass the
+  cached `trusted_root.json` of the mirror `cosign initialize` used to every
+  verification that needs it (`--trusted-root`, key verifications that check
+  the log included); a fetch that fails is an operational error (exit 1). If
+  that file can't be found in the TUF cache, the run says so loudly (a
+  `WARNING` on standard error, a GitHub Actions `::warning`, and the report's
+  `warnings`) and verifies as before, each cosign run fetching the root
+  itself. `--trusted-root FILE`
   supplies one instead (air-gapped setups), and `SIGSTORE_ROOT_FILE` and the
   other individual-target variables are left to cosign. Should cosign still
   lose the root, the evidence is `unknown`, with TUF's own message in its
-  detail, never `failed`. The action installs cosign v3.1.4 (the installer's
+  detail, never `failed` (the legacy TUF client's errors about its cache,
+  `initializing tuf`, `tuf: failed to decode`, included). The action installs cosign v3.1.4 (the installer's
   default was v3.0.6).
 
 ### Changed

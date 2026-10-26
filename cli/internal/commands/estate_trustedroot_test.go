@@ -15,6 +15,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+
+	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
 // TestEstateVerifyFetchesTheTrustedRootOnce: with a keyless signer trusted,
@@ -70,7 +72,7 @@ func TestEstateVerifyFetchesTheTrustedRootOnce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v\n%s", err, stdout)
 	}
-	if strings.Join(calls, ",") != "version,initialize" || !strings.Contains(stdout, "keyless evidence is verified against "+rootFile) {
+	if strings.Join(calls, ",") != "version,initialize" || !strings.Contains(stdout, "Sigstore evidence is verified against "+rootFile) {
 		t.Errorf("cosign calls %v\n%s", calls, stdout)
 	}
 	// A root given: nothing fetched.
@@ -78,6 +80,24 @@ func TestEstateVerifyFetchesTheTrustedRootOnce(t *testing.T) {
 	if stdout, err := runCLI(t, append(args, "--trusted-root", rootFile)...); err != nil || strings.Join(calls, ",") != "version" || strings.Contains(stdout, "cosign initialize") {
 		t.Errorf("--trusted-root: %v, calls %v\n%s", err, calls, stdout)
 	}
+	// The root fetched but not found where cosign caches it: the run goes on
+	// as before, and says so loudly, in the report too.
+	t.Setenv("TUF_ROOT", t.TempDir())
+	t.Setenv("GITHUB_ACTIONS", "true")
+	calls = nil
+	_ = os.RemoveAll(out)
+	stdout, err = runCLI(t, args...)
+	if err != nil || strings.Join(calls, ",") != "version,initialize" || !strings.Contains(stdout, "[verify-estate] WARNING: cosign initialize fetched Sigstore's trusted root, but") ||
+		!strings.Contains(stdout, "::warning title=estate verify: no single trusted root::") {
+		t.Errorf("no cached root: %v, calls %v\n%s", err, calls, stdout)
+	}
+	var r report.Report
+	readJSON(t, filepath.Join(out, report.ReportFile), &r)
+	if !strings.Contains(strings.Join(r.Warnings, ";"), "isn't in the TUF cache") {
+		t.Errorf("report warnings: %v", r.Warnings)
+	}
+	t.Setenv("TUF_ROOT", cache)
+	t.Setenv("GITHUB_ACTIONS", "")
 	// The fetch failing stops the run before it reads anything.
 	cosignRunner = func(_ context.Context, _ string, a ...string) ([]byte, error) {
 		if a[0] == "version" {
