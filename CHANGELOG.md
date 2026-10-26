@@ -203,7 +203,11 @@ When a release is cut, move these entries under a heading for its version.
   audits the workflows and the action; each is a job the PR Gate Summary
   requires. The findings zizmor reported when it was added are kept in
   `.github/zizmor.yml`, each with its reason; any other fails the gate.
-  `make analysis` runs the four locally. A test now covers evidence discovery
+  `make analysis` runs the four locally. govulncheck's first run found
+  GO-2026-6809 (`crypto/x509`, fixed in Go 1.26.10) in the Go 1.26.9 the
+  runners had cached, which the release workflow builds with too:
+  `cli/go.mod` now names `toolchain go1.26.10`, which the CI jobs, the
+  release build, and the action's source build use. A test now covers evidence discovery
   through the referrers tag (`sha256-<hex>`, registries without the Referrers
   API), including a tag that can't be read or doesn't hold an index (unknown,
   never missing).
