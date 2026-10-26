@@ -17,12 +17,15 @@ Exit code 2 comes from `estate verify --fail-on failed|unverified` and
 `graph build --fail-on-stale`. `estate verify` checks its tools before it
 reads anything: cosign must be on `PATH` (or `--cosign-path`) and be cosign
 v3 whenever the policy trusts a signer, and `--reproduce` needs
-`clearcutt-factory` (or `--factory-path`). A missing tool, or a cosign of
-another major version, exits 1 and writes no report. Evidence cosign couldn't
-check during the run (a registry or the transparency log unreachable or
-refusing) is `unknown`, which leaves the image `unverified`: exit 2 under
-`--fail-on unverified`, not under `--fail-on failed`. Scripts can branch on
-the code:
+`clearcutt-factory` (or `--factory-path`), and `--rescan` needs `grype` (or
+`--grype-path`). A missing tool, or a cosign of another major version, exits
+1 and writes no report. Evidence cosign couldn't check during the run (a
+registry or the transparency log unreachable or refusing) is `unknown`,
+which leaves the image `unverified`: exit 2 under `--fail-on unverified`,
+not under `--fail-on failed`. Two outcomes write the report and still exit
+1, because nothing was found out: every piece of evidence of every image
+`unknown` (cosign, the registries, or the images unreachable), and, with
+`--rescan`, grype unable to scan any image. Scripts can branch on the code:
 
 ```text
 clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --out dist/estate --fail-on failed; case $? in
@@ -157,6 +160,12 @@ every edge with the confidence that method earns. See
   --trusted-identity-regexp '^https://github\.com/acme/' \
   --trusted-issuer https://token.actions.githubusercontent.com \
   --out dist/estate --fail-on failed
+
+# Rescan each image's verified SBOMs with grype, gate on the worse of the
+# attested and the fresh findings (the policy's scanSource), apply its vex:
+# documents, and observe the upstream bases without gating on them
+./clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme --out dist/estate \
+  --rescan --fail-on failed
 
 # The images proven to be built on a base, with their source repositories
 ./clearcutt-verify estate dependents --report dist/estate/estate-report.json \

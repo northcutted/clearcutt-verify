@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -39,6 +40,10 @@ type Options struct {
 	// Reproducer, when set, rebuilds images from their recipes or repeats
 	// their rebases (Policy.Reproduce).
 	Reproducer Reproducer
+	// Scanner, when set, scans each image's verified SBOMs for
+	// vulnerabilities (Policy.Rescan), with the policy's VEX documents applied.
+	Scanner Scanner
+	VEX     []VEXDocument
 	// RemoteOptions reach the registries (auth, transport).
 	RemoteOptions []remote.Option
 	Log           io.Writer
@@ -151,8 +156,32 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 		r.Images[i].Verdict = verdictAt(r.Images[i], opts.Policy, now)
 	}
 	r.Packages = packageIndex(observations, packagesByImage)
+	if opts.Scanner != nil {
+		r.Warnings = append(r.Warnings, unusedVEX(opts.VEX, r.Images)...)
+	}
 	r.Summary = summarize(r)
 	return r, nil
+}
+
+// observeOnly reports whether the policy observes the image without gating
+// on it: one of its patterns (path globs) matches the image's repository, or
+// its repository:tag.
+func observeOnly(patterns []string, repository string, tags []string) bool {
+	for _, pat := range patterns {
+		pat = strings.TrimSpace(pat)
+		if pat == "" {
+			continue
+		}
+		if ok, _ := path.Match(pat, repository); ok {
+			return true
+		}
+		for _, t := range tags {
+			if ok, _ := path.Match(pat, repository+":"+t); ok {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // idPattern is what an image ID may be: one URL path segment.
@@ -271,7 +300,7 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 			item.Status, item.Detail = "unknown", detail
 		}
 		data.vulns, data.unreadableScans = nil, nil
-		data.packages, data.packagesKnown, data.sbomPlatforms = nil, false, nil
+		data.packages, data.packagesKnown, data.sbomPlatforms, data.sboms = nil, false, nil, nil
 	}
 	if f := data.factory; f != nil && f.Kind == "" && f.RebasedFrom != "" && data.rebaseVerified {
 		test, err := originalRecipe(ctx, f, claimedSource, opts)
@@ -290,6 +319,11 @@ func buildImage(ctx context.Context, obs estategraph.Observation, graph estategr
 		named = claimedBase(ctx, &img, platforms, ids, data.lockBase, opts.RemoteOptions)
 	}
 	img.Evidence = ev
+	img.ObserveOnly = observeOnly(opts.Policy.Observe, repo, img.Tags)
+	img.Provenance = data.provenance
+	if opts.Scanner != nil {
+		img.Rescan = rescanImage(ctx, &img, platforms, platformsErr, data, opts)
+	}
 	img.Vulnerabilities = mergeVulnerabilities(data.vulns)
 	if len(data.unreadableScans) > 0 {
 		// Findings from some platforms only would read as the image's.
@@ -704,8 +738,12 @@ type imageData struct {
 	rebaseSigner     *report.Signer
 	recipeVerified   bool
 	rebaseVerified   bool
-	// sbomPlatforms are the platform images whose SBOMs were read.
+	// sbomPlatforms are the platform images whose SBOMs were read, and
+	// sboms the verified documents themselves, by platform, for rescanning.
 	sbomPlatforms []string
+	sboms         map[string]sbomDoc
+	// provenance is what verified provenance says about the builder.
+	provenance *report.Provenance
 	// recipeTest describes the smoke test a verified recipe declares.
 	recipeTest string
 	// rebaseTest is the smoke test a verified rebase record says ran.
@@ -730,7 +768,7 @@ var perPlatform = map[string]bool{KindSBOM: true, KindVulnerabilityScan: true}
 // gatherEvidence discovers and verifies every kind of evidence on the image
 // (index-level kinds) and its platform images (SBOMs and scans).
 func gatherEvidence(ctx context.Context, repo, digest, imageSource string, platforms []report.Platform, opts Options) (report.Evidence, imageData) {
-	data := imageData{vulns: map[string]vulnScan{}, statements: map[string]string{}}
+	data := imageData{vulns: map[string]vulnScan{}, statements: map[string]string{}, sboms: map[string]sbomDoc{}}
 	type subject struct{ platform, digest string }
 	subjects := []subject{{"", digest}}
 	for _, p := range platforms {
@@ -907,6 +945,13 @@ func verifyKind(ctx context.Context, repo, digest, kind, imageSource string, fou
 			if platform != "" {
 				data.sbomPlatforms = append(data.sbomPlatforms, platform)
 			}
+			doc := sbomDoc{raw: pred}
+			for _, p := range pkgs {
+				if p.PURL != "" {
+					doc.purls = appendUnique(doc.purls, p.PURL)
+				}
+			}
+			data.sboms[firstNonEmpty(platform, "default")] = doc
 		}
 	case KindRecipe:
 		if fi, base, ok := readRecipe(pred); ok {
@@ -931,8 +976,33 @@ func verifyKind(ctx context.Context, repo, digest, kind, imageSource string, fou
 		if s, ok := readProvenanceSource(pred); ok {
 			data.provenanceSource = s
 		}
+		data.provenance = readProvenanceDetails(pred)
+		// What was checked: the signature, and the statement being about the
+		// image; the source was read. The builder is evaluated only when the
+		// policy names the builders it trusts.
+		note := "cosign verified its signature and that it is about this image; the source repository and commit were read from it. Its builder, build type, and materials weren't evaluated."
+		if builders := opts.Policy.ProvenanceBuilders; len(builders) > 0 {
+			id := ""
+			if data.provenance != nil {
+				id = data.provenance.BuilderID
+			}
+			if !contains(builders, id) {
+				item.Detail = strings.TrimSpace(item.Detail + " Its builder is " + firstNonEmpty(quoteOrNone(id), "unnamed") + ", not one of the policy's provenanceBuilders, so it is failed.")
+				return "failed"
+			}
+			data.provenance.BuilderChecked = true
+			note = "cosign verified its signature and that it is about this image; the source repository and commit were read from it, and its builder (" + id + ") is one of the policy's provenanceBuilders. Its build type and materials weren't evaluated."
+		}
+		item.Detail = strings.TrimSpace(item.Detail + " " + strings.ToUpper(note[:1]) + note[1:])
 	}
 	return got.Status
+}
+
+func quoteOrNone(s string) string {
+	if s == "" {
+		return ""
+	}
+	return fmt.Sprintf("%q", s)
 }
 
 // originalRecipe names a rebased image after the recipe it was first built

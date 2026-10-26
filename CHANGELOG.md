@@ -56,8 +56,59 @@ When a release is cut, move these entries under a heading for its version.
   bundle pushed before the job signed them needs signing once (or one run with
   `--allow-unverified`).
 
+### Added
+
+- **`estate verify --rescan`: today's findings beside the publisher's.** The
+  run scans each image's *verified* SBOMs itself with grype (on `PATH`, or
+  `--grype-path`; checked before the run, exit 1 without it) and reports the
+  result as `images[].rescan` beside `vulnerabilities`: the attested scan,
+  on its day, and the same packages against a vulnerability database of
+  today (`rescan.vulnerabilities`, with `scanner`, `scannedAt`, and
+  `database.built`). Only SBOMs a trusted signer verified are scanned, per
+  platform image; an image with no verified SBOM on a platform, not all of
+  whose platform images could be read, or that grype couldn't scan is
+  `rescan.status: unknown` with the reason, never clean. `summary.rescan`
+  totals them; history rows carry `rescanVulnerabilities`. The policy's
+  `scanSource` (`attestation`, `rescan`, or `worst`; `--scan-source`) says
+  which scan `failOn` gates on, `worst` by default with `--rescan`: an image
+  fails when either finds enough and is `unverified` when either is unknown.
+  With a scanned rescan, `maxScanAgeDays` measures the rescan by its
+  database's build time. grype's database settings (`GRYPE_DB_*`) are left
+  to grype. When grype couldn't scan any image, the report is written and the
+  run exits 1.
+- **VEX for rescans.** A policy's `vex:` list of OpenVEX documents (relative
+  to the policy file; `--vex FILE`) is applied to the rescans, scoped per
+  image before grype sees it: statements whose product is the image
+  (`pkg:oci/…` by digest or `repository_url`, or a plain reference) are
+  rewritten to their subcomponents (or every package of the SBOM), and
+  package-scoped statements apply estate-wide. Every suppressed finding is
+  listed with `suppressed: true` and `suppressedBy` (the document's file and
+  `@id`, the statement's product, status, and justification; or `source:
+  scanner` for grype's own rules), never dropped. `policy.vex` lists the
+  documents; a statement about an image that isn't in the estate is warned
+  about. The scoping rule is documented in docs/verify-estate.md.
+- **Observe-only images.** A policy's `observe:` patterns (path globs over
+  the repository, or `repository:tag`; `--observe PATTERN`) mark images that
+  are reported with a verdict but don't gate: `images[].observeOnly: true`,
+  counted in `summary.verdicts.observeOnly` (so `verified + failed +
+  unverified + observeOnly` is `images`), ignored by `--fail-on`, and marked
+  in the history rows.
+- **Provenance: read, not evaluated, and said so.** Verified SLSA provenance
+  now records what it says about the build in `images[].provenance`
+  (`builderId`, `buildType`), and `evidence.provenance.detail` states what
+  was checked (the signature, that the statement is about the image; the
+  source read from it) and what wasn't (builder, build type, materials). A
+  policy's `provenanceBuilders:` list makes the builder a check: provenance
+  naming another builder is `failed`; one naming a listed builder records
+  `provenance.builderChecked: true`.
+
 ### Changed
 
+- **A run that could check nothing exits 1, not 0.** When every piece of
+  evidence of every image is `unknown` (cosign, the registries, or the
+  images couldn't be reached), `estate verify` writes the report, which says
+  so, and exits with the operational code: a report in which nothing could be
+  checked is not a pass, whatever `--fail-on` says.
 - **Every report and history is checked against the contract before it is
   written.** `estate verify` validates both documents against the schemas in
   `contract/` (compiled into the binary from the same types) and writes

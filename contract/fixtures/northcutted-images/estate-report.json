@@ -447,6 +447,7 @@
           "signature is missing",
           "sbom is missing",
           "provenance is missing",
+          "none of its evidence is verified, so a trusted signer vouched for nothing about it",
           "vulnerabilities are unknown (no scan)"
         ]
       },
@@ -514,6 +515,7 @@
           "signature is missing",
           "sbom is missing",
           "provenance is missing",
+          "none of its evidence is verified, so a trusted signer vouched for nothing about it",
           "vulnerabilities are unknown (no scan)"
         ]
       },

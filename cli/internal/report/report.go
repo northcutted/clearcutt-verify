@@ -117,6 +117,41 @@ type Policy struct {
 	// those without a verified reproduction attestation were rebuilt, and
 	// one that doesn't reproduce, or couldn't be checked, falls short.
 	Reproduce bool `json:"reproduce"`
+	// Rescan reports whether this run scanned each image's verified SBOMs
+	// itself (estate verify --rescan); each image's rescan says what it found.
+	Rescan bool `json:"rescan,omitempty"`
+	// ScanSource says which vulnerability findings FailOn gated on: attestation
+	// (the publisher's verified scan; the default without Rescan), rescan (this
+	// run's own scan), or worst (both: an image fails when either finds
+	// enough, and is unverified when either is unknown; the default with
+	// Rescan).
+	ScanSource string `json:"scanSource,omitempty" enum:"attestation,rescan,worst"`
+	// VEX lists the OpenVEX documents applied to this run's rescans. Every
+	// finding they suppressed is still listed, marked suppressed, with the
+	// statement that did it.
+	VEX []VEXDocument `json:"vex,omitempty"`
+	// Observe lists the patterns (path globs over repository, or
+	// repository:tag) of the images that are observe-only: in the report with
+	// a verdict, but not gating (not counted in summary.verdicts, and not
+	// failing --fail-on).
+	Observe []string `json:"observe,omitempty"`
+	// ProvenanceBuilders, when set, are the builder IDs verified SLSA
+	// provenance must name (runDetails.builder.id, or builder.id in v0.2);
+	// provenance naming another is failed. Without it, the builder isn't
+	// evaluated.
+	ProvenanceBuilders []string `json:"provenanceBuilders,omitempty"`
+}
+
+// VEXDocument is an OpenVEX document a policy applied.
+type VEXDocument struct {
+	// File is the path the policy named, as written there.
+	File string `json:"file"`
+	// ID is the document's @id.
+	ID string `json:"id,omitempty"`
+	// Author is the document's author.
+	Author string `json:"author,omitempty"`
+	// Statements is how many statements it holds.
+	Statements int `json:"statements"`
 }
 
 // Signer is a signing identity: a keyless certificate identity (exact or as
@@ -171,6 +206,27 @@ type Summary struct {
 	Packages        PackageSummary       `json:"packages"`
 	// Reproducibility counts images by reproducibility.status.
 	Reproducibility ReproducibilityCounts `json:"reproducibility"`
+	// Rescan totals this run's own scans (policy.rescan); absent when the run
+	// didn't rescan.
+	Rescan *RescanSummary `json:"rescan,omitempty"`
+}
+
+// RescanSummary totals this run's own vulnerability scans.
+type RescanSummary struct {
+	// Scanned is how many images every platform image of which was rescanned;
+	// Unknown how many weren't (no verified SBOM, or grype couldn't scan it):
+	// their current vulnerabilities are unknown, not zero.
+	Scanned int `json:"scanned"`
+	Unknown int `json:"unknown"`
+	// Counts and Fixable total the rescans' counted findings.
+	Counts  SeverityCounts `json:"counts"`
+	Fixable SeverityCounts `json:"fixable"`
+	// Suppressed is how many findings VEX statements suppressed across rescans.
+	Suppressed int `json:"suppressed"`
+	// Scanner is the scanner that rescanned, e.g. grype 0.120.1, and
+	// Database its vulnerability database.
+	Scanner  string           `json:"scanner,omitempty"`
+	Database *ScannerDatabase `json:"database,omitempty"`
 }
 
 // VerdictCounts counts images by verdict.
@@ -178,6 +234,10 @@ type VerdictCounts struct {
 	Verified   int `json:"verified"`
 	Failed     int `json:"failed"`
 	Unverified int `json:"unverified"`
+	// ObserveOnly counts the images that are observe-only (policy.observe):
+	// they have a verdict but aren't counted above, so
+	// verified + failed + unverified + observeOnly is summary.images.
+	ObserveOnly int `json:"observeOnly,omitempty"`
 }
 
 // StatusCounts counts images by evidence status.
@@ -272,9 +332,24 @@ type Image struct {
 	Evidence   Evidence `json:"evidence"`
 	// Vulnerabilities is absent when the image has no vulnerability data;
 	// that means unknown, not clean. Findings come only from verified
-	// vulnerability attestations.
+	// vulnerability attestations: what the publisher's scan found, on the
+	// day it ran (scannedAt).
 	Vulnerabilities *Vulnerabilities `json:"vulnerabilities,omitempty"`
-	Reproducibility Reproducibility  `json:"reproducibility"`
+	// Rescan is this run's own scan of the image's verified SBOMs (estate
+	// verify --rescan), beside the publisher's: what a vulnerability database
+	// of this run's day says about the same packages. Absent when the run
+	// didn't rescan.
+	Rescan *Rescan `json:"rescan,omitempty"`
+	// Provenance is what the image's verified SLSA provenance says about who
+	// built it, read but (unless policy.provenanceBuilders names it) not
+	// evaluated: a reader shouldn't take it as checked.
+	Provenance *Provenance `json:"provenance,omitempty"`
+	// ObserveOnly marks an image the policy observes but doesn't gate on
+	// (policy.observe): it has a verdict, but isn't counted in
+	// summary.verdicts and doesn't fail estate verify --fail-on. Absent, the
+	// image gates.
+	ObserveOnly     bool            `json:"observeOnly,omitempty"`
+	Reproducibility Reproducibility `json:"reproducibility"`
 	// Factory is present for images built or rebased by clearcutt-factory,
 	// read from a verified recipe or rebase record.
 	Factory *Factory `json:"factory,omitempty"`
@@ -425,6 +500,9 @@ type Vulnerabilities struct {
 	Source string `json:"source" enum:"attestation,scan"`
 	// Scanner is the scanner and version, e.g. grype 0.118.0.
 	Scanner string `json:"scanner,omitempty"`
+	// Database is the vulnerability database the scan used, when known
+	// (source scan).
+	Database *ScannerDatabase `json:"database,omitempty"`
 	// ScannedAt is when the scan ran (RFC 3339); findings describe that day.
 	ScannedAt string         `json:"scannedAt,omitempty"`
 	Counts    SeverityCounts `json:"counts"`
@@ -445,6 +523,71 @@ type Finding struct {
 	Platforms []string `json:"platforms"`
 	// Suppressed says a VEX statement covers it (it is not counted).
 	Suppressed bool `json:"suppressed,omitempty"`
+	// SuppressedBy names the statement, for findings this run's rescan
+	// suppressed with the policy's VEX documents. Absent on a suppressed
+	// finding, the publisher's scan suppressed it with a statement this run
+	// didn't see.
+	SuppressedBy *Suppression `json:"suppressedBy,omitempty"`
+}
+
+// Suppression is what suppressed a finding in this run's rescan.
+type Suppression struct {
+	// Source is vex (a statement in one of the policy's OpenVEX documents) or
+	// scanner (a rule of grype's own, such as the one for kernel headers).
+	Source string `json:"source" enum:"vex,scanner"`
+	// File is the document's path as the policy named it, and Document its
+	// @id (source vex).
+	File     string `json:"file,omitempty"`
+	Document string `json:"document,omitempty"`
+	// Product is the statement's product @id as written in the document: the
+	// image (pkg:oci/…, or a reference) or a package purl.
+	Product string `json:"product,omitempty"`
+	// Status is the statement's status (not_affected or fixed) and
+	// Justification its justification, when it gives one.
+	Status        string `json:"status,omitempty"`
+	Justification string `json:"justification,omitempty"`
+}
+
+// ScannerDatabase is the vulnerability database a scan used.
+type ScannerDatabase struct {
+	// Built is when the database was built (RFC 3339): findings know nothing
+	// published after it.
+	Built string `json:"built,omitempty"`
+	// Schema is the database schema version, e.g. v6.1.10.
+	Schema string `json:"schema,omitempty"`
+}
+
+// Rescan is this run's own vulnerability scan of an image: grype over the
+// image's verified SBOMs, one per platform image, against a database of the
+// run's day (estate verify --rescan). It is read only from SBOMs a trusted
+// signer verified; an unverified SBOM is never scanned.
+type Rescan struct {
+	// Status is scanned (every platform image's verified SBOM was scanned) or
+	// unknown (some platform image has no verified SBOM, not every platform
+	// image could be read, or grype couldn't scan it): the image's current
+	// vulnerabilities are then unknown, never clean.
+	Status string `json:"status" enum:"scanned,unknown"`
+	// Platforms gives the status per platform image.
+	Platforms map[string]string `json:"platforms,omitempty"`
+	// Detail explains an unknown status.
+	Detail string `json:"detail,omitempty"`
+	// Vulnerabilities are the findings (source scan), when scanned.
+	Vulnerabilities *Vulnerabilities `json:"vulnerabilities,omitempty"`
+}
+
+// Provenance is what verified SLSA provenance says about the build, as read:
+// clearcutt-verify checks the provenance's signature and reads the source
+// repository and commit from it (source, basis provenance); it doesn't
+// evaluate the builder, the build type, or the materials unless the policy
+// asks (policy.provenanceBuilders).
+type Provenance struct {
+	// BuilderID is runDetails.builder.id (SLSA v1) or builder.id (v0.2).
+	BuilderID string `json:"builderId,omitempty"`
+	// BuildType is buildDefinition.buildType (v1) or buildType (v0.2).
+	BuildType string `json:"buildType,omitempty"`
+	// BuilderChecked is true when the policy's provenanceBuilders named the
+	// builder and it matched; false (absent), the builder wasn't evaluated.
+	BuilderChecked bool `json:"builderChecked,omitempty"`
 }
 
 // Reproducibility is whether rebuilding the image gives the same digest.
@@ -661,6 +804,11 @@ type HistoryImage struct {
 	// there are none); other findings are only counted, to keep the history
 	// small.
 	FixableFindings []string `json:"fixableFindings,omitempty"`
+	// RescanVulnerabilities are the counted findings of this run's own scan
+	// (policy.rescan); absent when the run didn't rescan the image.
+	RescanVulnerabilities *SeverityCounts `json:"rescanVulnerabilities,omitempty"`
+	// ObserveOnly marks an image that didn't gate in that run.
+	ObserveOnly bool `json:"observeOnly,omitempty"`
 	// PackagesDigest identifies the image's package set, read from verified
 	// SBOMs: sha256:<hex> of its package versions as "type name version"
 	// lines, sorted, each ending in a newline. It changes when any package

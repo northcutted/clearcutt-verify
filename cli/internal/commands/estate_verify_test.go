@@ -151,12 +151,12 @@ func TestEstateVerifyTrustPolicyFlag(t *testing.T) {
 	estateVerifyOpts = saved
 	estateVerifyOpts.policy, estateVerifyOpts.trustPolicy, estateVerifyOpts.require = "", trust, []string{"signature"}
 	estateVerifyOpts.identityRegexp, estateVerifyOpts.issuer, estateVerifyOpts.sourceOwner, estateVerifyOpts.sourceMatches = "", "", "", false
-	p, err := estatePolicy()
+	p, _, err := estatePolicy()
 	if err != nil || len(p.TrustedSigners) != 1 || p.TrustedSigners[0].Identity == "" {
 		t.Fatalf("policy %+v, %v", p, err)
 	}
 	estateVerifyOpts.trustPolicy = filepath.Join(dir, "missing.yaml")
-	if _, err := estatePolicy(); err == nil {
+	if _, _, err := estatePolicy(); err == nil {
 		t.Error("read a missing trust policy")
 	}
 }

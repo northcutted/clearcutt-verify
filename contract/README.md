@@ -80,7 +80,48 @@ data: unknown, not clean. `summary.vulnerabilities.notScanned` counts those.
 Findings are read only from verified scans in grype's format, for now; an
 image whose verified scan is another scanner's has none either, and its
 `evidence.vulnerabilityScan.detail` says so.
-`scannedAt` says what day the findings describe.
+`scannedAt` says what day the findings describe: the publisher's scan is as
+old as the image, so what was published since is unknown.
+
+**Rescans.** With `policy.rescan: true` the run scanned each image's
+*verified* SBOMs itself (grype, `estate verify --rescan`), and
+`images[].rescan` sits beside `vulnerabilities`: the publisher's scan and the
+run's own, side by side. `rescan.status` is `scanned` (every platform image's
+verified SBOM was scanned) or `unknown` (a platform image has no verified
+SBOM, not every platform image could be read, or grype couldn't scan it:
+`rescan.detail` says which, `rescan.platforms` which platforms). Only
+`scanned` carries `rescan.vulnerabilities` (`source: scan`, with `scanner`,
+`scannedAt`, and `database.built`, the vulnerability database's build time:
+the scan knows nothing published after it). An `unknown` rescan means the
+image's current vulnerabilities are unknown, never clean, and
+`summary.rescan` counts `scanned` and `unknown` images and totals the
+findings. `policy.scanSource` says which scan `policy.failOn` gated on:
+`attestation` (the publisher's; the default without a rescan), `rescan`, or
+`worst` (both; the default with a rescan). `policy.maxScanAgeDays` measures a
+`scanned` rescan by `database.built`.
+
+A finding either scan suppressed is listed with `suppressed: true` and is not
+counted. In a rescan, `suppressedBy` names what suppressed it: `source: vex`
+with the OpenVEX document the policy named (`file` as written in the policy,
+`document` its `@id`), the statement's `product` as written, `status`, and
+`justification`; or `source: scanner` for grype's own rules. A suppressed
+finding without `suppressedBy` was suppressed by the publisher's scan with a
+statement this run didn't see. `policy.vex` lists the documents applied.
+
+**Observe-only images.** `images[].observeOnly: true` marks an image the policy
+observes without gating on (`policy.observe` patterns): it has a `verdict`
+like any other, but it is counted in `summary.verdicts.observeOnly` instead of
+`verified`, `failed`, or `unverified`, and `estate verify --fail-on` ignores
+it. `verified + failed + unverified + observeOnly` is `summary.images`.
+Absent, the image gates.
+
+**Provenance.** A `verified` `evidence.provenance` means cosign verified the
+attestation's signature against a trusted signer and that the statement is
+about the image, and the source repository and commit were read from it
+(`source`, `basis: provenance`). It does not mean the builder, build type, or
+materials were evaluated: `images[].provenance` shows the builder ID and build
+type as read, and `builderChecked: true` only when `policy.provenanceBuilders`
+named the builder (provenance naming another builder is then `failed`).
 
 **Reproducibility.** `reproducibility.source` says how an image was found to
 reproduce: `rebuild` (this run rebuilt it) or `attestation` (a
@@ -100,10 +141,24 @@ true when that count is zero.
 decided). A `verified` verdict rests on at least one piece of the image's
 evidence being `verified`, so with no `policy.trustedSigners` every verdict is
 `unverified`. `verdict.reasons` lists one line per requirement not met.
+`policy.maxDaysBehind` fails an image only on drift from a base proven by
+layer digests; drift from a claimed base leaves it `unverified`.
+
+The meaning of a verdict is part of the contract. clearcutt-verify v0.16.0
+changed it under `clearcutt.dev/v1`: before, an image none of whose evidence
+verified could be `verified` on checks that read no evidence; since, it is
+`unverified`. That was a tightening (nothing that was `failed` or
+`unverified` became `verified`), made without a `v2`, and it is the kind of
+change the rules below say needs one. To keep it from happening unnoticed
+again, clearcutt-verify's tests recompute every verdict in the bundles under
+`examples/` and `fixtures/` from their recorded evidence and policy and fail
+when one differs; changing what a verdict means now means changing those
+bundles in the same change, with a CHANGELOG entry under "Breaking".
 
 **History.** Each `estate-history.json` entry has the run's summary and a row
 per image (`images`): its digest, verdict, base, rebase, and vulnerability
-counts. To show what changed between runs, a row also lists
+counts (and `rescanVulnerabilities`, the run's own scan's counts, when it
+rescanned; `observeOnly` when the image didn't gate). To show what changed between runs, a row also lists
 `fixableFindings`, the IDs of the image's fixable high and critical findings
 (VEX-suppressed ones aside) from its verified scans, and `packagesDigest`,
 which identifies its package set (sha256 of its sorted `type name

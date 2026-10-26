@@ -103,7 +103,130 @@ verified on every platform is `unverified` even when the scan says it is
 clean: its vulnerabilities are unknown. `maxScanAgeDays` measures the oldest
 platform's scan, so every platform must have been scanned recently, and an
 image with no verified scan of every platform is `unverified` under it: there
-is no age to measure.
+is no age to measure. The publisher's scan is as old as the image: what was
+published since is unknown until the image is rescanned (below).
+
+### Rescanning: today's findings beside the publisher's
+
+```bash
+clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --out dist/estate --rescan
+```
+
+`--rescan` scans each image's **verified** SBOMs itself, with grype (on
+`PATH`, or `--grype-path`; the run checks it is there first and exits 1 if
+not), against a vulnerability database of today, and reports the result
+beside the attested scan: `vulnerabilities` stays what the publisher's
+verified scan found, on its day; `rescan` is what the same packages look like
+now (`rescan.vulnerabilities`, with `scanner`, `scannedAt`, and
+`database.built`, the database's build time). Only SBOMs a trusted signer
+verified are scanned, one per platform image: an image with no verified SBOM
+on some platform, or not all of whose platform images could be read, or that
+grype couldn't scan, has `rescan.status: unknown` with the reason, and its
+current vulnerabilities are unknown, never clean. The database is grype's
+own: it is downloaded or updated as grype's settings say (`GRYPE_DB_CACHE_DIR`,
+`GRYPE_DB_AUTO_UPDATE`, `GRYPE_DB_UPDATE_URL`, and the rest of grype's
+`GRYPE_DB_*` environment), which `clearcutt-verify` leaves alone. When grype
+couldn't scan any image at all, the report is written (every rescan
+`unknown`) and the run exits 1: a run that found out nothing isn't a result.
+
+With `--rescan`, the policy's `scanSource` says which scan `failOn` gates
+on:
+
+```yaml
+scanSource: worst   # attestation, rescan, or worst (the default with --rescan)
+```
+
+`attestation` gates on the publisher's scan, as without `--rescan`; `rescan`
+on this run's; `worst` on both: an image fails when either finds enough, and
+is `unverified` when either is unknown. `scanSource: rescan` or `worst`
+without `--rescan` is an error: there is nothing to gate on. With a
+`scanned` rescan, `maxScanAgeDays` measures the rescan by its database's
+build time (findings know nothing published after it), so a stale local
+database leaves the image `unverified` as a stale attestation would. The
+flag form is `--scan-source`.
+
+#### VEX
+
+```yaml
+vex: [vex/openssl.openvex.json, vex/estate.openvex.json]   # relative to the policy file
+```
+
+OpenVEX documents the policy names are applied to the rescans. Every finding
+they suppress is still listed in `rescan.vulnerabilities.findings`, marked
+`suppressed: true`, not counted, and attributed in `suppressedBy` to the
+statement that did it (the document's `file` as the policy named it, its
+`@id`, the statement's `product` as written, `status`, and
+`justification`); a finding grype's own rules suppressed says `source:
+scanner`. Nothing is dropped silently. The report's `policy.vex` lists the
+documents, and a statement about an image that isn't in the estate is
+warned about. The flag form is `--vex FILE` (relative to the working
+directory).
+
+grype applies VEX itself, but it scans an SBOM here, not an image, so a
+statement whose product is the image wouldn't be applied and one whose
+product is a package would apply to every image. So `clearcutt-verify` scopes
+the statements before grype sees them, by this rule (clearcutt-factory
+applies the same one to its build-time scans):
+
+- A product that is an **image purl** (`pkg:oci/…` or `pkg:docker/…`) names
+  the image when its version (percent-decoded) is the image's digest or one of
+  its platform images' digests (then it applies to that platform only), or,
+  with no version, when its `repository_url` qualifier is the image's
+  repository (and its `tag` qualifier, if any, one of the image's tags).
+  `pkg:oci/app?repository_url=ghcr.io/acme/app` and
+  `pkg:oci/app@sha256%3A…` both work; a bare `pkg:oci/app` names no image
+  and is applied nowhere (the run warns).
+- A product that **isn't a purl** names the image when it is the image's
+  repository, `repository:tag`, `repository@digest`, or a bare digest the
+  image or one of its platform images has.
+- A product that is any **other purl** is a package: it applies to every
+  image, to the packages grype matches it to (grype matches a purl by type,
+  namespace, and name; by version when the product has one; and by each
+  qualifier the product has, so `pkg:apk/wolfi/openssl@3.0.1-r0` matches
+  `pkg:apk/wolfi/openssl@3.0.1-r0?arch=x86_64`).
+- A statement about an image applies to the packages its `subcomponents`
+  name; with no subcomponents, to every package in the image's SBOM, for that
+  vulnerability. A statement's `vulnerability.name` and `aliases` both count
+  (grype's GHSA and the CVE it tracks are the same finding).
+
+For each scan, the statements about the image are rewritten as
+package-scoped statements (each subcomponent, or each package of the SBOM,
+as the product) and handed to grype with the package-scoped statements as
+they are; statements about other images aren't. What grype then reports as
+ignored is matched back to the statement that caused it.
+
+### Observe-only images
+
+```yaml
+observe: ["cgr.dev/chainguard/*", "ghcr.io/acme/app:canary"]
+```
+
+Images matching an `observe` pattern (a path glob over the repository, or
+over `repository:tag`) are in the report with a verdict like any other, but
+don't gate: they are counted in `summary.verdicts.observeOnly` instead of
+`verified`, `failed`, or `unverified`, and `--fail-on` ignores them. The
+report marks each with `observeOnly: true`. Use it for an upstream base you
+watch but don't own, so its findings are visible without failing the
+estate. The flag form is `--observe PATTERN`.
+
+### Provenance: what is and isn't checked
+
+A `verified` `provenance` means cosign verified the attestation's signature
+against a trusted signer and that the statement is about the image, and the
+source repository and commit were read from it (`source`, `basis:
+provenance`). The builder ID, build type, and materials are **read, not
+evaluated**: the report shows the builder and build type in `provenance`,
+and `evidence.provenance.detail` says so. To check the builder, name the
+ones you trust:
+
+```yaml
+provenanceBuilders: ["https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/tags/v0.3.0"]
+```
+
+Verified provenance naming another builder (`runDetails.builder.id`, or
+`builder.id` in SLSA v0.2) is then `failed`, and one naming a listed builder
+records `provenance.builderChecked: true`. Build type and materials still
+aren't evaluated.
 
 ### Identity checks
 
@@ -227,7 +350,10 @@ had that old ID, so its history carries on. The command prints a summary table (
 image that isn't verified isn't; `--quiet` prints nothing but errors and the
 `--fail-on` result; `--format json` or `yaml` prints the report itself
 instead), and `--fail-on failed` (or `unverified`) makes it exit 2 when any
-image falls short, for CI.
+image falls short, for CI. A run that could check nothing (every piece of
+evidence of every image `unknown`: cosign, the registries, or the images
+unreachable) writes its report, which says so, and exits 1: it isn't a
+result, and shouldn't pass a gate that only looks at the exit code.
 
 ### Stacks
 

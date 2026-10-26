@@ -51,14 +51,28 @@
     "failOn": "critical",
     "onlyFixed": true,
     "maxDaysBehind": 30,
-    "reproduce": true
+    "reproduce": true,
+    "rescan": true,
+    "scanSource": "worst",
+    "vex": [
+      {
+        "file": "vex/acme.openvex.json",
+        "id": "https://acme.example/vex/2026-10",
+        "author": "acme security",
+        "statements": 2
+      }
+    ],
+    "observe": [
+      "cgr.dev/chainguard/*"
+    ]
   },
   "summary": {
     "images": 4,
     "verdicts": {
       "verified": 1,
-      "failed": 1,
-      "unverified": 2
+      "failed": 2,
+      "unverified": 0,
+      "observeOnly": 1
     },
     "evidence": {
       "provenance": {
@@ -155,6 +169,32 @@
       "notReproduced": 0,
       "notChecked": 0,
       "noRecipe": 2
+    },
+    "rescan": {
+      "scanned": 2,
+      "unknown": 2,
+      "counts": {
+        "critical": 1,
+        "high": 1,
+        "medium": 1,
+        "low": 0,
+        "negligible": 0,
+        "unknown": 0
+      },
+      "fixable": {
+        "critical": 1,
+        "high": 1,
+        "medium": 1,
+        "low": 0,
+        "negligible": 0,
+        "unknown": 0
+      },
+      "suppressed": 2,
+      "scanner": "grype 0.121.0",
+      "database": {
+        "built": "2026-10-06T06:00:00Z",
+        "schema": "v6.1.10"
+      }
     }
   },
   "images": [
@@ -221,15 +261,29 @@
           "status": "missing"
         }
       },
+      "rescan": {
+        "status": "unknown",
+        "platforms": {
+          "linux/amd64": "unknown",
+          "linux/arm64": "unknown"
+        },
+        "detail": "The image's current vulnerabilities are unknown: linux/amd64: no verified SBOM (its SBOM is present), and only verified SBOMs are scanned; linux/arm64: no verified SBOM (its SBOM is present), and only verified SBOMs are scanned."
+      },
+      "observeOnly": true,
       "reproducibility": {
         "status": "no-recipe"
       },
       "packages": 3,
       "verdict": {
-        "status": "unverified",
+        "status": "failed",
         "reasons": [
-          "signature is present but not from a trusted signer",
-          "vulnerabilityScan is missing"
+          "vulnerabilityScan is missing",
+          "none of its evidence is verified, so a trusted signer vouched for nothing about it",
+          "signature is present but not verified",
+          "sbom is present but not verified",
+          "provenance is present but not verified",
+          "vulnerabilities are unknown (no scan)",
+          "current vulnerabilities are unknown (the rescan is unknown: The image's current vulnerabilities are unknown: linux/amd64: no verified SBOM (its SBOM is present), and only verified SBOMs are scanned; linux/arm64: no verified SBOM (its SBOM is present), and only verified SBOMs are scanned)"
         ]
       },
       "warnings": []
@@ -282,16 +336,24 @@
           "status": "missing"
         }
       },
+      "rescan": {
+        "status": "unknown",
+        "detail": "Not every platform image could be read (the registry refused the request), so the image's current vulnerabilities are unknown."
+      },
       "reproducibility": {
         "status": "no-recipe"
       },
       "verdict": {
-        "status": "unverified",
+        "status": "failed",
         "reasons": [
           "signature is missing",
-          "sbom is unknown",
           "vulnerabilityScan is missing",
-          "provenance is missing"
+          "provenance is missing",
+          "none of its evidence is verified, so a trusted signer vouched for nothing about it",
+          "sbom is unknown (couldn't be read or checked)",
+          "vulnerabilities are unknown (no scan)",
+          "current vulnerabilities are unknown (the rescan is unknown: Not every platform image could be read (the registry refused the request), so the image's current vulnerabilities are unknown)",
+          "how far its base is behind couldn't be measured"
         ]
       },
       "warnings": [
@@ -446,6 +508,111 @@
           }
         ]
       },
+      "rescan": {
+        "status": "scanned",
+        "platforms": {
+          "linux/amd64": "scanned"
+        },
+        "vulnerabilities": {
+          "source": "scan",
+          "scanner": "grype 0.121.0",
+          "database": {
+            "built": "2026-10-06T06:00:00Z",
+            "schema": "v6.1.10"
+          },
+          "scannedAt": "2026-10-06T06:00:00Z",
+          "counts": {
+            "critical": 1,
+            "high": 1,
+            "medium": 1,
+            "low": 0,
+            "negligible": 0,
+            "unknown": 0
+          },
+          "fixable": {
+            "critical": 1,
+            "high": 1,
+            "medium": 1,
+            "low": 0,
+            "negligible": 0,
+            "unknown": 0
+          },
+          "findings": [
+            {
+              "id": "CVE-2026-2000",
+              "severity": "critical",
+              "package": "golang.org/x/net",
+              "version": "v0.38.0",
+              "fixedIn": [
+                "v0.47.0"
+              ],
+              "platforms": [
+                "linux/amd64"
+              ]
+            },
+            {
+              "id": "CVE-2026-1234",
+              "severity": "high",
+              "package": "golang.org/x/net",
+              "version": "v0.38.0",
+              "fixedIn": [
+                "v0.45.0"
+              ],
+              "platforms": [
+                "linux/amd64"
+              ]
+            },
+            {
+              "id": "GHSA-xxxx-yyyy-zzzz",
+              "severity": "medium",
+              "package": "stdlib",
+              "version": "go1.27.0",
+              "fixedIn": [
+                "go1.27.1"
+              ],
+              "platforms": [
+                "linux/amd64"
+              ]
+            },
+            {
+              "id": "CVE-2026-9999",
+              "severity": "medium",
+              "package": "github.com/acme/lib",
+              "version": "v1.2.0",
+              "platforms": [
+                "linux/amd64"
+              ],
+              "suppressed": true,
+              "suppressedBy": {
+                "source": "vex",
+                "file": "vex/acme.openvex.json",
+                "document": "https://acme.example/vex/2026-10",
+                "product": "pkg:oci/billing?repository_url=ghcr.io/acme/images/billing",
+                "status": "not_affected",
+                "justification": "vulnerable_code_not_in_execute_path"
+              }
+            },
+            {
+              "id": "CVE-2026-0042",
+              "severity": "low",
+              "package": "linux-headers",
+              "version": "6.12",
+              "platforms": [
+                "linux/amd64"
+              ],
+              "suppressed": true,
+              "suppressedBy": {
+                "source": "scanner",
+                "justification": "ignored by grype's own rules (exact-indirect-match)"
+              }
+            }
+          ]
+        }
+      },
+      "provenance": {
+        "builderId": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/tags/v0.3.0",
+        "buildType": "https://github.com/northcutted/clearcutt-factory/build/v1"
+      },
       "reproducibility": {
         "status": "reproduced",
         "method": "rebase-repeat",
@@ -479,7 +646,8 @@
       "verdict": {
         "status": "failed",
         "reasons": [
-          "provenance is missing (required by the policy)"
+          "provenance is missing",
+          "1 fixable vulnerabilities at critical or above in this run's scan (grype 0.121.0, database built 2026-10-06)"
         ]
       },
       "warnings": []
@@ -580,7 +748,8 @@
             "sourceRepository": "https://github.com/acme/images",
             "sourceRef": "refs/heads/main"
           },
-          "signerWorkflow": "github.com/acme/images/.github/workflows/images.yml"
+          "signerWorkflow": "github.com/acme/images/.github/workflows/images.yml",
+          "detail": "Cosign verified its signature and that it is about this image; the source repository and commit were read from it. Its builder, build type, and materials weren't evaluated."
         },
         "recipe": {
           "status": "verified",
@@ -624,6 +793,43 @@
           "unknown": 0
         },
         "findings": []
+      },
+      "rescan": {
+        "status": "scanned",
+        "platforms": {
+          "linux/amd64": "scanned",
+          "linux/arm64": "scanned"
+        },
+        "vulnerabilities": {
+          "source": "scan",
+          "scanner": "grype 0.121.0",
+          "database": {
+            "built": "2026-10-06T06:00:00Z",
+            "schema": "v6.1.10"
+          },
+          "scannedAt": "2026-10-06T06:00:00Z",
+          "counts": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0,
+            "negligible": 0,
+            "unknown": 0
+          },
+          "fixable": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0,
+            "negligible": 0,
+            "unknown": 0
+          },
+          "findings": []
+        }
+      },
+      "provenance": {
+        "builderId": "https://github.com/northcutted/clearcutt-factory/.github/workflows/images.yml@refs/tags/v0.3.0",
+        "buildType": "https://github.com/northcutted/clearcutt-factory/build/v1"
       },
       "reproducibility": {
         "status": "reproduced",

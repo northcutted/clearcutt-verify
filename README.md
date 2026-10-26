@@ -149,7 +149,10 @@ repositories whose workflow runs may sign), reads vulnerabilities (from grype
 scan attestations only, for now), packages, and
 clearcutt-factory recipes and rebase records from the evidence that verified
 (never from copies that didn't), proves bases by layer digest, and decides a
-verdict per image. `estate dependents` lists the images proven to be
+verdict per image. With `--rescan` it also scans each image's verified SBOMs
+itself, with grype, so the report shows the publisher's findings and today's
+side by side, and the policy's OpenVEX documents are applied with every
+suppressed finding listed. `estate dependents` lists the images proven to be
 built on a base, with their source repositories, so a platform team's workflow
 can wake exactly those. See [verifying an estate](docs/verify-estate.md).
 

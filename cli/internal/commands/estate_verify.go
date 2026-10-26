@@ -32,6 +32,9 @@ import (
 // cosignRunner, when set, runs cosign instead of the binary (tests).
 var cosignRunner func(ctx context.Context, bin string, args ...string) ([]byte, error)
 
+// grypeRunner, when set, runs grype instead of the binary (tests).
+var grypeRunner func(ctx context.Context, dir, bin string, args ...string) (stdout, stderr []byte, err error)
+
 var estateVerifyOpts struct {
 	observations string
 	refs         string
@@ -40,8 +43,10 @@ var estateVerifyOpts struct {
 	out          string
 	history      string
 	reproduce    bool
+	rescan       bool
 	factoryPath  string
 	cosignPath   string
+	grypePath    string
 	generatedAt  string
 	concurrency  int
 	platforms    []string
@@ -56,6 +61,9 @@ var estateVerifyOpts struct {
 	severity       string
 	onlyFixed      bool
 	maxScanAge     int
+	scanSource     string
+	vex            []string
+	observe        []string
 }
 
 // newEstateVerifyCmd verifies every image in an estate and writes the estate
@@ -78,7 +86,11 @@ verdict. With no trusted signer, no image is verified. A verified
 clearcutt-factory reproduction attestation, made from the image's verified
 recipe or rebase record, shows an image reproduced without rebuilding it. With
 --reproduce it rebuilds the other clearcutt-factory images from their signed
-recipes (clearcutt-factory on PATH).
+recipes (clearcutt-factory on PATH). With --rescan it scans each image's
+verified SBOMs itself with grype (on PATH), so the report shows the
+publisher's scan and today's side by side; the policy's scanSource says which
+failOn gates on (default with --rescan: the worse of the two), and its vex:
+documents are applied to the rescans with every suppressed finding listed.
 
 Images come from an observations file (clearcutt-verify import observe) or a list of
 references (--refs), which are imported and observed first.
@@ -106,6 +118,8 @@ isn't, --quiet prints nothing but errors and the --fail-on result, and
 	f.BoolVar(&o.reproduce, "reproduce", false, "Rebuild clearcutt-factory images from their signed recipes and compare digests (images with a verified reproduction attestation aren't rebuilt)")
 	f.StringVar(&o.factoryPath, "factory-path", "clearcutt-factory", "clearcutt-factory binary, for --reproduce")
 	f.StringVar(&o.cosignPath, "cosign-path", "cosign", "cosign v3 binary (checked before the run; missing or another major version exits 1)")
+	f.BoolVar(&o.rescan, "rescan", false, "Scan each image's verified SBOMs with grype and report the fresh findings beside the attested scan (grype's database settings, GRYPE_DB_*, apply)")
+	f.StringVar(&o.grypePath, "grype-path", "grype", "grype binary, for --rescan (checked before the run; missing exits 1)")
 	f.StringVar(&o.generatedAt, "generated-at", "", "Deterministic report timestamp (RFC 3339)")
 	f.IntVar(&o.concurrency, "concurrency", 4, "Images to verify at once")
 	f.StringSliceVar(&o.platforms, "platforms", nil, "Read only these platform images (e.g. linux/amd64,linux/arm64); default all. Cuts requests for bases published for many architectures")
@@ -119,6 +133,9 @@ isn't, --quiet prints nothing but errors and the --fail-on result, and
 	f.StringVar(&o.severity, "vulnerabilities-fail-on", "", "Fail images with vulnerabilities at or above this severity when there is no --policy")
 	f.BoolVar(&o.onlyFixed, "only-fixed", false, "Count only fixable vulnerabilities toward --vulnerabilities-fail-on")
 	f.IntVar(&o.maxScanAge, "max-scan-age-days", 0, "Leave images unverified whose vulnerability scan is older than this, when there is no --policy")
+	f.StringVar(&o.scanSource, "scan-source", "", "Which findings --vulnerabilities-fail-on gates on with --rescan: attestation, rescan, or worst (default worst), when there is no --policy")
+	f.StringSliceVar(&o.vex, "vex", nil, "OpenVEX documents to apply to --rescan, when there is no --policy")
+	f.StringSliceVar(&o.observe, "observe", nil, "Path globs of repositories (or repository:tag) to observe without gating on, when there is no --policy")
 	return cmd
 }
 
@@ -139,11 +156,18 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		return fmt.Errorf("--fail-on %q must be failed, unverified, or never", o.failOn)
 	}
 
-	policy, err := estatePolicy()
+	policy, vex, err := estatePolicy()
 	if err != nil {
 		return err
 	}
 	policy.Reproduce = o.reproduce
+	policy.Rescan = o.rescan
+	if !o.rescan && policy.ScanSource != "" && policy.ScanSource != "attestation" {
+		return fmt.Errorf("scanSource %s gates on this run's own scan, which needs --rescan", policy.ScanSource)
+	}
+	if !o.rescan && len(policy.VEX) > 0 {
+		fprintf(stderr, "[verify-estate] note: the policy's VEX documents apply to --rescan, which this run doesn't do; the publisher's scans are read as attested\n")
+	}
 
 	// The tools come first: without them every piece of evidence would come
 	// out failed or unknown for a reason that has nothing to do with the
@@ -158,6 +182,17 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	if o.reproduce {
 		if _, err := exec.LookPath(o.factoryPath); err != nil {
 			return fmt.Errorf("--reproduce rebuilds images with clearcutt-factory, which is not available (%s): install it, or name it with --factory-path: %w", o.factoryPath, err)
+		}
+	}
+	var scanner *estateverify.GrypeScanner
+	if o.rescan {
+		scanner = &estateverify.GrypeScanner{Binary: o.grypePath, Run: grypeRunner}
+		version, err := scanner.CheckGrype(ctx)
+		if err != nil {
+			return err
+		}
+		if !GlobalOpts.Quiet {
+			fprintf(stderr, "[verify-estate] rescanning verified SBOMs with grype %s\n", version)
 		}
 	}
 
@@ -202,6 +237,9 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	}
 	if o.reproduce {
 		opts.Reproducer = estateverify.FactoryReproducer{Binary: o.factoryPath}
+	}
+	if scanner != nil {
+		opts.Scanner, opts.VEX = scanner, vex
 	}
 	r, err := estateverify.Build(ctx, observations, opts)
 	if err != nil {
@@ -249,6 +287,14 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		}
 		fprintf(stdout, "\n%s\n", wrote)
 	}
+	// A report that shows nothing could be checked is honest, but it isn't a
+	// result: the run exits as an operational failure, not as a pass.
+	if estateverify.NothingChecked(r) {
+		return errors.New("nothing about the estate could be checked: every piece of evidence is unknown (cosign, the registries, or the images couldn't be reached); the report says so and was written, but this isn't a result")
+	}
+	if scanner != nil && scanner.Failed() > 0 && scanner.Scanned() == 0 {
+		return fmt.Errorf("grype couldn't scan any image (%d scans failed; see each image's rescan.detail), so every rescan is unknown; the report was written, but this isn't a result", scanner.Failed())
+	}
 	s := r.Summary.Verdicts
 	if (o.failOn == "failed" && s.Failed > 0) || (o.failOn == "unverified" && s.Failed+s.Unverified > 0) {
 		fprintf(stderr, "[verify-estate] %d failed, %d unverified (--fail-on %s)\n", s.Failed, s.Unverified, o.failOn)
@@ -257,33 +303,53 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	return nil
 }
 
-// estatePolicy reads --policy, or builds a policy from flags.
-func estatePolicy() (report.Policy, error) {
+// estatePolicy reads --policy, or builds a policy from flags, and reads the
+// VEX documents it names (relative to the policy file, or to the working
+// directory for --vex).
+func estatePolicy() (report.Policy, []estateverify.VEXDocument, error) {
 	o := estateVerifyOpts
 	var p report.Policy
+	vexDir := "."
 	if o.policy != "" {
-		if len(o.require) > 0 || o.identityRegexp != "" || o.issuer != "" || o.sourceOwner != "" || o.sourceMatches || o.severity != "" || o.maxScanAge != 0 {
-			return report.Policy{}, errors.New("--policy and the policy flags (--require, --trusted-*, --vulnerabilities-fail-on) are exclusive")
+		if len(o.require) > 0 || o.identityRegexp != "" || o.issuer != "" || o.sourceOwner != "" || o.sourceMatches || o.severity != "" || o.maxScanAge != 0 ||
+			o.scanSource != "" || len(o.vex) > 0 || len(o.observe) > 0 {
+			return report.Policy{}, nil, errors.New("--policy and the policy flags (--require, --trusted-*, --vulnerabilities-fail-on, --scan-source, --vex, --observe) are exclusive")
 		}
 		var err error
 		if p, err = estateverify.ReadPolicy(o.policy); err != nil {
-			return report.Policy{}, err
+			return report.Policy{}, nil, err
 		}
+		vexDir = filepath.Dir(o.policy)
 	} else {
-		p = report.Policy{Required: o.require, FailOn: o.severity, OnlyFixed: o.onlyFixed, MaxScanAgeDays: o.maxScanAge}
+		p = report.Policy{Required: o.require, FailOn: o.severity, OnlyFixed: o.onlyFixed, MaxScanAgeDays: o.maxScanAge, ScanSource: o.scanSource, Observe: o.observe}
 		if o.identityRegexp != "" || o.issuer != "" || o.sourceOwner != "" || o.sourceMatches {
 			p.TrustedSigners = []report.Signer{{IdentityRegexp: o.identityRegexp, Issuer: o.issuer, SourceRepositoryOwner: o.sourceOwner, SourceMatchesImage: o.sourceMatches}}
+		}
+		for _, f := range o.vex {
+			p.VEX = append(p.VEX, report.VEXDocument{File: f})
 		}
 	}
 	if o.trustPolicy != "" {
 		t, err := estateverify.ReadTrustPolicy(o.trustPolicy)
 		if err != nil {
-			return report.Policy{}, err
+			return report.Policy{}, nil, err
 		}
 		p.TrustedSigners = append(p.TrustedSigners, t.For("image")...)
 		p.StackSigners = append(p.StackSigners, t.For("stack")...)
 	}
-	return p, estateverify.ValidatePolicy(p)
+	var files []string
+	for _, d := range p.VEX {
+		files = append(files, d.File)
+	}
+	vex, err := estateverify.ReadVEX(vexDir, files)
+	if err != nil {
+		return report.Policy{}, nil, err
+	}
+	p.VEX = nil
+	for _, d := range vex {
+		p.VEX = append(p.VEX, report.VEXDocument{File: d.File, ID: d.ID, Author: d.Author, Statements: len(d.Statements)})
+	}
+	return p, vex, estateverify.ValidatePolicy(p)
 }
 
 func readRefList(path string) ([]string, error) {
@@ -437,6 +503,11 @@ func historyImages(r *report.Report) []report.HistoryImage {
 			row.Vulnerabilities = &counts
 			row.FixableFindings = fixableFindings(v)
 		}
+		if rs := img.Rescan; rs != nil && rs.Status == "scanned" && rs.Vulnerabilities != nil {
+			counts := rs.Vulnerabilities.Counts
+			row.RescanVulnerabilities = &counts
+		}
+		row.ObserveOnly = img.ObserveOnly
 		if img.Packages != nil {
 			row.PackagesDigest = packagesDigest(packages[img.ID])
 		}
@@ -469,7 +540,15 @@ func packagesDigest(lines []string) string {
 
 func printEstateSummary(w io.Writer, r *report.Report) {
 	s := r.Summary
-	fprintf(w, "%d images: %d verified, %d failed, %d unverified\n", s.Images, s.Verdicts.Verified, s.Verdicts.Failed, s.Verdicts.Unverified)
+	fprintf(w, "%d images: %d verified, %d failed, %d unverified", s.Images, s.Verdicts.Verified, s.Verdicts.Failed, s.Verdicts.Unverified)
+	if s.Verdicts.ObserveOnly > 0 {
+		fprintf(w, ", %d observe-only (not gating)", s.Verdicts.ObserveOnly)
+	}
+	fprintf(w, "\n")
+	if rs := s.Rescan; rs != nil {
+		fprintf(w, "rescan (%s): %d images scanned, %d unknown; %d critical, %d high, %d medium (%d suppressed by VEX)\n",
+			firstNonEmptyString(rs.Scanner, "grype"), rs.Scanned, rs.Unknown, rs.Counts.Critical, rs.Counts.High, rs.Counts.Medium, rs.Suppressed)
+	}
 	fprintf(w, "bases: %d proven, %d claimed, %d roots, %d unresolved; %d current, %d stale\n",
 		s.Bases.Proven, s.Bases.Claimed, s.Bases.Roots, s.Bases.Unresolved, s.Bases.Current, s.Bases.Stale)
 	for _, st := range r.Stacks {
@@ -485,9 +564,13 @@ func printEstateSummary(w io.Writer, r *report.Report) {
 	fprintf(w, "\n%-28s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %s\n", "IMAGE", "SIGNATURE", "SBOM", "VULNS", "PROVENANCE", "RECIPE", "REBASE", "REPRO", "VERDICT")
 	for _, img := range r.Images {
 		e := img.Evidence
+		verdict := img.Verdict.Status
+		if img.ObserveOnly {
+			verdict += " (observe-only)"
+		}
 		fprintf(w, "%-28s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %s\n", truncate(img.ID, 28),
 			e.Signature.Status, e.SBOM.Status, e.VulnerabilityScan.Status, e.Provenance.Status, e.Recipe.Status, e.Rebase.Status,
-			img.Reproducibility.Status, img.Verdict.Status)
+			img.Reproducibility.Status, verdict)
 	}
 }
 
