@@ -143,9 +143,16 @@ verified are scanned, one per platform image: an image with no verified SBOM
 on some platform, or not all of whose platform images could be read, or that
 grype couldn't scan, has `rescan.status: unknown` with the reason, and its
 current vulnerabilities are unknown, never clean. The database is grype's
-own: it is downloaded or updated as grype's settings say (`GRYPE_DB_CACHE_DIR`,
-`GRYPE_DB_AUTO_UPDATE`, `GRYPE_DB_UPDATE_URL`, and the rest of grype's
-`GRYPE_DB_*` environment), which `clearcutt-verify` leaves alone. When grype
+own, where grype's settings put it (`GRYPE_DB_CACHE_DIR`,
+`GRYPE_DB_UPDATE_URL`, and the rest of grype's `GRYPE_DB_*` environment).
+Before reading anything, the run updates it once (`grype db update`), and
+every scan then uses it as it is (`GRYPE_DB_AUTO_UPDATE=false`), so
+concurrent scans don't each check for, and on a fresh runner download, the
+database at once; an update that fails stops the run (exit 1), as a missing
+grype does. With `GRYPE_DB_AUTO_UPDATE=false` already set (a database
+imported with `grype db import`, for an air-gapped run), nothing is
+downloaded: the run only checks that grype has a database (`grype db
+status`) and stops (exit 1) if it hasn't. When grype
 couldn't scan any image at all, the report is written (every rescan
 `unknown`) and the run exits 1: a run that found out nothing isn't a result.
 

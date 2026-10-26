@@ -94,9 +94,14 @@ When a release is cut, move these entries under a heading for its version.
   which scan `failOn` gates on, `worst` by default with `--rescan`: an image
   fails when either finds enough and is `unverified` when either is unknown.
   With a scanned rescan, `maxScanAgeDays` measures the rescan by its
-  database's build time. grype's database settings (`GRYPE_DB_*`) are left
-  to grype. When grype couldn't scan any image, the report is written and the
-  run exits 1.
+  database's build time. grype's database is updated once before the run
+  (`grype db update`; an update that fails exits 1 before anything is read),
+  and the scans then use it as it is (`GRYPE_DB_AUTO_UPDATE=false`), so
+  concurrent scans don't each download it; with `GRYPE_DB_AUTO_UPDATE=false`
+  set, the database is left as it is and only checked to be there (`grype db
+  status`). grype's other database settings (`GRYPE_DB_*`) are left to grype.
+  When grype couldn't scan any image, the report is written and the run exits
+  1.
 - **VEX for rescans.** A policy's `vex:` list of OpenVEX documents (relative
   to the policy file; `--vex FILE`) is applied to the rescans, scoped per
   image before grype sees it: statements whose product is the image

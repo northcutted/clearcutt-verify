@@ -482,3 +482,77 @@ func TestReadVEXRefusesWhatIsntOpenVEX(t *testing.T) {
 		t.Errorf("%+v", docs)
 	}
 }
+
+// TestGrypeDatabaseIsPreparedOnce runs a stand-in grype binary: the database
+// is updated once before any scan, and the scans then don't check for an
+// update each (on a fresh runner, concurrent scans would all download it at
+// once); a failed update is an error before anything is scanned; a database
+// the environment says not to update is only checked to be there.
+func TestGrypeDatabaseIsPreparedOnce(t *testing.T) {
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "calls.log")
+	recorded, err := filepath.Abs(filepath.Join("testdata", "grype-sbom-scan.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	grype := filepath.Join(dir, "grype")
+	script := "#!/bin/sh\n" +
+		"echo \"$* auto-update=${GRYPE_DB_AUTO_UPDATE:-unset}\" >> '" + logFile + "'\n" +
+		"case \"$1 $2\" in\n" +
+		"  'db update') [ -n \"$FAKE_GRYPE_DB_FAILS\" ] && { echo 'unable to update vulnerability database: dial tcp: i/o timeout' >&2; exit 1; }; exit 0;;\n" +
+		"  'db status') [ -n \"$FAKE_GRYPE_DB_FAILS\" ] && { echo 'ERROR database does not exist' >&2; exit 1; }; exit 0;;\n" +
+		"  sbom:*) cat '" + recorded + "';;\n" +
+		"  *) exit 2;;\n" +
+		"esac\n"
+	if err := os.WriteFile(grype, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	calls := func() []string {
+		raw, _ := os.ReadFile(logFile)
+		_ = os.Remove(logFile)
+		return strings.Split(strings.TrimSpace(string(raw)), "\n")
+	}
+	ctx := context.Background()
+	sbom := []byte(`{"bomFormat":"CycloneDX","components":[]}`)
+
+	t.Setenv("GRYPE_DB_AUTO_UPDATE", "")
+	t.Setenv("FAKE_GRYPE_DB_FAILS", "")
+	g := &GrypeScanner{Binary: grype}
+	if err := g.PrepareDB(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if _, err := g.Scan(ctx, sbom, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := strings.Join(calls(), "\n"); got != "db update auto-update=unset\nsbom:sbom.json -o json auto-update=false\nsbom:sbom.json -o json auto-update=false" {
+		t.Errorf("grype ran:\n%s", got)
+	}
+
+	// The update failing: an error naming it, and nothing marked prepared.
+	t.Setenv("FAKE_GRYPE_DB_FAILS", "1")
+	g = &GrypeScanner{Binary: grype}
+	if err := g.PrepareDB(ctx); err == nil || !strings.Contains(err.Error(), "grype db update") || !strings.Contains(err.Error(), "i/o timeout") {
+		t.Errorf("update failing: %v", err)
+	}
+	if g.dbPrepared {
+		t.Error("a database that wasn't updated is used as is")
+	}
+	calls()
+
+	// GRYPE_DB_AUTO_UPDATE=false: the database is the environment's, only
+	// checked to be there.
+	t.Setenv("GRYPE_DB_AUTO_UPDATE", "false")
+	g = &GrypeScanner{Binary: grype}
+	if err := g.PrepareDB(ctx); err == nil || !strings.Contains(err.Error(), "grype db status") || !strings.Contains(err.Error(), "database does not exist") {
+		t.Errorf("no database, updates off: %v", err)
+	}
+	t.Setenv("FAKE_GRYPE_DB_FAILS", "")
+	if err := g.PrepareDB(ctx); err != nil {
+		t.Errorf("a database, updates off: %v", err)
+	}
+	if got := strings.Join(calls(), "\n"); got != "db status auto-update=false\ndb status auto-update=false" {
+		t.Errorf("grype ran:\n%s", got)
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -26,11 +27,10 @@ type Scanner interface {
 }
 
 // GrypeScanner scans SBOMs with grype (`grype sbom:FILE -o json`). The
-// vulnerability database is grype's own: it is downloaded or updated as
-// grype's settings say (GRYPE_DB_CACHE_DIR, GRYPE_DB_AUTO_UPDATE,
-// GRYPE_DB_UPDATE_URL, and the rest of grype's GRYPE_DB_* environment),
-// which clearcutt-verify leaves alone; only the check for a newer grype is
-// turned off.
+// vulnerability database is grype's own, where grype's settings say
+// (GRYPE_DB_CACHE_DIR, GRYPE_DB_UPDATE_URL, and the rest of grype's
+// GRYPE_DB_* environment): PrepareDB updates it once before the run, and the
+// scans then use it as it is. The check for a newer grype is turned off.
 type GrypeScanner struct {
 	// Binary is the grype binary (default "grype").
 	Binary string
@@ -39,6 +39,9 @@ type GrypeScanner struct {
 	Run func(ctx context.Context, dir, bin string, args ...string) (stdout, stderr []byte, err error)
 
 	scanned, failed atomic.Int64
+	// dbPrepared: PrepareDB updated the database for the run, so scans
+	// don't check for an update each (GRYPE_DB_AUTO_UPDATE=false).
+	dbPrepared bool
 }
 
 // Scanned and Failed count the scans grype finished and the ones it didn't.
@@ -60,6 +63,9 @@ func (g *GrypeScanner) run(ctx context.Context, dir string, args ...string) ([]b
 	cmd := exec.CommandContext(ctx, g.bin(), args...)
 	cmd.Dir, cmd.Stdout, cmd.Stderr = dir, &stdout, &stderr
 	cmd.Env = append(os.Environ(), "GRYPE_CHECK_FOR_APP_UPDATE=false")
+	if g.dbPrepared {
+		cmd.Env = append(cmd.Env, "GRYPE_DB_AUTO_UPDATE=false")
+	}
 	err := cmd.Run()
 	return stdout.Bytes(), stderr.Bytes(), err
 }
@@ -84,6 +90,30 @@ func (g *GrypeScanner) CheckGrype(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("couldn't tell which grype %s is (grype version -o json printed %q)", g.bin(), strings.TrimSpace(string(stdout)))
 	}
 	return info.Version, nil
+}
+
+// PrepareDB readies grype's vulnerability database once, before anything is
+// scanned: `grype db update`, after which every scan uses the database as it
+// is (GRYPE_DB_AUTO_UPDATE=false) instead of checking for, and on a fresh
+// runner downloading, an update itself, all at once into the same cache.
+// When GRYPE_DB_AUTO_UPDATE is already false (a database imported for an
+// air-gapped run, say), it is left as it is, and only checked to be there
+// (`grype db status`). Either failing is an operational error: the rescans
+// would all be unknown for a reason that has nothing to do with the estate.
+func (g *GrypeScanner) PrepareDB(ctx context.Context) error {
+	if v, ok := os.LookupEnv("GRYPE_DB_AUTO_UPDATE"); ok {
+		if auto, err := strconv.ParseBool(strings.TrimSpace(v)); err == nil && !auto {
+			if _, stderr, err := g.run(ctx, "", "db", "status"); err != nil {
+				return fmt.Errorf("grype has no usable vulnerability database (grype db status: %w: %s), and GRYPE_DB_AUTO_UPDATE=false says not to download one: import one (grype db import), or unset GRYPE_DB_AUTO_UPDATE", err, lastLine(string(stderr)))
+			}
+			return nil
+		}
+	}
+	if _, stderr, err := g.run(ctx, "", "db", "update"); err != nil {
+		return fmt.Errorf("grype couldn't update its vulnerability database (grype db update: %w: %s): --rescan needs one; check access to grype's database (GRYPE_DB_UPDATE_URL), or import one (grype db import) and set GRYPE_DB_AUTO_UPDATE=false", err, lastLine(string(stderr)))
+	}
+	g.dbPrepared = true
+	return nil
 }
 
 // Scan runs grype over an SBOM written to a temporary directory, with the

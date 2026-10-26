@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -25,21 +26,31 @@ import (
 	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
-// withGrype stands in for grype: it says it is version (0.120.1 when empty)
-// and answers every scan with run.
-func withGrype(t *testing.T, version string, run func(dir string, args []string) ([]byte, []byte, error)) {
+// withGrype stands in for grype: it says it is version (0.120.1 when empty),
+// updates its database, and answers every scan with run. It returns every
+// command grype was given after version, in order.
+func withGrype(t *testing.T, version string, run func(dir string, args []string) ([]byte, []byte, error)) *[]string {
 	t.Helper()
 	if version == "" {
 		version = "0.120.1"
 	}
+	var calls []string
+	var mu sync.Mutex
 	old := grypeRunner
 	grypeRunner = func(_ context.Context, dir, _ string, args ...string) ([]byte, []byte, error) {
 		if len(args) > 0 && args[0] == "version" {
 			return []byte(`{"application":"grype","version":"` + version + `"}`), nil, nil
 		}
+		mu.Lock()
+		calls = append(calls, strings.Join(args, " "))
+		mu.Unlock()
+		if len(args) > 0 && args[0] == "db" {
+			return nil, nil, nil
+		}
 		return run(dir, args)
 	}
 	t.Cleanup(func() { grypeRunner = old })
+	return &calls
 }
 
 // attestWithKey attaches a cosign v2 .att tag holding a key-signed
@@ -155,9 +166,29 @@ func TestEstateVerifyRescan(t *testing.T) {
 		t.Fatalf("scanSource without --rescan: %v", err)
 	}
 
-	// grype scans the verified SBOM, with the policy's VEX beside it.
+	// grype unable to update its database: the run stops before reading
+	// anything too.
+	grypeRunner = func(_ context.Context, _, _ string, a ...string) ([]byte, []byte, error) {
+		switch strings.Join(a, " ") {
+		case "version -o json":
+			return []byte(`{"application":"grype","version":"0.121.0"}`), nil, nil
+		case "db update":
+			return nil, []byte("[0000] ERROR unable to update vulnerability database: unable to download db: Get \"https://grype.anchore.io/databases/v6/latest.json\": dial tcp: i/o timeout"), errors.New("exit status 1")
+		}
+		t.Errorf("grype ran %v after its database update failed", a)
+		return nil, nil, errors.New("exit status 1")
+	}
+	if _, err := runCLI(t, args...); err == nil || errors.Is(err, ErrCheckFailed) || !strings.Contains(err.Error(), "grype db update") || !strings.Contains(err.Error(), "i/o timeout") {
+		t.Fatalf("database update failing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(out, report.ReportFile)); err == nil {
+		t.Fatal("a report was written without grype's database")
+	}
+
+	// grype scans the verified SBOM, with the policy's VEX beside it, after
+	// updating its database once.
 	var seen [][]string
-	withGrype(t, "", func(dir string, a []string) ([]byte, []byte, error) {
+	calls := withGrype(t, "", func(dir string, a []string) ([]byte, []byte, error) {
 		seen = append(seen, a)
 		if _, err := os.Stat(filepath.Join(dir, "sbom.json")); err != nil {
 			return nil, nil, err
@@ -173,6 +204,9 @@ func TestEstateVerifyRescan(t *testing.T) {
 	}
 	if len(seen) != 1 || seen[0][0] != "sbom:sbom.json" || !strings.Contains(strings.Join(seen[0], " "), "--vex vex.json") {
 		t.Errorf("grype args: %v", seen)
+	}
+	if len(*calls) != 2 || (*calls)[0] != "db update" {
+		t.Errorf("grype commands: %q, want the database updated once, before the scan", *calls)
 	}
 	if !strings.Contains(stdout, "rescan (grype 0.121.0): 1 images scanned") {
 		t.Errorf("summary:\n%s", stdout)

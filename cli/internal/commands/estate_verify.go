@@ -120,7 +120,7 @@ isn't, --quiet prints nothing but errors and the --fail-on result, and
 	f.StringVar(&o.factoryPath, "factory-path", "clearcutt-factory", "clearcutt-factory binary, for --reproduce")
 	f.StringVar(&o.cosignPath, "cosign-path", "cosign", "cosign v3 binary (checked before the run; missing or another major version exits 1)")
 	f.StringVar(&o.trustedRoot, "trusted-root", "", "Sigstore trusted_root.json for cosign to verify keyless evidence against (cosign --trusted-root); default: fetched once with cosign initialize before the run")
-	f.BoolVar(&o.rescan, "rescan", false, "Scan each image's verified SBOMs with grype and report the fresh findings beside the attested scan (grype's database settings, GRYPE_DB_*, apply)")
+	f.BoolVar(&o.rescan, "rescan", false, "Scan each image's verified SBOMs with grype and report the fresh findings beside the attested scan (grype's database is updated once first; GRYPE_DB_AUTO_UPDATE=false keeps the one installed)")
 	f.StringVar(&o.grypePath, "grype-path", "grype", "grype binary, for --rescan (checked before the run; missing exits 1)")
 	f.StringVar(&o.generatedAt, "generated-at", "", "Deterministic report timestamp (RFC 3339)")
 	f.IntVar(&o.concurrency, "concurrency", 4, "Images to verify at once")
@@ -211,6 +211,10 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		scanner = &estateverify.GrypeScanner{Binary: o.grypePath, Run: grypeRunner}
 		version, err := scanner.CheckGrype(ctx)
 		if err != nil {
+			return err
+		}
+		// grype's database, once, before the concurrent scans that read it.
+		if err := scanner.PrepareDB(ctx); err != nil {
 			return err
 		}
 		if !GlobalOpts.Quiet {
