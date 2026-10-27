@@ -12,6 +12,19 @@ merged pull requests; this file is the curated summary.
 
 ## Unreleased
 
+### Added: opt-in verification cache
+
+- `estate verify --cache-dir DIR` reuses successful Cosign answers bound to
+  immutable evidence, local trust material, signer constraints and executable
+  identities. Cosign verifies a pinned metadata-only local OCI snapshot before
+  the result is cached; mutable attachment tags are never cache identities.
+  Supports Cosign 3.1.3+ DSSE bundles and offline local-key legacy evidence;
+  mixed formats and unsupported trust/verification paths stay live.
+- Caller/content checks, parsing, policy/freshness decisions, rescans and
+  rebuilds still run. Unknown/failed checks are never cached. Private atomic
+  entries are bounded; corrupt or unavailable cache data is a miss. Deleting
+  the directory is safe. No estate-report contract changes.
+
 ### Added: bounded external operations and per-image progress
 
 - `estate verify` and `policy init` report inspected images on terminal

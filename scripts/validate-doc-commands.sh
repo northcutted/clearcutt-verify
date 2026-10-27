@@ -97,5 +97,6 @@ help_contains "cosign timeout" estate verify "--cosign-timeout"
 help_contains "reproduction timeout" estate verify "--reproduce-timeout"
 help_contains "grype timeout" estate verify "--grype-timeout"
 help_contains "GitHub request timeout" registry scan "--github-timeout"
+help_contains "verification cache" estate verify "--cache-dir"
 
 exit "$fail"

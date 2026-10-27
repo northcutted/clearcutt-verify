@@ -53,6 +53,7 @@ var estateVerifyOpts struct {
 	concurrency  int
 	platforms    []string
 	failOn       string
+	cacheDir     string
 	// Policy without a file.
 	require          []string
 	identityRegexp   string
@@ -132,6 +133,7 @@ isn't, --quiet prints nothing but errors and the --fail-on result, and
 	f.IntVar(&o.concurrency, "concurrency", 4, "Images to verify at once")
 	f.StringSliceVar(&o.platforms, "platforms", nil, "Read only these platform images (e.g. linux/amd64,linux/arm64); default all. Cuts requests for bases published for many architectures")
 	f.StringVar(&o.failOn, "fail-on", "never", "Exit 2 when any image is failed, or failed or unverified: failed, unverified, never")
+	f.StringVar(&o.cacheDir, "cache-dir", "", "Opt-in private directory for successful pinned-evidence verification results; discovery, rescans and policy verdicts stay fresh")
 	f.StringSliceVar(&o.require, "require", nil, "Required evidence when there is no --policy (e.g. signature,sbom,vulnerabilityScan,provenance)")
 	f.StringVar(&o.identityRegexp, "trusted-identity-regexp", "", "Trusted signer certificate identity (regular expression) when there is no --policy")
 	f.StringVar(&o.issuer, "trusted-issuer", "", "Trusted signer OIDC issuer when there is no --policy")
@@ -183,8 +185,9 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	// never a policy result.
 	verifier := &estateverify.Verifier{Signers: append(append([]report.Signer{}, policy.TrustedSigners...), policy.StackSigners...), Cosign: o.cosignPath, Run: cosignRunner, TrustedRoot: o.trustedRoot, Timeout: GlobalOpts.CosignTimeout}
 	var rootWarning string
+	var cosignVersion string
 	if len(policy.TrustedSigners)+len(policy.StackSigners) > 0 {
-		if _, err := verifier.CheckCosign(ctx); err != nil {
+		if cosignVersion, err = verifier.CheckCosign(ctx); err != nil {
 			return err
 		}
 		// Sigstore's trusted root, once, before the concurrent verifications
@@ -239,6 +242,12 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		remote.WithRetryBackoff(remote.Backoff{Duration: time.Second, Factor: 2, Jitter: 0.2, Steps: 4}),
 		remote.WithTransport(estateverify.NewManifestCache(registryTransport())),
 	}
+	if o.cacheDir != "" {
+		verifier.Cache = estateverify.NewVerificationCache(o.cacheDir, Version, cosignVersion, o.cosignPath, ropts)
+		if verifier.Cache.Disabled != "" && GlobalOpts.Verbose && !GlobalOpts.Quiet {
+			fprintf(stderr, "[verify-estate] verification cache disabled: %s; using live verification\n", verifier.Cache.Disabled)
+		}
+	}
 	var observations estategraph.Observations
 	if o.observations != "" {
 		if observations, err = estategraph.ReadObservations(o.observations); err != nil {
@@ -280,6 +289,10 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	r, err := estateverify.Build(ctx, observations, opts)
 	if err != nil {
 		return err
+	}
+	if verifier.Cache != nil && GlobalOpts.Verbose && !GlobalOpts.Quiet {
+		hits, misses, bypasses := verifier.Cache.Stats()
+		fprintf(stderr, "[verify-estate] verification cache: %d hit(s), %d miss(es), %d bypass(es); policy and rescans evaluated this run\n", hits, misses, bypasses)
 	}
 	if rootWarning != "" {
 		// The report says so too: it is what readers see.

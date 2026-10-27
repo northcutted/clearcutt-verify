@@ -141,6 +141,10 @@ type Found struct {
 	// Statement is the in-toto statement (attestations), or the document
 	// (raw referrers).
 	Statement []byte
+	// artifact retains the exact manifest resolved during discovery, including
+	// legacy tag signature annotations. Cache verification never resolves that
+	// mutable tag again or substitutes a later registry listing.
+	artifact v1.Image
 }
 
 // Predicate returns the statement's predicate.
@@ -259,6 +263,7 @@ func (d *Discoverer) referrer(ctx context.Context, ref name.Digest, subject stri
 		return Found{}, false, err
 	}
 	f.Ref = ref.String()
+	f.artifact = img
 	if f.Timestamp == "" {
 		f.Timestamp = m.Annotations["org.opencontainers.image.created"]
 	}
@@ -523,7 +528,7 @@ func (d *Discoverer) cosignTags(ctx context.Context, subject name.Digest, opts [
 			continue
 		}
 		for _, layer := range m.Layers {
-			f := Found{Format: FormatCosignTag, Ref: tag.String(), Subject: subject.DigestStr(), Signer: legacySigner(layer.Annotations)}
+			f := Found{Format: FormatCosignTag, Ref: tag.String(), Subject: subject.DigestStr(), Signer: legacySigner(layer.Annotations), artifact: img}
 			if suffix == ".sig" {
 				f.Kind, f.PredicateType = KindSignature, PredicateCosignSign
 				out = append(out, f)

@@ -31,6 +31,9 @@ type Verifier struct {
 	TrustedRoot string
 	// Timeout bounds each cosign invocation, including initialization.
 	Timeout time.Duration
+	// Cache optionally reuses successful verification of pinned evidence.
+	Cache      *VerificationCache
+	cacheFound []Found
 	// Run executes cosign and returns stdout; tests replace it.
 	Run func(ctx context.Context, bin string, args ...string) ([]byte, error)
 }
@@ -221,6 +224,11 @@ func (v *Verifier) verifyKeys(ctx context.Context, subj Subject) (Verified, erro
 
 // verifyWith runs cosign with flags and returns the statements it verified.
 func (v *Verifier) verifyWith(ctx context.Context, subj Subject, flags []string) ([][]byte, error) {
+	if v.Cache != nil {
+		if statements, used, err := v.Cache.verify(ctx, v, subj, flags); used {
+			return statements, err
+		}
+	}
 	args := []string{"verify-attestation", "--type", subj.PredicateType}
 	if subj.Kind == KindSignature {
 		args = []string{"verify"}
@@ -705,6 +713,13 @@ type verifiedCopy struct {
 // exactly, so copies anyone can attach with made-up certificates cost no
 // more than reading them.
 func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageSource string, found []Found) (report.EvidenceItem, []verifiedCopy) {
+	if v.Cache != nil {
+		// Each concurrent image gets its own evidence view; trust and the cache
+		// are shared read-only, never a mutable "current image" on the verifier.
+		scoped := *v
+		scoped.cacheFound = found
+		v = &scoped
+	}
 	copies := copiesOf(found, kind, digest)
 	if len(copies) == 0 {
 		return report.EvidenceItem{Status: "missing"}, nil

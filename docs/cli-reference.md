@@ -56,6 +56,14 @@ run. Per-image expiry leaves evidence/rescans unknown or reproduction
 not-checked. Preflight tool/root/database expiry exits 1 before report
 publication. See [timeout behavior and limits](verify-estate.md#external-operation-timeouts).
 
+`estate verify --cache-dir DIR` opts into private local reuse of successful
+verification against pinned evidence and trust bytes. Discovery, caller checks,
+parsing, scan age, policy verdicts, rescans and rebuilds remain fresh. Supported
+Cosign 3.1.3+ DSSE bundles and offline-key legacy checks can reuse results;
+other configurations use live verification. Corrupt/unavailable cache entries
+are misses. Do not load untrusted caches; deleting the directory is safe. See
+[cache scope and invalidation](verify-estate.md#reuse-verified-evidence-across-runs).
+
 ## Install
 
 Releases ship cross-compiled binaries (`clearcutt-verify-<os>-<arch>` for

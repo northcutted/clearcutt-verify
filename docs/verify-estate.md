@@ -525,6 +525,55 @@ to two additional seconds. It does not establish that a remote BuildKit job has
 stopped; inspect the retained Factory logs and builder if cancellation interrupted
 a reproduction.
 
+### Reuse verified evidence across runs
+
+`--cache-dir DIR` opts into a local verification cache. ClearCutt still reads
+the registry and discovers evidence every run. Eligible, unchanged evidence
+reuses its successful Cosign answer; caller constraints, subject/content checks,
+SBOM/scan parsers and every policy verdict are evaluated again. Rescans and
+Factory rebuilds still run when requested. A previously accepted scan can become
+too old on the next run even when its cryptographic verification is cached.
+
+```bash
+clearcutt-verify estate verify --refs refs.txt --policy policy.yaml \
+  --cache-dir .cache/clearcutt-verify --out dist/estate --verbose
+```
+
+The cache binds a subject's repository and digest, evidence manifests and layer
+bytes (including signature annotations), signer constraints/flags, captured
+local public-key and trusted-root bytes, and both Verify and Cosign versions
+and executable hashes. Replacing a key/root at the same path or replacing a
+binary with another build invalidates reuse. Mutable attachment tags are never
+cache identities: Cosign checks a temporary metadata-only OCI layout containing
+the exact captured manifests and evidence, with pinned trust files. Root
+filesystem layers are not downloaded for this layout. This avoids a registry
+change between discovery and Cosign checking one set of bytes while caching
+an answer under another set's identity.
+
+Initial supported cache paths require **Cosign 3.1.3 or newer in major version
+3**: Sigstore DSSE bundles with a captured trusted root (or an explicit local
+offline key), and legacy `.sig`/`.att` evidence with a local public key and
+`tlog: false`. Mixed bundle/legacy subjects, MessageSignature bundles, remote
+or KMS keys, non-regular trust files, unusual signature digest maps,
+ambiguous payloads resembling referrer manifests, alternate `SIGSTORE_*` target-file overrides, and
+`COSIGN_REPOSITORY` use the existing live path. Legacy checks that can query
+the transparency log also remain live: new log information can change their
+answer without changing the attached manifest. An unsupported local layout
+falls back to live verification. Only successful, readable, subject-bound
+Cosign answers persist; failures, unknowns and timeouts are rechecked.
+
+This directory is **trusted local state**, not a portable evidence bundle.
+Keep it private to the verifying user/job; do not restore it from untrusted
+uploads or share it between mutually untrusted jobs. ClearCutt creates it with
+mode `0700` and writes mode `0600` entries by atomic rename. Shared-permission
+directories and symlinks are refused for reuse. Corrupt, missing, oversized or
+unreadable entries are misses, not verification results or command failures.
+Captured layouts and entries are bounded to 64 MiB and layouts to 2,048 files;
+larger inputs use live verification. `--verbose` prints hit/miss/bypass counts
+on stderr; these are cryptographic operations, not image verdict counts. No
+report fields change. Omit the flag to disable reuse; **deleting the directory
+is always safe**. Discovery and availability remain dependent on the registry.
+
 ### Stacks
 
 Apps that clearcutt-factory built on a registry stack (`stack:

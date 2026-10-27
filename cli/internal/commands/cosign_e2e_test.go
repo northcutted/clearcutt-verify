@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -219,7 +221,7 @@ trustedSigners:
 	}
 	out := filepath.Join(dir, "estate")
 	verifyArgs := []string{"estate", "verify", "--refs", refs, "--policy", policy, "--name", "e2e", "--out", out,
-		"--platforms", "linux/amd64,linux/arm64", "--fail-on", "failed", "--verbose"}
+		"--platforms", "linux/amd64,linux/arm64", "--fail-on", "failed", "--verbose", "--generated-at", "2026-10-27T00:00:00Z"}
 	if rescan {
 		verifyArgs = append(verifyArgs, "--rescan")
 	}
@@ -250,6 +252,30 @@ trustedSigners:
 		t.Fatal(err)
 	}
 	validateAgainstContract(t, raw)
+	// Cold and warm cache runs must produce the same report as uncached
+	// verification, with real cryptography for both bundles and legacy tags.
+	cacheArgs := append(append([]string{}, verifyArgs...), "--cache-dir", filepath.Join(dir, "verification-cache"))
+	for _, warm := range []bool{false, true} {
+		stdout, err := runCLI(t, cacheArgs...)
+		if !errors.Is(err, ErrCheckFailed) {
+			t.Fatalf("cache warm=%v: %v\n%s", warm, err, stdout)
+		}
+		if warm {
+			match := regexp.MustCompile(`verification cache: (\d+) hit\(s\)`).FindStringSubmatch(stdout)
+			hits := 0
+			if len(match) > 1 {
+				hits, _ = strconv.Atoi(match[1])
+			}
+			if hits < 18 { // six checks each for app, trivy and legacy
+				t.Fatalf("warm cache did not reuse both bundle and legacy evidence:\n%s", stdout)
+			}
+		}
+		got, err := os.ReadFile(filepath.Join(out, report.ReportFile))
+		if err != nil || !bytes.Equal(got, raw) {
+			t.Fatalf("cache warm=%v changed report: %v\n%s", warm, err, stdout)
+		}
+		t.Logf("cache warm=%v: %s", warm, stdout)
+	}
 	var r report.Report
 	if err := json.Unmarshal(raw, &r); err != nil {
 		t.Fatal(err)
