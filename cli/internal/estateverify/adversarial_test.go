@@ -407,3 +407,25 @@ func TestReproduceDoesNotSkipAnUnknownRecipe(t *testing.T) {
 		t.Errorf("no recipe: %+v %+v", img.Reproducibility, got)
 	}
 }
+
+// A valid JSON report is not proof that package vulnerabilities were scanned.
+func TestTrivyRequiresPackageVulnerabilityCoverage(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		results []any
+	}{
+		{"empty", []any{}},
+		{"null result", []any{nil}},
+		{"config only", []any{map[string]any{"Target": "app.config", "Class": "config", "Type": "kubernetes"}}},
+		{"mixed unsupported coverage", []any{map[string]any{"Target": "image", "Class": "os-pkgs"}, map[string]any{"Target": "config", "Class": "config"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pred := trivyPredicate("pkg:github/aquasecurity/trivy@v0.67.2")
+			trivyResult(pred)["Results"] = tc.results
+			raw, _ := json.Marshal(pred)
+			if _, err := readVulnPredicate(raw); err == nil {
+				t.Fatal("accepted unsupported scan as clean")
+			}
+		})
+	}
+}

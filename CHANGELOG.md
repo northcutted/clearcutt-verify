@@ -12,6 +12,14 @@ merged pull requests; this file is the curated summary.
 
 ## Unreleased
 
+### Fixed: Trivy coverage cannot claim a clean scan without package results
+
+- Empty, null, config-only, or unsupported mixed Trivy results are
+  unreadable vulnerability coverage, so they cannot satisfy a clean scan
+  gate. Valid `os-pkgs` and `lang-pkgs` results with no findings still count
+  as scanned.
+
+
 <!--
 Add an entry here in the same PR as any user-visible behavior change (CLI
 commands and flags, the estate report contract, the action, release assets).

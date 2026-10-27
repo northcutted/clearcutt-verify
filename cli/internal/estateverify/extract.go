@@ -152,6 +152,7 @@ type trivyReport struct {
 	CreatedAt     string `json:"CreatedAt"`
 	Results       []struct {
 		Target          string `json:"Target"`
+		Class           string `json:"Class"`
 		Vulnerabilities []struct {
 			VulnerabilityID  string `json:"VulnerabilityID"`
 			PkgName          string `json:"PkgName"`
@@ -171,7 +172,9 @@ type trivyReport struct {
 // Only Trivy's report of schema version 2 is read, and only one that lists
 // its results: Trivy leaves Results out when it found nothing it could
 // scan (no operating system or language packages it knows), which is not a
-// clean scan. Every finding counts, whatever its status says.
+// clean scan. Every result must cover os-pkgs or lang-pkgs: empty, null,
+// config-only, and mixed unsupported results remain unknown. Every finding
+// counts, whatever its status says.
 func readTrivy(result json.RawMessage, version, scannedAt string) (vulnScan, error) {
 	var keys map[string]json.RawMessage
 	var t trivyReport
@@ -181,12 +184,15 @@ func readTrivy(result json.RawMessage, version, scannedAt string) (vulnScan, err
 	if t.SchemaVersion != 2 {
 		return vulnScan{}, fmt.Errorf("its scanner names Trivy, but its result isn't Trivy's report of schema version 2 (SchemaVersion %s)", firstNonEmpty(strings.TrimSpace(string(keys["SchemaVersion"])), "absent"))
 	}
-	if r, ok := keys["Results"]; !ok || !strings.HasPrefix(strings.TrimSpace(string(r)), "[") {
+	if r, ok := keys["Results"]; !ok || !strings.HasPrefix(strings.TrimSpace(string(r)), "[") || len(t.Results) == 0 {
 		return vulnScan{}, errors.New("its Trivy report lists no results (Results), so what Trivy scanned is unknown")
 	}
 	var r grypeResult
 	r.Matches = []grypeMatch{}
 	for _, res := range t.Results {
+		if res.Class != "os-pkgs" && res.Class != "lang-pkgs" {
+			return vulnScan{}, fmt.Errorf("its Trivy report has unsupported vulnerability coverage in %s (Class %q); package vulnerability coverage is unknown", firstNonEmpty(res.Target, "a result"), res.Class)
+		}
 		for _, v := range res.Vulnerabilities {
 			if strings.TrimSpace(v.VulnerabilityID) == "" || strings.TrimSpace(v.PkgName) == "" {
 				return vulnScan{}, fmt.Errorf("its Trivy report has a finding in %s without a vulnerability ID or package name", firstNonEmpty(res.Target, "a result"))
