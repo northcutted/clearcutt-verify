@@ -43,6 +43,7 @@ shows the same question answered for free where the builder does record one.
 | **Map** | `graph build` | Which images are built on which, and how stale is each one? |
 | **Compare** | `graph layers` | What does the fleet have in common, and what would a fix reach? |
 | **Assess** | `import observe` → `import assess` | What evidence exists per image, and what is missing? |
+| **Prepare** | `policy init` | What evidence is available across the estate, and what could a starter policy require? |
 | **Verify** | `estate verify` | Is every image signed, attested, and current, by whom, and can it be rebuilt? Writes the estate report. |
 | **Act** | `estate dependents` | Which images are built on this base, and in which repositories? |
 | **Keep** | `estate push`, `estate history` | The report and its history, stored next to the images. |
@@ -137,8 +138,15 @@ See [registry scan and the base image graph](docs/registry-graph.md).
 
 ### Verify every image, and write the report
 
+Prepare a policy from your references first. The generated trust list is
+empty: review the commented certificate claims out of band and add the
+identities you trust before verifying.
+
 ```bash
-./clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme --out dist/estate
+./clearcutt-verify policy init --refs refs.txt --out dist/policy
+# Review dist/policy/policy.yaml and dist/policy/trust-policy.yaml first.
+./clearcutt-verify estate verify --refs refs.txt --policy dist/policy/policy.yaml \
+  --name acme --out dist/estate --fail-on unverified
 ./clearcutt-verify estate dependents --report dist/estate/estate-report.json \
   --base ghcr.io/acme/platform/run-python --format json
 ```

@@ -12,6 +12,25 @@ merged pull requests; this file is the curated summary.
 
 ## Unreleased
 
+### Added: prepare a policy from live evidence discovery
+
+- `policy init --refs refs.txt --out policy` (or `--images images.yaml`)
+  discovers evidence across the estate and writes a starter VerificationPolicy
+  and an inactive TrustPolicy. Required SBOM/scan coverage is per platform;
+  unreadable discovery aborts without publishing a weaker policy. Certificate
+  claims are commented candidates, never automatically trusted. Existing
+  output paths are refused; the validated pair is published together.
+- `--platforms` and `--concurrency` select discovery scope; `--verbose` sends
+  progress to stderr. Global JSON/YAML output contains the discovery summary,
+  including explicitly unverified signer candidates, without changing the
+  estate-report contract.
+
+### Fixed: raw SBOM referrers with omitted artifact types
+
+- Inspect a referrer's manifest for its SBOM artifact type when the registry
+  omits it from the listing. Such unsigned SBOMs are `present`, never verified;
+  they no longer disappear as missing evidence.
+
 ### Fixed: Trivy coverage cannot claim a clean scan without package results
 
 - Empty, null, config-only, or unsupported mixed Trivy results are

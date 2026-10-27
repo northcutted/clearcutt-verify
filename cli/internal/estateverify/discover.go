@@ -228,8 +228,8 @@ func (d *Discoverer) Discover(ctx context.Context, repository, digest string) ([
 
 const emptyMediaType = "application/vnd.oci.empty.v1+json"
 
-// referrer reads a referrer that may hold a Sigstore bundle or a Notation
-// signature about subject; ok is false when it holds something else.
+// referrer reads a Sigstore bundle, Notation signature or raw SBOM about
+// subject. Some referrers listings omit artifactType, so inspect the manifest.
 func (d *Discoverer) referrer(ctx context.Context, ref name.Digest, subject string, opts []remote.Option) (Found, bool, error) {
 	img, err := remote.Image(ref, opts...)
 	if err != nil {
@@ -241,6 +241,11 @@ func (d *Discoverer) referrer(ctx context.Context, ref name.Digest, subject stri
 	}
 	if m.ArtifactType == notationArtifactType || m.Config.MediaType == notationArtifactType {
 		return notationSignature(img, m, ref, subject), true, nil
+	}
+	switch m.ArtifactType {
+	case "application/vnd.cyclonedx+json", "application/spdx+json", "text/spdx+json":
+		return Found{Kind: KindSBOM, PredicateType: m.ArtifactType, Format: FormatRawReferrer,
+			Ref: ref.String(), Subject: subject, Timestamp: m.Annotations["org.opencontainers.image.created"]}, true, nil
 	}
 	if len(m.Layers) == 0 || !strings.HasPrefix(string(m.Layers[0].MediaType), "application/vnd.dev.sigstore.bundle") {
 		return Found{}, false, nil

@@ -69,6 +69,22 @@ func attachRawSBOM(t *testing.T, repo string, subject v1.Descriptor) string {
 	return r.String()
 }
 
+func TestDiscoverRawSBOMWithOmittedDescriptorType(t *testing.T) {
+	srv := httptest.NewServer(ggcrregistry.New(ggcrregistry.Logger(log.New(io.Discard, "", 0)), ggcrregistry.WithReferrersSupport(true)))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	idx := pushIndex(t, host+"/app:1", nil, built, nil)
+	desc := descriptorOf(t, idx)
+	ref := attachRawSBOM(t, host+"/app", desc)
+	found, err := (&Discoverer{}).Discover(context.Background(), host+"/app", desc.Digest.String())
+	if err != nil || len(found) != 1 || found[0].Kind != KindSBOM || found[0].Format != FormatRawReferrer || found[0].Ref != ref {
+		t.Fatalf("raw SBOM omitted by the Referrers API descriptor: %+v (%v)", found, err)
+	}
+	if !Unsigned(found[0].Format) || found[0].Signer != nil {
+		t.Fatal("raw SBOM discovery inferred a trusted signature")
+	}
+}
+
 // TestDiscoverReadsTheReferrersTag covers registries without the Referrers
 // API (registry:2, Docker Hub, and others): their attachments are listed
 // in the referrers tag, sha256-<subject hex>, which cosign and oras write

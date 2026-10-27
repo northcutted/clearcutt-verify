@@ -76,6 +76,15 @@ go -C cli build -o ../clearcutt-verify ./cmd/clearcutt-verify
 
 ## Estate Discovery Commands
 
+`policy init --refs refs.txt --out policy` writes `policy.yaml` and
+`trust-policy.yaml` from fresh evidence discovery. `--images images.yaml`
+is the inventory alternative; `--platforms` limits the inspected platform
+scope and `--concurrency` defaults to four. The active trust list is empty;
+certificate claims are commented review candidates. Review requirements and
+trust before gating with the result. Existing output paths are refused, and
+unreadable discovery exits 1 without publishing a starter. See
+[starter policy preparation](verify-estate.md#prepare-a-starter-policy).
+
 Discover and govern an image estate ClearCutt did not build. Every command here is
 read-only against the registry: it reads manifests, configs, and tags, and writes
 local files.

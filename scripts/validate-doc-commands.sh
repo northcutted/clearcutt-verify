@@ -89,5 +89,8 @@ fi
 help_contains "estate verification policy" estate verify "--policy"
 help_contains "estate verification gate" estate verify "--fail-on"
 help_contains "base dependents" estate dependents "--base"
+help_contains "policy starter refs" policy init "--refs"
+help_contains "policy starter inventory" policy init "--images"
+help_contains "policy starter output" policy init "--out"
 
 exit "$fail"

@@ -64,6 +64,7 @@ publishes. It is part of ClearCutt, with clearcutt-factory.`,
 	// Verify their evidence, write the estate report, and keep it.
 	add("verify", NewEstateCmd())
 	add("verify", NewEvidenceCmd())
+	add("verify", NewPolicyCmd())
 
 	return rootCmd
 }

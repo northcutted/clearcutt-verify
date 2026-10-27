@@ -18,6 +18,47 @@ clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme 
 `--observations dist/scan/observations.json` from `clearcutt-verify import observe`
 instead.
 
+## Prepare a starter policy
+
+```bash
+clearcutt-verify policy init --refs refs.txt --out policy
+```
+
+Use `--images images.yaml` instead of `--refs` to start from an inventory.
+Only its image references are used: declarations of evidence, platforms or
+trust do not count. The command resolves the references and discovers their
+attachments afresh, without invoking cosign or claiming verification.
+
+It writes `policy.yaml` and `trust-policy.yaml` into a **new directory**.
+`required` is the evidence found for every inspected image reference. SBOMs
+and scans must cover each platform image; an attachment on a multi-platform
+index alone does not establish that coverage. Comments show availability
+counts for the other kinds and formats that remain present-only. Discovered
+content may still be malformed or unusable; availability is not validation.
+An unreadable image, platform or evidence listing stops initialization
+without publishing a starter, rather than silently reducing requirements.
+
+The active trust list is `signers: []`. Discovered certificate identities,
+issuers and caller repository/refs appear only as commented **UNVERIFIED**
+candidates. Confirm them out of band before adding active signer rows;
+key-signed evidence requires a separately trusted public key. Notation
+certificate claims are labelled separately from Cosign trust entries.
+Choose vulnerability and freshness gates for your estate; the starter does
+not infer thresholds. An untouched starter cannot verify an image.
+
+`--platforms linux/amd64,linux/arm64` limits the inspected scope; use the same
+selection for verification. `--concurrency` defaults to four references.
+`--verbose` writes progress to stderr; `--quiet` suppresses progress and the
+normal summary. `--format json` or `--format yaml` prints a summary containing
+`images`, `required`, per-kind `available` counts, `unverifiedSigners`, the
+output path and any platform/format scope; these formats still print with
+`--quiet`. The YAML policy files are written separately.
+
+Existing output files, directories (including empty ones) and symlinks are
+refused. Both documents are parsed and validated in staging, then published
+together by a directory rename. Use a new output directory to discover
+again; initialization does not overwrite a policy you have reviewed.
+
 ## What it checks, per image
 
 1. **Evidence in the registry.** Signatures and attestations stored by cosign
