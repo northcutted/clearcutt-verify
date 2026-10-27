@@ -48,7 +48,8 @@ not infer thresholds. An untouched starter cannot verify an image.
 
 `--platforms linux/amd64,linux/arm64` limits the inspected scope; use the same
 selection for verification. `--concurrency` defaults to four references.
-`--verbose` writes progress to stderr; `--quiet` suppresses progress and the
+Progress goes to stderr when it is a terminal, or with `--verbose` when
+redirected. `--quiet` suppresses progress and the
 normal summary. `--format json` or `--format yaml` prints a summary containing
 `images`, `required`, per-kind `available` counts, `unverifiedSigners`, the
 output path and any platform/format scope; these formats still print with
@@ -482,6 +483,47 @@ image falls short, for CI. A run that could check nothing (every piece of
 evidence of every image `unknown`: cosign, the registries, or the images
 unreachable) writes its report, which says so, and exits 1: it isn't a
 result, and shouldn't pass a gate that only looks at the exit code.
+
+While resolving and inspecting images, progress goes to terminal stderr.
+Redirected stderr stays quiet unless `--verbose` is set; `--quiet` overrides
+both. Each unique observation is counted, including unreadable images.
+An `inspected` line means processing finished, not that its evidence verified:
+verdicts are calculated after base and stack relationships are known. Progress
+never enters JSON or YAML on stdout.
+
+### External-operation timeouts
+
+Every external operation has a positive duration limit, expressed as Go
+durations such as `30s` or `5m`. These are per-operation budgets, not a total
+estate-run limit:
+
+| Flag | Default | Applies to |
+| --- | --- | --- |
+| `--registry-timeout` | `1m` | Each registry HTTP attempt, including reading its response body, across registry scan, observation, policy discovery, verification, graph SBOM reads, estate and evidence transfers. |
+| `--cosign-timeout` | `2m` | Each Cosign invocation for verification and signed estate reads, including version and trusted-root initialization. |
+| `--github-timeout` | `30s` | Each GitHub Packages API page in `registry scan --github-org`, including the body. |
+| `--reproduce-timeout` | `30m` | Each Factory invocation in `estate verify --reproduce`. |
+| `--grype-timeout` | `10m` | Each Grype invocation in `estate verify --rescan`, including version, database preparation and each SBOM scan. |
+
+Registry retries have separate budgets. Estate verification allows up to four
+attempts plus backoff; several requests may be needed per image. Registry
+limits apply to this CLI's HTTP calls; Cosign, Grype and Factory do their own
+network work inside their subprocess budgets. Parent cancellation still applies.
+
+A timed-out evidence check or registry read is `unknown`, never a failed
+signature or missing evidence. An expired rescan is `unknown`; an expired
+rebuild is `not-checked` with its retained log directory. None establishes a
+clean scan or a digest mismatch. Tool version checks, `cosign initialize` and
+Grype database preparation happen before the run: their timeout exits 1 without
+publishing a report. The usual `--fail-on` and nothing-checked exit rules still
+apply to reports written after per-image timeouts. Policy initialization aborts
+unreadable discovery without publishing a starter; registry enumeration retains
+its existing error/partial-scope behavior.
+
+Subprocess cancellation kills the directly invoked tool and bounds pipe cleanup
+to two additional seconds. It does not establish that a remote BuildKit job has
+stopped; inspect the retained Factory logs and builder if cancellation interrupted
+a reproduction.
 
 ### Stacks
 

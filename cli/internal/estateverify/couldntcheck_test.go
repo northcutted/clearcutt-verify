@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	ggcrregistry "github.com/google/go-containerregistry/pkg/registry"
 
@@ -77,6 +78,11 @@ func TestCosignThatCouldntCheckLeavesEvidenceUnknown(t *testing.T) {
 	for name, v := range map[string]*Verifier{
 		"offline":   {Signers: signers, Run: offline},
 		"no cosign": {Signers: signers, Cosign: "/nonexistent/clearcutt-test/cosign"},
+		"timeout": {Signers: signers, Timeout: time.Millisecond,
+			Run: func(ctx context.Context, _ string, _ ...string) ([]byte, error) {
+				<-ctx.Done()
+				return nil, nil
+			}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r, err := Build(context.Background(), observe(t, host, "app:1"), Options{

@@ -44,8 +44,8 @@ Review these candidates out of band and choose vulnerability/freshness gates
 before using the policy. An untouched starter cannot verify an image.
 
 Existing output directories, files and symlinks are refused. Both documents
-are validated before the new directory is published. --verbose reports
-discovery progress on stderr; --format json or yaml prints a summary, not
+are validated before the new directory is published. Progress is written to
+terminal stderr (or with --verbose); --quiet disables it. --format json or yaml prints a summary, not
 the policy documents themselves.`,
 		Example: `  clearcutt-verify policy init --refs refs.txt --out policy
   clearcutt-verify policy init --images images.yaml --platforms linux/amd64,linux/arm64 --out policy`,
@@ -100,22 +100,17 @@ func runPolicyInit(ctx context.Context, stdout, stderr io.Writer, opts policyIni
 	if err != nil {
 		return fmt.Errorf("read image references: %w", err)
 	}
-	verbose := GlobalOpts.Verbose && !GlobalOpts.Quiet
-	if verbose {
+	if progressOutput(stderr) {
 		fmt.Fprintf(stderr, "[policy-init] resolving %d image reference(s)\n", len(inventory.Images))
 	}
-	ropts := []remote.Option{remote.WithAuthFromKeychain(registryauth.Keychain), remote.WithTransport(estateverify.NewManifestCache(remote.DefaultTransport))}
+	ropts := []remote.Option{remote.WithAuthFromKeychain(registryauth.Keychain), remote.WithTransport(estateverify.NewManifestCache(registryTransport()))}
 	observations, _, err := estategraph.ObserveImages(ctx, inventory, estategraph.RegistryObserver{Options: ropts},
 		estategraph.ObserveOptions{Strict: true, Concurrency: opts.concurrency})
 	if err != nil {
 		return err
 	}
 	settings := estateverify.PolicyInitOptions{Concurrency: opts.concurrency, Platforms: opts.platforms, RemoteOptions: ropts}
-	if verbose {
-		settings.Progress = func(completed, total int, ref string) {
-			fmt.Fprintf(stderr, "[policy-init] inspected %d/%d %q\n", completed, total, ref)
-		}
-	}
+	settings.Progress = imageProgress(stderr, "policy-init")
 	suggestion, err := estateverify.SuggestPolicy(ctx, observations, settings)
 	if err != nil {
 		return err

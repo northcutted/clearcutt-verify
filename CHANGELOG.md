@@ -12,6 +12,20 @@ merged pull requests; this file is the curated summary.
 
 ## Unreleased
 
+### Added: bounded external operations and per-image progress
+
+- `estate verify` and `policy init` report inspected images on terminal
+  stderr, or redirected stderr with `--verbose`; `--quiet` overrides both.
+  Progress remains separate from JSON/YAML output and counts processing,
+  not successful verification.
+- Global `--registry-timeout` (`1m` per HTTP attempt/body) and
+  `--cosign-timeout` (`2m` per invocation); `registry scan --github-timeout`
+  (`30s` per API page); `estate verify --reproduce-timeout` (`30m`) and
+  `--grype-timeout` (`10m`). All durations must be positive. Registry retries
+  have separate budgets. Expiry preserves unknown evidence/scan coverage
+  and not-checked reproduction. Preflight expiry exits 1 without a report.
+  No report contract fields changed.
+
 ### Added: prepare a policy from live evidence discovery
 
 - `policy init --refs refs.txt --out policy` (or `--images images.yaml`)

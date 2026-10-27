@@ -3,7 +3,9 @@ package commands
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/northcutted/clearcutt-verify/internal/operation"
 	"github.com/spf13/cobra"
 )
 
@@ -12,9 +14,11 @@ var Version = "dev"
 
 // GlobalOptions stores the CLI flags shared across commands.
 type GlobalOptions struct {
-	Format  string
-	Quiet   bool
-	Verbose bool
+	Format          string
+	Quiet           bool
+	Verbose         bool
+	RegistryTimeout time.Duration
+	CosignTimeout   time.Duration
 }
 
 // GlobalOpts holds the active parsed global options.
@@ -39,13 +43,18 @@ publishes. It is part of ClearCutt, with clearcutt-factory.`,
 		// ValidateGlobalFormat itself. No subcommand defines one today; keep it
 		// that way or compose explicitly.
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return ValidateGlobalFormat(GlobalOpts.Format)
+			if err := ValidateGlobalFormat(GlobalOpts.Format); err != nil {
+				return err
+			}
+			return validateTimeouts(cmd)
 		},
 	}
 
 	rootCmd.PersistentFlags().StringVar(&GlobalOpts.Format, "format", "table", "Output format: table, json, or yaml")
 	rootCmd.PersistentFlags().BoolVar(&GlobalOpts.Quiet, "quiet", false, "Suppress non-essential console outputs")
 	rootCmd.PersistentFlags().BoolVar(&GlobalOpts.Verbose, "verbose", false, "Enable verbose debug outputs")
+	rootCmd.PersistentFlags().DurationVar(&GlobalOpts.RegistryTimeout, "registry-timeout", operation.RegistryTimeout, "Limit each registry HTTP attempt including its body; retries get separate budgets")
+	rootCmd.PersistentFlags().DurationVar(&GlobalOpts.CosignTimeout, "cosign-timeout", operation.CosignTimeout, "Limit each cosign invocation, including version and initialization")
 
 	rootCmd.AddGroup(
 		&cobra.Group{ID: "map", Title: "Map an estate:"},

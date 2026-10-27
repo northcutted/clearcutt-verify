@@ -40,6 +40,22 @@ esac
 The global `--format` flag accepts `table` (default), `json`, or `yaml`.
 Unknown values are rejected before the command runs.
 
+`estate verify` and `policy init` show per-image progress on terminal stderr.
+Redirected stderr needs `--verbose` for progress; `--quiet` suppresses it.
+Machine output on stdout remains separate.
+
+## Timeouts
+
+Global `--registry-timeout` (default `1m`) bounds each registry HTTP attempt,
+including its body; retries get fresh budgets. Global `--cosign-timeout`
+(default `2m`) bounds each Cosign invocation. `registry scan --github-timeout`
+(default `30s`) bounds each GitHub Packages API page. `estate verify` also
+accepts `--reproduce-timeout` (default `30m`) and `--grype-timeout` (default
+`10m`). All values must be positive durations. These do not bound the entire
+run. Per-image expiry leaves evidence/rescans unknown or reproduction
+not-checked. Preflight tool/root/database expiry exits 1 before report
+publication. See [timeout behavior and limits](verify-estate.md#external-operation-timeouts).
+
 ## Install
 
 Releases ship cross-compiled binaries (`clearcutt-verify-<os>-<arch>` for

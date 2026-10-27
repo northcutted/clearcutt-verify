@@ -254,8 +254,8 @@ type RegistrySBOMFetcher struct {
 	nameOpts   []name.Option
 }
 
-func NewRegistrySBOMFetcher() *RegistrySBOMFetcher {
-	return &RegistrySBOMFetcher{remoteOpts: []remote.Option{remote.WithAuthFromKeychain(registryauth.Keychain)}}
+func NewRegistrySBOMFetcher(opts ...remote.Option) *RegistrySBOMFetcher {
+	return &RegistrySBOMFetcher{remoteOpts: append([]remote.Option{remote.WithAuthFromKeychain(registryauth.Keychain)}, opts...)}
 }
 
 func NewInsecureSBOMFetcher() *RegistrySBOMFetcher {

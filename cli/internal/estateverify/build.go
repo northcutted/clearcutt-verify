@@ -48,6 +48,9 @@ type Options struct {
 	// RemoteOptions reach the registries (auth, transport).
 	RemoteOptions []remote.Option
 	Log           io.Writer
+	// Progress is called serially after each unique observation is processed.
+	// Verdicts are computed later, after base and stack relationships are known.
+	Progress func(completed, total int, ref string)
 }
 
 // Reproducer checks that an image rebuilds (or re-rebases) to its digest.
@@ -131,6 +134,8 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 	namesBase := make([]bool, len(observations.Images))
 
 	var wg sync.WaitGroup
+	var progressMu sync.Mutex
+	completed := 0
 	sem := make(chan struct{}, conc)
 	for i, obs := range observations.Images {
 		wg.Add(1)
@@ -142,6 +147,12 @@ func Build(ctx context.Context, observations estategraph.Observations, opts Opti
 			r.Images[i] = img
 			packagesByImage[i] = pkgs
 			namesBase[i] = named
+			if opts.Progress != nil {
+				progressMu.Lock()
+				completed++
+				opts.Progress(completed, len(observations.Images), firstNonEmpty(obs.SourceRef, obs.DigestRef, obs.ID))
+				progressMu.Unlock()
+			}
 		}(i, obs)
 	}
 	wg.Wait()

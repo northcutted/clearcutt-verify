@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/northcutted/clearcutt-verify/internal/operation"
 	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
@@ -28,6 +29,8 @@ type Verifier struct {
 	// reads (cosign --trusted-root), so none fetches it from the TUF
 	// repository itself; PrepareTrustedRoot fetches it once.
 	TrustedRoot string
+	// Timeout bounds each cosign invocation, including initialization.
+	Timeout time.Duration
 	// Run executes cosign and returns stdout; tests replace it.
 	Run func(ctx context.Context, bin string, args ...string) ([]byte, error)
 }
@@ -431,18 +434,25 @@ func callerUnchecked(trusted, signer report.Signer) (string, bool) {
 }
 
 func (v *Verifier) run(ctx context.Context, args ...string) ([]byte, error) {
+	limit := operation.Limit(v.Timeout, operation.CosignTimeout)
+	ctx, cancel := context.WithTimeout(ctx, limit)
+	defer cancel()
 	bin := v.Cosign
 	if bin == "" {
 		bin = "cosign"
 	}
 	if v.Run != nil {
 		out, err := v.Run(ctx, bin, args...)
-		return out, classify(ctx, err)
+		return out, classify(ctx, operation.Result(ctx, "cosign "+args[0], limit, err))
 	}
 	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd.WaitDelay = operation.PipeWait
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
+	if ctx.Err() != nil {
+		return nil, unchecked(operation.Result(ctx, "cosign "+args[0], limit, err))
+	}
 	if err != nil {
 		wrapped := fmt.Errorf("cosign %s: %w: %s", args[0], err, cosignStderr(stderr.String()))
 		var exit *exec.ExitError
