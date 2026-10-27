@@ -112,7 +112,7 @@ func TestRealCosign(t *testing.T) {
 	write("trivy.json", map[string]any{
 		"invocation": map[string]any{"parameters": nil, "uri": "", "event_id": "", "builder.id": ""},
 		"scanner": map[string]any{"uri": "pkg:github/aquasecurity/trivy@0.67.2", "version": "0.67.2", "result": map[string]any{
-			"SchemaVersion": 2, "Results": []any{map[string]any{"Target": "app", "Vulnerabilities": []any{
+			"SchemaVersion": 2, "Results": []any{map[string]any{"Target": "app", "Class": "os-pkgs", "Type": "alpine", "Vulnerabilities": []any{
 				map[string]string{"VulnerabilityID": "CVE-2026-0002", "PkgName": "openssl", "InstalledVersion": "3.0.1", "Severity": "CRITICAL"}}}}}},
 		"metadata": map[string]string{"scanStartedOn": "2026-10-18T00:00:00Z", "scanFinishedOn": "2026-10-18T00:01:00Z"},
 	})
