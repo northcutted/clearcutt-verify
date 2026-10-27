@@ -58,7 +58,7 @@ const (
 	// FormatNotation is a Notation signature (notation sign: ACR, Harbor,
 	// ECR, and others), an OCI referrer of artifact type
 	// application/vnd.cncf.notary.signature. clearcutt-verify doesn't verify
-	// it: it is present, never verified.
+	// it unless explicit Notation trust and a supported CLI are configured.
 	FormatNotation = "notation-signature"
 	// FormatBuildx is an in-toto statement BuildKit stores in the image index
 	// (docker buildx build --sbom, --provenance): an attestation manifest
@@ -69,8 +69,8 @@ const (
 	FormatCosignSBOM = "cosign-sbom-tag"
 )
 
-// Unsigned reports whether evidence in format carries nothing
-// clearcutt-verify can verify: it is present at best, and never read.
+// Unsigned reports formats outside Cosign verification. Notation signatures
+// have a separate opt-in verifier; the other formats are present at best.
 func Unsigned(format string) bool {
 	switch format {
 	case FormatRawReferrer, FormatNotation, FormatBuildx, FormatCosignSBOM:
@@ -277,7 +277,7 @@ func (d *Discoverer) referrer(ctx context.Context, ref name.Digest, subject stri
 // checked, as the signature is never verified. A COSE envelope's signer
 // isn't read.
 func notationSignature(img v1.Image, m *v1.Manifest, ref name.Digest, subject string) Found {
-	f := Found{Kind: KindSignature, Format: FormatNotation, Ref: ref.String(), Subject: subject, Timestamp: m.Annotations["org.opencontainers.image.created"]}
+	f := Found{Kind: KindSignature, Format: FormatNotation, Ref: ref.String(), Subject: subject, Timestamp: m.Annotations["org.opencontainers.image.created"], artifact: img}
 	if len(m.Layers) > 0 && m.Layers[0].MediaType == "application/jose+json" {
 		if raw, err := readBlob(img, m.Layers[0].Digest); err == nil {
 			f.Signer = notationSigner(raw)

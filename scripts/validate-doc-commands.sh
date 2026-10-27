@@ -98,5 +98,7 @@ help_contains "reproduction timeout" estate verify "--reproduce-timeout"
 help_contains "grype timeout" estate verify "--grype-timeout"
 help_contains "GitHub request timeout" registry scan "--github-timeout"
 help_contains "verification cache" estate verify "--cache-dir"
+help_contains "Notation binary" estate verify "--notation-path"
+help_contains "Notation timeout" estate verify "--notation-timeout"
 
 exit "$fail"

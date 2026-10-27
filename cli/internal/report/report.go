@@ -97,6 +97,9 @@ type Policy struct {
 	// count as verified. Empty means nothing can be verified, only present,
 	// and every image's verdict is unverified.
 	TrustedSigners []Signer `json:"trustedSigners"`
+	// Notation separately trusts X.509 image signatures. It does not authorize
+	// Cosign attestations, stack signatures or estate report publishers.
+	Notation *NotationTrust `json:"notation,omitempty"`
 	// FailOn fails images with vulnerabilities at or above this severity
 	// (negligible, low, medium, high, critical); empty never fails.
 	FailOn string `json:"failOn,omitempty" enum:"negligible,low,medium,high,critical"`
@@ -140,6 +143,16 @@ type Policy struct {
 	// provenance naming another is failed. Without it, the builder isn't
 	// evaluated.
 	ProvenanceBuilders []string `json:"provenanceBuilders,omitempty"`
+}
+
+// NotationTrust is explicit X.509 trust for Notation image signatures.
+type NotationTrust struct {
+	// TrustedIdentities are Notation x509.subject distinguished-name constraints.
+	// Wildcard identities are not accepted.
+	TrustedIdentities []string `json:"trustedIdentities"`
+	// TrustRoots are local certificate files, resolved relative to the policy.
+	// A run pins their bytes for its strict Notation verification.
+	TrustRoots []string `json:"trustRoots"`
 }
 
 // VEXDocument is an OpenVEX document a policy applied.
@@ -471,16 +484,19 @@ type EvidenceItem struct {
 	// registry, which gh attestation verify --bundle-from-oci can check too;
 	// it is told apart from cosign's by its content, so only verified
 	// evidence is labeled so, and an unverified one shows as
-	// cosign-attestation. notation-signature, buildx-attestation,
+	// cosign-attestation. notation-signature can verify against explicit
+	// Notation trust; buildx-attestation,
 	// cosign-sbom-tag, and oci-referrer evidence is never verified: it is
 	// present at best, and nothing in it is read.
 	Source string `json:"source,omitempty"`
 	// PredicateType is the in-toto predicate type, for attestations.
 	PredicateType string `json:"predicateType,omitempty"`
-	// Signer is who signed it. On verified evidence it is what cosign
+	// Signer is who signed it. On verified Cosign evidence it is what cosign
 	// checked: the certificate's identity and issuer and, for GitHub
 	// Actions, the repository and ref of the run that signed (or the trusted
-	// key). Otherwise it is what the evidence's certificate claims, unverified.
+	// key). On verified Notation JWS signatures it is the checked certificate's
+	// X.509 subject; an unread COSE signing identity remains absent. Otherwise
+	// it is what the evidence's certificate claims, unverified.
 	Signer *Signer `json:"signer,omitempty"`
 	// SignerWorkflow, on verified evidence a GitHub Actions workflow signed,
 	// is that workflow without its ref (github.com/OWNER/REPO/.github/
@@ -529,20 +545,21 @@ type Finding struct {
 	Platforms []string `json:"platforms"`
 	// Suppressed says a VEX statement covers it (it is not counted).
 	Suppressed bool `json:"suppressed,omitempty"`
-	// SuppressedBy names the statement, for findings this run's rescan
-	// suppressed with the policy's VEX documents. Absent on a suppressed
-	// finding, the publisher's scan suppressed it with a statement this run
-	// didn't see.
+	// SuppressedBy names a matching statement from the trusted publisher's
+	// signed scan metadata (source attestation), or the policy's VEX applied
+	// to this run's rescan (source scan). Absent means attribution is unknown
+	// or differs across platforms; the finding remains visibly suppressed.
 	SuppressedBy *Suppression `json:"suppressedBy,omitempty"`
 }
 
-// Suppression is what suppressed a finding in this run's rescan.
+// Suppression attributes a suppressed finding. On attestation findings it is
+// the publisher's signed assertion, not independent verification of a VEX file.
 type Suppression struct {
-	// Source is vex (a statement in one of the policy's OpenVEX documents) or
-	// scanner (a rule of grype's own, such as the one for kernel headers).
+	// Source is vex (a matching OpenVEX statement, as the scan's source says)
+	// or scanner (a rule of grype's own, such as the one for kernel headers).
 	Source string `json:"source" enum:"vex,scanner"`
-	// File is the document's path as the policy named it, and Document its
-	// @id (source vex).
+	// File is the document's path for this run's policy VEX, when known.
+	// Document is its @id or the publisher's signed document identifier.
 	File     string `json:"file,omitempty"`
 	Document string `json:"document,omitempty"`
 	// Product is the statement's product @id as written in the document: the

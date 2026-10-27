@@ -27,13 +27,14 @@ import (
 //	onlyFixed: true
 //	maxDaysBehind: 30
 type PolicyFile struct {
-	APIVersion    string          `json:"apiVersion"`
-	Kind          string          `json:"kind"`
-	Required      []string        `json:"required"`
-	TrustedSigner []report.Signer `json:"trustedSigners"`
-	FailOn        string          `json:"failOn"`
-	OnlyFixed     bool            `json:"onlyFixed"`
-	MaxDaysBehind int             `json:"maxDaysBehind"`
+	APIVersion    string                `json:"apiVersion"`
+	Kind          string                `json:"kind"`
+	Required      []string              `json:"required"`
+	TrustedSigner []report.Signer       `json:"trustedSigners"`
+	Notation      *report.NotationTrust `json:"notation"`
+	FailOn        string                `json:"failOn"`
+	OnlyFixed     bool                  `json:"onlyFixed"`
+	MaxDaysBehind int                   `json:"maxDaysBehind"`
 	// MaxScanAgeDays leaves images whose vulnerability scan is older
 	// unverified.
 	MaxScanAgeDays int `json:"maxScanAgeDays"`
@@ -81,7 +82,17 @@ func ReadPolicy(path string) (report.Policy, error) {
 		}
 	}
 	p := report.Policy{Required: f.Required, TrustedSigners: f.TrustedSigner, FailOn: f.FailOn, OnlyFixed: f.OnlyFixed, MaxDaysBehind: f.MaxDaysBehind, MaxScanAgeDays: f.MaxScanAgeDays, StackSigners: f.StackSigners,
-		ScanSource: f.ScanSource, Observe: f.Observe, ProvenanceBuilders: f.ProvenanceBuilders}
+		ScanSource: f.ScanSource, Observe: f.Observe, ProvenanceBuilders: f.ProvenanceBuilders, Notation: f.Notation}
+	if p.Notation != nil {
+		if err := validateNotationTrust(p.Notation); err != nil {
+			return report.Policy{}, err
+		}
+		for i, root := range p.Notation.TrustRoots {
+			if !filepath.IsAbs(root) {
+				p.Notation.TrustRoots[i] = filepath.Join(dir, root)
+			}
+		}
+	}
 	if len(f.VEX) > 0 {
 		docs, err := ReadVEX(dir, f.VEX)
 		if err != nil {
@@ -189,6 +200,9 @@ func keyPath(dir, k string) string {
 
 // ValidatePolicy checks the policy's requirements and signers.
 func ValidatePolicy(p report.Policy) error {
+	if err := validateNotationTrust(p.Notation); err != nil {
+		return err
+	}
 	for _, k := range p.Required {
 		if k == KindRebase || !contains(Kinds, k) {
 			return fmt.Errorf("required evidence %q must be one of signature, sbom, vulnerabilityScan, provenance, recipe, tests", k)
@@ -251,7 +265,7 @@ func verdict(img report.Image, p report.Policy) report.Verdict {
 func verdictAt(img report.Image, p report.Policy, now time.Time) report.Verdict {
 	var failed, unverified []string
 	switch {
-	case len(p.TrustedSigners) == 0:
+	case len(p.TrustedSigners) == 0 && p.Notation == nil:
 		// Nothing about an image can be verified without someone to trust.
 		unverified = append(unverified, "no trusted signer is configured, so nothing about it can be verified")
 	case !anyVerified(img.Evidence):

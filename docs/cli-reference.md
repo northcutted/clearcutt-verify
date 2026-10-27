@@ -64,6 +64,13 @@ other configurations use live verification. Corrupt/unavailable cache entries
 are misses. Do not load untrusted caches; deleting the directory is safe. See
 [cache scope and invalidation](verify-estate.md#reuse-verified-evidence-across-runs).
 
+`estate verify --notation-path notation --notation-timeout 2m` supports
+explicit `notation: {trustedIdentities: [...], trustRoots: [...]}` in a
+VerificationPolicy. It checks pinned image signatures with isolated strict
+X.509 trust using Notation 1.3.2+ (1.3 series). Missing/unsupported CLI stays
+present; ambiguous failure/timeout is unknown. Use `--fail-on unverified`.
+Notation is never cached. See [Notation trust and limits](verify-estate.md#notation-image-signatures).
+
 ## Install
 
 Releases ship cross-compiled binaries (`clearcutt-verify-<os>-<arch>` for

@@ -312,13 +312,28 @@ jobs:
           echo "$dir" >> "$GITHUB_PATH"
           "$dir/grype" version
 
-      - name: Sign, Attest, And Verify With Real cosign
+      - name: Install Notation (pinned, checksum-verified)
+        env:
+          NOTATION_VERSION: "1.3.2"
+          NOTATION_SHA256: e1a0f060308086bf8020b2d31defb7c5348f133ca0dba6a1a7820ef3cbb6dfe5
+        run: |
+          set -euo pipefail
+          notation_dir="$RUNNER_TEMP/notation"
+          mkdir -p "$notation_dir"
+          curl -fsSL --retry 3 -o "$notation_dir/notation.tar.gz" \
+            "https://github.com/notaryproject/notation/releases/download/v${NOTATION_VERSION}/notation_${NOTATION_VERSION}_linux_amd64.tar.gz"
+          echo "${NOTATION_SHA256}  $notation_dir/notation.tar.gz" | sha256sum -c -
+          tar -xzf "$notation_dir/notation.tar.gz" -C "$notation_dir" notation
+          "$notation_dir/notation" version
+
+      - name: Sign, Attest, And Verify With Real Cosign And Notation
         working-directory: cli
         env:
           CLEARCUTT_E2E_REGISTRY: localhost:5000
           CLEARCUTT_E2E_RESCAN: ${{ matrix.rescan }}
           CLEARCUTT_E2E_BUNDLE_OUT: ${{ runner.temp }}/e2e-bundle
-        run: go test -count=1 -timeout 10m -run '^TestRealCosign$' -v ./internal/commands
+          CLEARCUTT_E2E_NOTATION: ${{ runner.temp }}/notation/notation
+        run: go test -count=1 -timeout 10m -run '^(TestRealCosign|TestRealNotation)$' -v ./internal/commands
 
       - name: Keep The Bundle For The Portal Contract Gate
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

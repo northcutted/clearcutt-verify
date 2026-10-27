@@ -108,8 +108,14 @@ func TestRealCosign(t *testing.T) {
 			"matches": []any{map[string]any{
 				"vulnerability": map[string]any{"id": "CVE-2026-0001", "severity": "High", "fix": map[string]any{"versions": []string{"3.0.2"}, "state": "fixed"}},
 				"artifact":      map[string]string{"name": "openssl", "version": "3.0.1"}}},
+			"ignoredMatches": []any{map[string]any{
+				"vulnerability":      map[string]any{"id": "CVE-2026-SUPPRESSED", "severity": "Critical"},
+				"artifact":           map[string]string{"name": "openssl", "version": "3.0.1", "purl": "pkg:apk/wolfi/openssl@3.0.1"},
+				"appliedIgnoreRules": []any{map[string]string{"namespace": "vex"}}}},
 			"descriptor": map[string]string{"name": "grype", "version": "0.100.0"}}},
-		"metadata": map[string]string{"scanStartedOn": "2026-10-18T00:00:00Z", "scanFinishedOn": "2026-10-18T00:01:00Z"},
+		"metadata": map[string]any{"scanStartedOn": "2026-10-18T00:00:00Z", "scanFinishedOn": "2026-10-18T00:01:00Z",
+			"vex": map[string]any{"suppressed": []any{map[string]string{"vulnerability": "CVE-2026-SUPPRESSED", "package": "openssl", "version": "3.0.1", "purl": "pkg:apk/wolfi/openssl@3.0.1",
+				"document": "https://example.test/vex/e2e", "product": "pkg:apk/wolfi/openssl", "status": "not_affected", "justification": "vulnerable_code_not_present"}}}},
 	})
 	write("trivy.json", map[string]any{
 		"invocation": map[string]any{"parameters": nil, "uri": "", "event_id": "", "builder.id": ""},
@@ -166,7 +172,7 @@ func TestRealCosign(t *testing.T) {
 		attest(key, "slsaprovenance1", "provenance.json", index, legacy)
 		for _, p := range platforms {
 			attest(key, "cyclonedx", "sbom.json", p, legacy)
-			attest(key, "vuln", scan, p, legacy)
+			attest(key, "https://cosign.sigstore.dev/attestation/vuln/v1", scan, p, legacy)
 		}
 	}
 	evidence("app", "trusted", "grype.json", false) // all evidence, signed by the trusted key
@@ -299,6 +305,20 @@ trustedSigners:
 	}
 	if v := a.Vulnerabilities; v == nil || v.Counts.High != 1 || !strings.HasPrefix(v.Scanner, "grype") || v.ScannedAt != "2026-10-18T00:01:00Z" {
 		t.Errorf("app vulnerabilities: %+v", a.Vulnerabilities)
+	}
+	if v := a.Vulnerabilities; v != nil {
+		found := false
+		for _, f := range v.Findings {
+			if f.ID == "CVE-2026-SUPPRESSED" {
+				found = true
+				if !f.Suppressed || f.SuppressedBy == nil || f.SuppressedBy.Document != "https://example.test/vex/e2e" || f.SuppressedBy.Product != "pkg:apk/wolfi/openssl" {
+					t.Errorf("signed Factory VEX attribution: %+v", f)
+				}
+			}
+		}
+		if !found || v.Counts.Critical != 0 {
+			t.Error("suppressed finding disappeared or counted")
+		}
 	}
 	if a.Packages == nil || *a.Packages != 2 || a.Source == nil || a.Source.Basis != "provenance" || a.Source.Revision != "0123456789abcdef0123456789abcdef01234567" {
 		t.Errorf("app packages %v, source %+v", a.Packages, a.Source)

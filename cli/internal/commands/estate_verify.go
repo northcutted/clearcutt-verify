@@ -36,24 +36,28 @@ var cosignRunner func(ctx context.Context, bin string, args ...string) ([]byte, 
 // grypeRunner, when set, runs grype instead of the binary (tests).
 var grypeRunner func(ctx context.Context, dir, bin string, args ...string) (stdout, stderr []byte, err error)
 
+var notationRunner estateverify.NotationRunner
+
 var estateVerifyOpts struct {
-	observations string
-	refs         string
-	policy       string
-	name         string
-	out          string
-	history      string
-	reproduce    bool
-	rescan       bool
-	factoryPath  string
-	cosignPath   string
-	grypePath    string
-	trustedRoot  string
-	generatedAt  string
-	concurrency  int
-	platforms    []string
-	failOn       string
-	cacheDir     string
+	observations    string
+	refs            string
+	policy          string
+	name            string
+	out             string
+	history         string
+	reproduce       bool
+	rescan          bool
+	factoryPath     string
+	cosignPath      string
+	grypePath       string
+	trustedRoot     string
+	generatedAt     string
+	concurrency     int
+	platforms       []string
+	failOn          string
+	cacheDir        string
+	notationPath    string
+	notationTimeout time.Duration
 	// Policy without a file.
 	require          []string
 	identityRegexp   string
@@ -124,6 +128,8 @@ isn't, --quiet prints nothing but errors and the --fail-on result, and
 	f.BoolVar(&o.reproduce, "reproduce", false, "Rebuild clearcutt-factory images from their signed recipes and compare digests (images with a verified reproduction attestation aren't rebuilt)")
 	f.StringVar(&o.factoryPath, "factory-path", "clearcutt-factory", "clearcutt-factory binary, for --reproduce")
 	f.StringVar(&o.cosignPath, "cosign-path", "cosign", "cosign v3 binary (checked before the run; missing or another major version exits 1)")
+	f.StringVar(&o.notationPath, "notation-path", "notation", "Notation 1.3.2+ (1.3 series) for explicit notation policy trust; missing/unsupported leaves signatures present")
+	f.DurationVar(&o.notationTimeout, "notation-timeout", estateverify.DefaultNotationTimeout, "Limit each Notation invocation; timeout and ambiguous verification failures remain unknown")
 	f.StringVar(&o.trustedRoot, "trusted-root", "", "Sigstore trusted_root.json for cosign to verify keyless evidence, and key-signed evidence in the transparency log, against (cosign --trusted-root); default: fetched once with cosign initialize before the run")
 	f.BoolVar(&o.rescan, "rescan", false, "Scan each image's verified SBOMs with grype and report the fresh findings beside the attested scan (grype's database is updated once first; GRYPE_DB_AUTO_UPDATE=false keeps the one installed)")
 	f.StringVar(&o.grypePath, "grype-path", "grype", "grype binary, for --rescan (checked before the run; missing exits 1)")
@@ -247,6 +253,10 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		if verifier.Cache.Disabled != "" && GlobalOpts.Verbose && !GlobalOpts.Quiet {
 			fprintf(stderr, "[verify-estate] verification cache disabled: %s; using live verification\n", verifier.Cache.Disabled)
 		}
+	}
+	verifier.Notation, err = estateverify.NewNotationVerifier(ctx, policy.Notation, o.notationPath, o.notationTimeout, ropts, notationRunner)
+	if err != nil {
+		return err
 	}
 	var observations estategraph.Observations
 	if o.observations != "" {

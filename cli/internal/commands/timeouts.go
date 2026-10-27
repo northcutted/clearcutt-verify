@@ -10,7 +10,7 @@ import (
 )
 
 func validateTimeouts(cmd *cobra.Command) error {
-	for _, flag := range []string{"registry-timeout", "cosign-timeout", "github-timeout", "reproduce-timeout", "grype-timeout"} {
+	for _, flag := range []string{"registry-timeout", "cosign-timeout", "github-timeout", "reproduce-timeout", "grype-timeout", "notation-timeout"} {
 		if cmd.Flags().Lookup(flag) != nil {
 			limit, err := cmd.Flags().GetDuration(flag)
 			if err != nil {

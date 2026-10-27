@@ -84,8 +84,8 @@ type vulnScan struct {
 	ScannedAt string
 	Result    grypeResult
 	Database  *report.ScannerDatabase
-	// suppressedBy names what suppressed each ignored match (this run's
-	// scans), by index into Result.IgnoredMatches.
+	// suppressedBy names what suppressed each ignored match, from the trusted
+	// publisher's metadata or this run's VEX, by index into IgnoredMatches.
 	suppressedBy []*report.Suppression
 }
 
@@ -108,8 +108,9 @@ func readVulnPredicate(pred json.RawMessage) (vulnScan, error) {
 			Result  json.RawMessage `json:"result"`
 		} `json:"scanner"`
 		Metadata struct {
-			ScanFinishedOn string `json:"scanFinishedOn"`
-			ScanStartedOn  string `json:"scanStartedOn"`
+			ScanFinishedOn string          `json:"scanFinishedOn"`
+			ScanStartedOn  string          `json:"scanStartedOn"`
+			VEX            json.RawMessage `json:"vex"`
 		} `json:"metadata"`
 	}
 	if err := json.Unmarshal(pred, &p); err != nil {
@@ -139,10 +140,63 @@ func readVulnPredicate(pred json.RawMessage) (vulnScan, error) {
 	}
 	version := firstNonEmpty(r.Descriptor.Version, p.Scanner.Version)
 	return vulnScan{
-		Scanner:   strings.TrimSpace("grype " + version),
-		ScannedAt: scannedAt,
-		Result:    r,
+		Scanner:      strings.TrimSpace("grype " + version),
+		ScannedAt:    scannedAt,
+		Result:       r,
+		suppressedBy: attestedSuppressions(p.Metadata.VEX, r.IgnoredMatches),
 	}, nil
+}
+
+// attestedSuppressions reads Factory's signed metadata.vex.suppressed projection.
+// It supplies attribution only: it never suppresses a counted match, adds a
+// finding, or makes the publisher's VEX a policy for this run's rescan.
+func attestedSuppressions(raw json.RawMessage, matches []grypeMatch) []*report.Suppression {
+	var metadata struct {
+		Suppressed []struct {
+			Vulnerability string `json:"vulnerability"`
+			Package       string `json:"package"`
+			Version       string `json:"version"`
+			PURL          string `json:"purl"`
+			Document      string `json:"document"`
+			Product       string `json:"product"`
+			Status        string `json:"status"`
+			Justification string `json:"justification"`
+		} `json:"suppressed"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &metadata) != nil {
+		return nil
+	}
+	out := make([]*report.Suppression, len(matches))
+	for i, match := range matches {
+		vex := false
+		for _, rule := range match.AppliedIgnoreRules {
+			vex = vex || rule.Namespace == "vex"
+		}
+		if !vex {
+			continue
+		}
+		var selected *report.Suppression
+		ambiguous := false
+		for _, row := range metadata.Suppressed {
+			if row.Vulnerability != match.Vulnerability.ID || row.Package != match.Artifact.Name || row.Version != match.Artifact.Version || row.PURL != match.Artifact.PURL {
+				continue
+			}
+			if row.Document == "" || row.Product == "" || row.Status != "not_affected" && row.Status != "fixed" {
+				ambiguous = true
+				break
+			}
+			by := report.Suppression{Source: "vex", Document: row.Document, Product: row.Product, Status: row.Status, Justification: row.Justification}
+			if selected != nil && *selected != by {
+				ambiguous = true
+				break
+			}
+			selected = &by
+		}
+		if !ambiguous {
+			out[i] = selected
+		}
+	}
+	return out
 }
 
 // trivyReport is the part of Trivy's JSON report (schema version 2) the
@@ -260,6 +314,10 @@ func mergeScans(scans map[string]vulnScan, source string) *report.Vulnerabilitie
 			}
 			byKey[key] = f
 			keys = append(keys, key)
+		} else if f.SuppressedBy == nil || by == nil || *f.SuppressedBy != *by {
+			// One projection describes all listed platforms. Different or
+			// unknown attributions cannot become one document covering them all.
+			f.SuppressedBy = nil
 		}
 		f.Platforms = appendUnique(f.Platforms, platform)
 		// Suppressed on every platform, or counted.

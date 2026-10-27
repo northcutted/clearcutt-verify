@@ -18,6 +18,7 @@ func TestTimeoutFlagsRejectZeroAndNegative(t *testing.T) {
 		{[]string{"estate", "verify"}, "cosign-timeout"},
 		{[]string{"estate", "verify"}, "reproduce-timeout"},
 		{[]string{"estate", "verify"}, "grype-timeout"},
+		{[]string{"estate", "verify"}, "notation-timeout"},
 		{[]string{"registry", "scan", "--output", "unused"}, "github-timeout"},
 	} {
 		for _, limit := range []string{"0", "-1s"} {

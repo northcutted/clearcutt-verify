@@ -33,6 +33,7 @@ type Verifier struct {
 	Timeout time.Duration
 	// Cache optionally reuses successful verification of pinned evidence.
 	Cache      *VerificationCache
+	Notation   *NotationVerifier
 	cacheFound []Found
 	// Run executes cosign and returns stdout; tests replace it.
 	Run func(ctx context.Context, bin string, args ...string) ([]byte, error)
@@ -761,6 +762,15 @@ func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageS
 	}
 	for i, f := range copies {
 		switch {
+		case f.Format == FormatNotation && kind == KindSignature && v.Notation != nil:
+			status[i], detail[i] = v.Notation.Verify(ctx, ref, f)
+			if status[i] == "verified" {
+				c := &verifiedCopy{Found: f}
+				if f.Signer != nil {
+					c.signer = *f.Signer
+				}
+				passed[i] = c
+			}
 		case Unsigned(f.Format):
 			// Never handed to cosign: nothing a trusted signer signed is in it.
 			status[i], detail[i] = "present", unsignedDetail(f)
@@ -891,10 +901,17 @@ func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageS
 	signer := best.signer
 	item := report.EvidenceItem{Status: "verified", Source: verifiedSourceName(best), PredicateType: best.PredicateType, Ref: best.Ref, Timestamp: best.Timestamp, Signer: &signer,
 		SignerWorkflow: signerWorkflow(signer)}
+	if best.Format == FormatNotation {
+		item.Detail = "Notation verified this pinned signature with a strict X.509 policy; expiry and revocation are checked this run."
+		if best.Signer == nil {
+			item.Signer = nil
+			item.Detail += " Its signing certificate subject was not read from the envelope."
+		}
+	}
 	if n := len(copies) - len(verified); n == 1 {
-		item.Detail = "1 other attached copy isn't verified and wasn't read."
+		item.Detail = strings.TrimSpace(item.Detail + " 1 other attached copy isn't verified and wasn't read.")
 	} else if n > 1 {
-		item.Detail = fmt.Sprintf("%d other attached copies aren't verified and weren't read.", n)
+		item.Detail = strings.TrimSpace(item.Detail + fmt.Sprintf(" %d other attached copies aren't verified and weren't read.", n))
 	}
 	return item, verified
 }
@@ -904,7 +921,7 @@ func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageS
 func unsignedDetail(f Found) string {
 	switch f.Format {
 	case FormatNotation:
-		return "A Notation signature. clearcutt-verify doesn't verify Notation signatures, so it is present, not verified; notation verify checks it against a Notation trust policy."
+		return "A Notation signature. Explicit notation trust and a supported notation CLI are required to verify it; otherwise it is present, not verified."
 	case FormatBuildx:
 		return "An unsigned in-toto statement BuildKit stored in the image index (docker buildx build --sbom or --provenance); nothing can verify it, so it isn't read."
 	case FormatCosignSBOM:

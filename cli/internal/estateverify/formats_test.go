@@ -233,7 +233,7 @@ func TestNotationSignatureIsPresent(t *testing.T) {
 			n := img["notated"]
 			s := n.Evidence.Signature
 			if s.Status != "present" || s.Source != "notation-signature" || s.Ref != sig || s.Signer == nil || s.Signer.Identity != "x509.subject: "+notarySubject ||
-				s.Timestamp != "2026-10-20T00:00:00Z" || !strings.Contains(s.Detail, "doesn't verify Notation signatures") {
+				s.Timestamp != "2026-10-20T00:00:00Z" || !strings.Contains(s.Detail, "Explicit notation trust") {
 				t.Errorf("notation signature: %+v (signer %+v)", s, s.Signer)
 			}
 			if n.Verdict.Status != "unverified" {

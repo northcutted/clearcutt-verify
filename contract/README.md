@@ -111,8 +111,19 @@ counted. In a rescan, `suppressedBy` names what suppressed it: `source: vex`
 with the OpenVEX document the policy named (`file` as written in the policy,
 `document` its `@id`), the statement's `product` as written, `status`, and
 `justification`; or `source: scanner` for grype's own rules. A suppressed
-finding without `suppressedBy` was suppressed by the publisher's scan with a
-statement this run didn't see. `policy.vex` lists the documents applied.
+finding without `suppressedBy` has unknown or platform-dependent attribution.
+On `source: attestation` findings, matching Factory `metadata.vex.suppressed`
+can supply the publisher's signed document/product/status/justification, with
+no inferred local file or independent VEX verification. Metadata changes no
+finding counts. `policy.vex` lists this run's policy documents.
+
+Optional `policy.notation` contains `trustedIdentities: string[]` and
+`trustRoots: string[]` (resolved certificate paths) for strict Notation image
+signature checks. Verified `source: notation-signature` evidence identifies
+the exact checked artifact. A JWS `signer.identity` is its checked X.509
+subject; an unread COSE subject leaves `signer` absent. Its `issuer` is not
+invented as an OIDC issuer. Older schemas rejecting unknown fields need this
+updated schema when the optional policy block is present.
 
 **Observe-only images.** `images[].observeOnly: true` marks an image the policy
 observes without gating on (`policy.observe` patterns): it has a `verdict`

@@ -12,6 +12,20 @@ merged pull requests; this file is the curated summary.
 
 ## Unreleased
 
+### Added: explicit Notation verification and signed VEX attribution
+
+- VerificationPolicy `notation: {trustedIdentities, trustRoots}` separately
+  trusts X.509 image signatures. `--notation-path` and `--notation-timeout`
+  (`2m`) use Notation 1.3.2+ in the 1.3 series with a pinned one-signature
+  experimental OCI layout, isolated strict policy/roots and no plugins.
+  Missing/unsupported CLI remains present; timeout or ambiguous failure is
+  unknown. Notation expiry/revocation is always fresh, never cached.
+- Optional report `policy.notation` records identity constraints and resolved
+  root paths. Updated contract schemas are required for this opt-in field.
+- Trusted Factory `metadata.vex.suppressed` supplies attribution for exact
+  existing ignored matches only. Counts and rescans are unchanged; conflicting
+  or missing attribution across platforms remains unknown.
+
 ### Added: opt-in verification cache
 
 - `estate verify --cache-dir DIR` reuses successful Cosign answers bound to

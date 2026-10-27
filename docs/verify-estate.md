@@ -67,21 +67,19 @@ again; initialization does not overwrite a policy you have reviewed.
    attestations pushed to the registry), by cosign v2 (`sha256-<digest>.sig`
    and `.att` tags), and unsigned SBOMs attached as referrers. Bundles are
    decoded to learn what each one actually holds; cosign labels its own
-   bundles as plain signatures. Evidence other tools leave is found too, and
-   reported `present`, never `verified`, with nothing in it read:
+   bundles as plain signatures. Evidence other tools leave is found too:
    - **Notation signatures** (`notation sign`, as ACR, Harbor, and ECR
      setups use): referrers of artifact type
      `application/vnd.cncf.notary.signature` (`source: notation-signature`).
-     clearcutt-verify doesn't verify them (no ClearCutt trust policy names a
-     Notation signer, and cosign doesn't check them); the `signer` it shows
-     is the claim in the envelope's certificate, `identity: "x509.subject:
-     <subject>"` (JWS envelopes; a COSE envelope's isn't read). `notation
-     verify` checks them against a Notation trust policy.
+     Explicit `notation` policy trust and a supported Notation CLI can verify
+     them against a generated strict X.509 policy. Otherwise they are
+     `present`. JWS certificate subjects are claims until that exact pinned
+     envelope verifies; COSE signing identities remain absent.
    - **BuildKit attestations** (`docker buildx build --sbom --provenance`):
      the SPDX SBOM and SLSA provenance BuildKit stores in the image index, in
      an attestation manifest beside each platform image
      (`vnd.docker.reference.type: attestation-manifest`; `source:
-     buildx-attestation`). They are unsigned in-toto statements.
+     buildx-attestation`). They are unsigned in-toto statements, present only.
    - **cosign's `.sbom` tag** (`cosign attach sbom`): an unsigned SBOM in the
      `sha256-<digest>.sbom` tag (`source: cosign-sbom-tag`).
 
@@ -254,6 +252,16 @@ documents, and a statement about an image that isn't in the estate is
 warned about. The flag form is `--vex FILE` (relative to the working
 directory).
 
+Trusted Factory vulnerability attestations can also carry the publisher's
+`metadata.vex.suppressed` attribution. Verify links it only to an existing
+Grype ignored match with namespace `vex` and the exact vulnerability ID,
+package name/version and full PURL. Its `suppressedBy` retains the document,
+product, status and justification the publisher signed; it does not invent a
+local `file` or independently verify that VEX document. Missing, conflicting or
+malformed attribution remains unknown. Different statements across platforms
+do not become one statement covering the whole image. Metadata never suppresses
+a counted match and never becomes VEX input for this run's rescans.
+
 grype applies VEX itself, but it scans an SBOM here, not an image, so a
 statement whose product is the image wouldn't be applied and one whose
 product is a package would apply to every image. So `clearcutt-verify` scopes
@@ -293,6 +301,46 @@ package-scoped statements (each subcomponent, or each package of the SBOM,
 as the product) and handed to grype with the package-scoped statements as
 they are; statements about other images aren't. What grype then reports as
 ignored is matched back to the statement that caused it.
+
+#### Notation image signatures
+
+```yaml
+required: [signature]
+notation:
+  trustedIdentities:
+    - "x509.subject: CN=Acme Release Signer,O=Acme,C=US"
+  trustRoots: [trust/acme-ca.pem] # PEM certificates relative to this policy
+```
+
+This separately authorizes Notation X.509 **image signatures**. It does not
+authorize Cosign attestations, registry stacks or estate publishers. The shared
+Cosign TrustPolicy and `trustedSigners` keep their existing meaning. Identities
+must name Notation `x509.subject` distinguished-name constraints; wildcards,
+empty lists and remote trust-root URLs are rejected. Choose roots and identities
+out of band. `policy init` leaves discovered Notation identities untrusted.
+
+`--notation-path` defaults to `notation`; the supported CLI is **Notation
+1.3.2+ in the 1.3 series**. Verification uses that version's experimental
+`--oci-layout` path to check exactly one pinned signature against the original
+subject digest and repository scope. A private configuration contains only
+the explicit roots, generated `strict` trust policy and an empty plugin store.
+User-global policy, audit/skip overrides, credentials and plugins are not used.
+No target rootfs layers are needed. A forged sibling cannot borrow another
+signature's success. JWS signer subjects are reported only for the checked
+envelope; a verified COSE signature can have no parsed `signer`.
+
+Missing or unsupported CLI leaves a signature `present`. Timeouts, opaque
+nonzero CLI failures (which may include revocation/network or cryptographic
+failures), and output without exact success are `unknown`, never guessed as
+`failed` or verified. Gate with **`--fail-on unverified`** to reject these
+outcomes. `--notation-timeout` defaults to `2m` per invocation and must be
+positive. Expiry and revocation are checked this run; Notation results never
+enter `--cache-dir`. With a supported CLI, a malformed configured root is an
+operational error before verification.
+
+The report adds optional `policy.notation: {trustedIdentities: string[],
+trustRoots: string[]}` with resolved root paths. Consumers need the updated
+estate-report schema to accept a report containing this opt-in field.
 
 ### Observe-only images
 
