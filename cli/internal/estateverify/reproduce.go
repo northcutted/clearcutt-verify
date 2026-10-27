@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/northcutted/clearcutt-verify/internal/operation"
 	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
@@ -19,6 +21,8 @@ import (
 type FactoryReproducer struct {
 	// Binary is the clearcutt-factory binary (default "clearcutt-factory").
 	Binary string
+	// Timeout bounds one Factory invocation (default 30m).
+	Timeout time.Duration
 	// Dir is where clearcutt-factory works; it writes build contexts and
 	// logs under ./out. The default is a new directory per image under the
 	// user cache directory, which container VMs on macOS share (they don't
@@ -76,12 +80,19 @@ func (f FactoryReproducer) Reproduce(ctx context.Context, ref string, signer rep
 		run = func(ctx context.Context, dir, bin string, args ...string) ([]byte, []byte, error) {
 			var stdout, stderr bytes.Buffer
 			cmd := exec.CommandContext(ctx, bin, args...)
+			cmd.WaitDelay = operation.PipeWait
 			cmd.Dir, cmd.Stdout, cmd.Stderr = dir, &stdout, &stderr
 			err := cmd.Run()
 			return stdout.Bytes(), stderr.Bytes(), err
 		}
 	}
+	limit := operation.Limit(f.Timeout, operation.ReproduceTimeout)
+	ctx, cancel := context.WithTimeout(ctx, limit)
+	defer cancel()
 	stdout, stderr, err := run(ctx, dir, bin, args...)
+	if ctx.Err() != nil {
+		return "", fmt.Errorf("%w (logs in %s)", operation.Result(ctx, "clearcutt-factory verify", limit, err), dir)
+	}
 	if err == nil {
 		m := reproducedRE.FindStringSubmatch(lastLine(string(stdout)))
 		if m == nil {

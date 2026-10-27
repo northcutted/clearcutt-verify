@@ -7,32 +7,35 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/northcutted/clearcutt-verify/internal/estategraph"
+	"github.com/northcutted/clearcutt-verify/internal/operation"
 	"github.com/northcutted/clearcutt-verify/internal/registryscan"
 	"github.com/spf13/cobra"
 )
 
 type registryScanFlags struct {
-	registry     string
-	namespace    string
-	repositories []string
-	tagPatterns  []string
-	excludeTags  []string
-	maxTags      int
-	includeSide  bool
-	output       string
-	refsOutput   string
-	scanOutput   string
-	owner        string
-	repo         string
-	defaultTier  string
-	generatedAt  string
-	username     string
-	passwordEnv  string
-	force        bool
-	githubOrg    string
-	prefixes     []string
+	registry      string
+	namespace     string
+	repositories  []string
+	tagPatterns   []string
+	excludeTags   []string
+	maxTags       int
+	includeSide   bool
+	output        string
+	refsOutput    string
+	scanOutput    string
+	owner         string
+	repo          string
+	defaultTier   string
+	generatedAt   string
+	username      string
+	passwordEnv   string
+	force         bool
+	githubOrg     string
+	prefixes      []string
+	githubTimeout time.Duration
 }
 
 var registryScanOpts registryScanFlags
@@ -108,6 +111,7 @@ instead, with a GITHUB_TOKEN that can read packages.`,
 	f.BoolVar(&registryScanOpts.force, "force", false, "Overwrite existing output files")
 	f.StringVar(&registryScanOpts.githubOrg, "github-org", "", "List this GitHub organization's (or user's) ghcr.io container packages through the GitHub Packages API (GITHUB_TOKEN with packages: read)")
 	f.StringArrayVar(&registryScanOpts.prefixes, "package-prefix", nil, "With --github-org, keep only packages whose name starts with this (repeatable), e.g. apps/")
+	f.DurationVar(&registryScanOpts.githubTimeout, "github-timeout", operation.GitHubTimeout, "Limit each GitHub Packages API page, including its response body")
 	_ = cmd.MarkFlagRequired("output")
 	return cmd
 }
@@ -217,10 +221,10 @@ func runRegistryScan(ctx context.Context) error {
 // registry token never lands in shell history or a process listing.
 func registryLister(opts registryScanFlags) (registryscan.Lister, error) {
 	if opts.githubOrg != "" {
-		return &registryscan.GitHubPackages{Owner: opts.githubOrg, Prefixes: opts.prefixes}, nil
+		return &registryscan.GitHubPackages{Owner: opts.githubOrg, Prefixes: opts.prefixes, Timeout: opts.githubTimeout}, nil
 	}
 	if opts.username == "" && opts.passwordEnv == "" {
-		return registryscan.NewRemoteLister(), nil
+		return registryscan.NewRemoteLister(registryOptions()...), nil
 	}
 	if opts.username == "" || opts.passwordEnv == "" {
 		return nil, fmt.Errorf("--username and --password-env must be supplied together")
@@ -229,7 +233,7 @@ func registryLister(opts registryScanFlags) (registryscan.Lister, error) {
 	if password == "" {
 		return nil, fmt.Errorf("environment variable %s is empty; it must hold the registry password or token", opts.passwordEnv)
 	}
-	return registryscan.NewRemoteListerWithBasicAuth(opts.username, password), nil
+	return registryscan.NewRemoteListerWithBasicAuth(opts.username, password, registryOptions()...), nil
 }
 
 // writeAlongside creates the parent directory then writes via the supplied writer.

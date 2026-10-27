@@ -131,6 +131,7 @@ func (c *vexComponent) UnmarshalJSON(b []byte) error {
 func ReadVEX(dir string, files []string) ([]VEXDocument, error) {
 	var out []VEXDocument
 	for _, f := range files {
+		var err error
 		p := f
 		if !filepath.IsAbs(p) {
 			p = filepath.Join(dir, f)
@@ -140,10 +141,10 @@ func ReadVEX(dir string, files []string) ([]VEXDocument, error) {
 			return nil, fmt.Errorf("vex %s: %w", f, err)
 		}
 		var doc struct {
-			Context    string         `json:"@context"`
-			ID         string         `json:"@id"`
-			Author     string         `json:"author"`
-			Statements []VEXStatement `json:"statements"`
+			Context    string            `json:"@context"`
+			ID         string            `json:"@id"`
+			Author     string            `json:"author"`
+			Statements []json.RawMessage `json:"statements"`
 		}
 		if err := json.Unmarshal(raw, &doc); err != nil {
 			return nil, fmt.Errorf("vex %s: not an OpenVEX document: %w", f, err)
@@ -151,7 +152,13 @@ func ReadVEX(dir string, files []string) ([]VEXDocument, error) {
 		if !strings.HasPrefix(doc.Context, "https://openvex.dev/ns") {
 			return nil, fmt.Errorf("vex %s: not an OpenVEX document (@context %q)", f, doc.Context)
 		}
-		for i, st := range doc.Statements {
+		statements := make([]VEXStatement, len(doc.Statements))
+		for i, rawStatement := range doc.Statements {
+			if statements[i], err = readVEXStatement(rawStatement); err != nil {
+				return nil, fmt.Errorf("vex %s: statements[%d]: not an OpenVEX statement: %w", f, i, err)
+			}
+		}
+		for i, st := range statements {
 			switch {
 			case st.Vulnerability.Name == "":
 				return nil, fmt.Errorf("vex %s: statements[%d] names no vulnerability", f, i)
@@ -166,9 +173,43 @@ func ReadVEX(dir string, files []string) ([]VEXDocument, error) {
 				}
 			}
 		}
-		out = append(out, VEXDocument{File: f, Path: p, ID: doc.ID, Author: doc.Author, Statements: doc.Statements})
+		out = append(out, VEXDocument{File: f, Path: p, ID: doc.ID, Author: doc.Author, Statements: statements})
 	}
 	return out, nil
+}
+
+// readVEXStatement reads an OpenVEX statement of v0.2.0, or of v0.0.1, which
+// it converts as clearcutt-factory does, so one document means the same to
+// both tools: a vulnerability given as a plain string is its name, and the
+// subcomponents a v0.0.1 statement names beside its products are those of
+// each product that names none of its own. (Products given as plain strings
+// read as their @id, in either version.)
+func readVEXStatement(raw json.RawMessage) (VEXStatement, error) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return VEXStatement{}, err
+	}
+	var name string
+	if v, ok := fields["vulnerability"]; ok && json.Unmarshal(v, &name) == nil {
+		fields["vulnerability"], _ = json.Marshal(vexVulnerability{Name: name})
+	}
+	var subcomponents []vexComponent
+	if v, ok := fields["subcomponents"]; ok {
+		if err := json.Unmarshal(v, &subcomponents); err != nil {
+			return VEXStatement{}, fmt.Errorf("subcomponents: %w", err)
+		}
+	}
+	converted, _ := json.Marshal(fields)
+	var st VEXStatement
+	if err := json.Unmarshal(converted, &st); err != nil {
+		return VEXStatement{}, err
+	}
+	for i := range st.Products {
+		if len(st.Products[i].Subcomponents) == 0 {
+			st.Products[i].Subcomponents = subcomponents
+		}
+	}
+	return st, nil
 }
 
 // Described lists the documents as the report records them.

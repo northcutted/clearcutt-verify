@@ -18,6 +18,48 @@ clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme 
 `--observations dist/scan/observations.json` from `clearcutt-verify import observe`
 instead.
 
+## Prepare a starter policy
+
+```bash
+clearcutt-verify policy init --refs refs.txt --out policy
+```
+
+Use `--images images.yaml` instead of `--refs` to start from an inventory.
+Only its image references are used: declarations of evidence, platforms or
+trust do not count. The command resolves the references and discovers their
+attachments afresh, without invoking cosign or claiming verification.
+
+It writes `policy.yaml` and `trust-policy.yaml` into a **new directory**.
+`required` is the evidence found for every inspected image reference. SBOMs
+and scans must cover each platform image; an attachment on a multi-platform
+index alone does not establish that coverage. Comments show availability
+counts for the other kinds and formats that remain present-only. Discovered
+content may still be malformed or unusable; availability is not validation.
+An unreadable image, platform or evidence listing stops initialization
+without publishing a starter, rather than silently reducing requirements.
+
+The active trust list is `signers: []`. Discovered certificate identities,
+issuers and caller repository/refs appear only as commented **UNVERIFIED**
+candidates. Confirm them out of band before adding active signer rows;
+key-signed evidence requires a separately trusted public key. Notation
+certificate claims are labelled separately from Cosign trust entries.
+Choose vulnerability and freshness gates for your estate; the starter does
+not infer thresholds. An untouched starter cannot verify an image.
+
+`--platforms linux/amd64,linux/arm64` limits the inspected scope; use the same
+selection for verification. `--concurrency` defaults to four references.
+Progress goes to stderr when it is a terminal, or with `--verbose` when
+redirected. `--quiet` suppresses progress and the
+normal summary. `--format json` or `--format yaml` prints a summary containing
+`images`, `required`, per-kind `available` counts, `unverifiedSigners`, the
+output path and any platform/format scope; these formats still print with
+`--quiet`. The YAML policy files are written separately.
+
+Existing output files, directories (including empty ones) and symlinks are
+refused. Both documents are parsed and validated in staging, then published
+together by a directory rename. Use a new output directory to discover
+again; initialization does not overwrite a policy you have reviewed.
+
 ## What it checks, per image
 
 1. **Evidence in the registry.** Signatures and attestations stored by cosign
@@ -25,7 +67,28 @@ instead.
    attestations pushed to the registry), by cosign v2 (`sha256-<digest>.sig`
    and `.att` tags), and unsigned SBOMs attached as referrers. Bundles are
    decoded to learn what each one actually holds; cosign labels its own
-   bundles as plain signatures.
+   bundles as plain signatures. Evidence other tools leave is found too:
+   - **Notation signatures** (`notation sign`, as ACR, Harbor, and ECR
+     setups use): referrers of artifact type
+     `application/vnd.cncf.notary.signature` (`source: notation-signature`).
+     Explicit `notation` policy trust and a supported Notation CLI can verify
+     them against a generated strict X.509 policy. Otherwise they are
+     `present`. JWS certificate subjects are claims until that exact pinned
+     envelope verifies; COSE signing identities remain absent.
+   - **BuildKit attestations** (`docker buildx build --sbom --provenance`):
+     the SPDX SBOM and SLSA provenance BuildKit stores in the image index, in
+     an attestation manifest beside each platform image
+     (`vnd.docker.reference.type: attestation-manifest`; `source:
+     buildx-attestation`). They are unsigned in-toto statements, present only.
+   - **cosign's `.sbom` tag** (`cosign attach sbom`): an unsigned SBOM in the
+     `sha256-<digest>.sbom` tag (`source: cosign-sbom-tag`).
+
+   SBOMs and vulnerability reports belong to platform images. A platform
+   image with none of its own is judged by any attached to the image index
+   (what `cosign attach sbom` or `cosign attest` on a multi-platform tag
+   writes): `present`, signed or not, since such a copy doesn't say which
+   platform it describes, and never read. When the index's evidence can't be
+   read, the platform image's is `unknown`, not `missing`.
 2. **Verification.** Each piece of evidence is verified with cosign against
    the policy's trusted signers. Anything not signed by one of them is
    `failed`, never quietly accepted. Evidence cosign couldn't check (it
@@ -61,8 +124,8 @@ instead.
    one cosign checked.
 3. **Contents.** Only what cosign verified is read: vulnerability findings
    from verified vulnerability attestations (deduplicated across platforms;
-   VEX-suppressed findings are kept but not counted; grype output only, for
-   now, see Limits), packages from verified
+   VEX-suppressed findings are kept but not counted; grype's and Trivy's
+   output only, for now, see Limits), packages from verified
    SBOM attestations, the source commit from verified SLSA provenance, and
    clearcutt-factory details from verified recipes and rebase records.
    Evidence that is `present` or `failed` is reported, but nothing in it is
@@ -189,6 +252,16 @@ documents, and a statement about an image that isn't in the estate is
 warned about. The flag form is `--vex FILE` (relative to the working
 directory).
 
+Trusted Factory vulnerability attestations can also carry the publisher's
+`metadata.vex.suppressed` attribution. Verify links it only to an existing
+Grype ignored match with namespace `vex` and the exact vulnerability ID,
+package name/version and full PURL. Its `suppressedBy` retains the document,
+product, status and justification the publisher signed; it does not invent a
+local `file` or independently verify that VEX document. Missing, conflicting or
+malformed attribution remains unknown. Different statements across platforms
+do not become one statement covering the whole image. Metadata never suppresses
+a counted match and never becomes VEX input for this run's rescans.
+
 grype applies VEX itself, but it scans an SBOM here, not an image, so a
 statement whose product is the image wouldn't be applied and one whose
 product is a package would apply to every image. So `clearcutt-verify` scopes
@@ -213,14 +286,61 @@ applies the same one to its build-time scans):
   `pkg:apk/wolfi/openssl@3.0.1-r0?arch=x86_64`).
 - A statement about an image applies to the packages its `subcomponents`
   name; with no subcomponents, to every package in the image's SBOM, for that
-  vulnerability. A statement's `vulnerability.name` and `aliases` both count
+  vulnerability (subcomponents none of which can be read leave it applying
+  to none). A statement's `vulnerability.name` and `aliases` both count
   (grype's GHSA and the CVE it tracks are the same finding).
+
+OpenVEX v0.2.0 documents are read, and OpenVEX 0.0.1 documents are read the
+way clearcutt-factory reads them, so one document means the same to both
+tools: a `vulnerability` given as a string is its name, products given as
+strings are their `@id`, and the `subcomponents` a 0.0.1 statement names
+beside its products are those of each product that names none of its own.
 
 For each scan, the statements about the image are rewritten as
 package-scoped statements (each subcomponent, or each package of the SBOM,
 as the product) and handed to grype with the package-scoped statements as
 they are; statements about other images aren't. What grype then reports as
 ignored is matched back to the statement that caused it.
+
+#### Notation image signatures
+
+```yaml
+required: [signature]
+notation:
+  trustedIdentities:
+    - "x509.subject: CN=Acme Release Signer,O=Acme,C=US"
+  trustRoots: [trust/acme-ca.pem] # PEM certificates relative to this policy
+```
+
+This separately authorizes Notation X.509 **image signatures**. It does not
+authorize Cosign attestations, registry stacks or estate publishers. The shared
+Cosign TrustPolicy and `trustedSigners` keep their existing meaning. Identities
+must name Notation `x509.subject` distinguished-name constraints; wildcards,
+empty lists and remote trust-root URLs are rejected. Choose roots and identities
+out of band. `policy init` leaves discovered Notation identities untrusted.
+
+`--notation-path` defaults to `notation`; the supported CLI is **Notation
+1.3.2+ in the 1.3 series**. Verification uses that version's experimental
+`--oci-layout` path to check exactly one pinned signature against the original
+subject digest and repository scope. A private configuration contains only
+the explicit roots, generated `strict` trust policy and an empty plugin store.
+User-global policy, audit/skip overrides, credentials and plugins are not used.
+No target rootfs layers are needed. A forged sibling cannot borrow another
+signature's success. JWS signer subjects are reported only for the checked
+envelope; a verified COSE signature can have no parsed `signer`.
+
+Missing or unsupported CLI leaves a signature `present`. Timeouts, opaque
+nonzero CLI failures (which may include revocation/network or cryptographic
+failures), and output without exact success are `unknown`, never guessed as
+`failed` or verified. Gate with **`--fail-on unverified`** to reject these
+outcomes. `--notation-timeout` defaults to `2m` per invocation and must be
+positive. Expiry and revocation are checked this run; Notation results never
+enter `--cache-dir`. With a supported CLI, a malformed configured root is an
+operational error before verification.
+
+The report adds optional `policy.notation: {trustedIdentities: string[],
+trustRoots: string[]}` with resolved root paths. Consumers need the updated
+estate-report schema to accept a report containing this opt-in field.
 
 ### Observe-only images
 
@@ -412,6 +532,96 @@ evidence of every image `unknown`: cosign, the registries, or the images
 unreachable) writes its report, which says so, and exits 1: it isn't a
 result, and shouldn't pass a gate that only looks at the exit code.
 
+While resolving and inspecting images, progress goes to terminal stderr.
+Redirected stderr stays quiet unless `--verbose` is set; `--quiet` overrides
+both. Each unique observation is counted, including unreadable images.
+An `inspected` line means processing finished, not that its evidence verified:
+verdicts are calculated after base and stack relationships are known. Progress
+never enters JSON or YAML on stdout.
+
+### External-operation timeouts
+
+Every external operation has a positive duration limit, expressed as Go
+durations such as `30s` or `5m`. These are per-operation budgets, not a total
+estate-run limit:
+
+| Flag | Default | Applies to |
+| --- | --- | --- |
+| `--registry-timeout` | `1m` | Each registry HTTP attempt, including reading its response body, across registry scan, observation, policy discovery, verification, graph SBOM reads, estate and evidence transfers. |
+| `--cosign-timeout` | `2m` | Each Cosign invocation for verification and signed estate reads, including version and trusted-root initialization. |
+| `--github-timeout` | `30s` | Each GitHub Packages API page in `registry scan --github-org`, including the body. |
+| `--reproduce-timeout` | `30m` | Each Factory invocation in `estate verify --reproduce`. |
+| `--grype-timeout` | `10m` | Each Grype invocation in `estate verify --rescan`, including version, database preparation and each SBOM scan. |
+
+Registry retries have separate budgets. Estate verification allows up to four
+attempts plus backoff; several requests may be needed per image. Registry
+limits apply to this CLI's HTTP calls; Cosign, Grype and Factory do their own
+network work inside their subprocess budgets. Parent cancellation still applies.
+
+A timed-out evidence check or registry read is `unknown`, never a failed
+signature or missing evidence. An expired rescan is `unknown`; an expired
+rebuild is `not-checked` with its retained log directory. None establishes a
+clean scan or a digest mismatch. Tool version checks, `cosign initialize` and
+Grype database preparation happen before the run: their timeout exits 1 without
+publishing a report. The usual `--fail-on` and nothing-checked exit rules still
+apply to reports written after per-image timeouts. Policy initialization aborts
+unreadable discovery without publishing a starter; registry enumeration retains
+its existing error/partial-scope behavior.
+
+Subprocess cancellation kills the directly invoked tool and bounds pipe cleanup
+to two additional seconds. It does not establish that a remote BuildKit job has
+stopped; inspect the retained Factory logs and builder if cancellation interrupted
+a reproduction.
+
+### Reuse verified evidence across runs
+
+`--cache-dir DIR` opts into a local verification cache. ClearCutt still reads
+the registry and discovers evidence every run. Eligible, unchanged evidence
+reuses its successful Cosign answer; caller constraints, subject/content checks,
+SBOM/scan parsers and every policy verdict are evaluated again. Rescans and
+Factory rebuilds still run when requested. A previously accepted scan can become
+too old on the next run even when its cryptographic verification is cached.
+
+```bash
+clearcutt-verify estate verify --refs refs.txt --policy policy.yaml \
+  --cache-dir .cache/clearcutt-verify --out dist/estate --verbose
+```
+
+The cache binds a subject's repository and digest, evidence manifests and layer
+bytes (including signature annotations), signer constraints/flags, captured
+local public-key and trusted-root bytes, and both Verify and Cosign versions
+and executable hashes. Replacing a key/root at the same path or replacing a
+binary with another build invalidates reuse. Mutable attachment tags are never
+cache identities: Cosign checks a temporary metadata-only OCI layout containing
+the exact captured manifests and evidence, with pinned trust files. Root
+filesystem layers are not downloaded for this layout. This avoids a registry
+change between discovery and Cosign checking one set of bytes while caching
+an answer under another set's identity.
+
+Initial supported cache paths require **Cosign 3.1.3 or newer in major version
+3**: Sigstore DSSE bundles with a captured trusted root (or an explicit local
+offline key), and legacy `.sig`/`.att` evidence with a local public key and
+`tlog: false`. Mixed bundle/legacy subjects, MessageSignature bundles, remote
+or KMS keys, non-regular trust files, unusual signature digest maps,
+ambiguous payloads resembling referrer manifests, alternate `SIGSTORE_*` target-file overrides, and
+`COSIGN_REPOSITORY` use the existing live path. Legacy checks that can query
+the transparency log also remain live: new log information can change their
+answer without changing the attached manifest. An unsupported local layout
+falls back to live verification. Only successful, readable, subject-bound
+Cosign answers persist; failures, unknowns and timeouts are rechecked.
+
+This directory is **trusted local state**, not a portable evidence bundle.
+Keep it private to the verifying user/job; do not restore it from untrusted
+uploads or share it between mutually untrusted jobs. ClearCutt creates it with
+mode `0700` and writes mode `0600` entries by atomic rename. Shared-permission
+directories and symlinks are refused for reuse. Corrupt, missing, oversized or
+unreadable entries are misses, not verification results or command failures.
+Captured layouts and entries are bounded to 64 MiB and layouts to 2,048 files;
+larger inputs use live verification. `--verbose` prints hit/miss/bypass counts
+on stderr; these are cryptographic operations, not image verdict counts. No
+report fields change. Omit the flag to disable reuse; **deleting the directory
+is always safe**. Discovery and availability remain dependent on the registry.
+
 ### Stacks
 
 Apps that clearcutt-factory built on a registry stack (`stack:
@@ -577,14 +787,19 @@ if it had no recipe.
   be read. Lookups the registry refuses are reported as `unknown`, not
   `missing`. Logging in (`docker login`) raises the
   limit; `clearcutt-verify` reads the same credentials.
-- **Scanners: grype only, for now.** Vulnerability findings are read from
-  cosign vulnerability attestations (`https://cosign.sigstore.dev/attestation/vuln/v1`)
-  holding grype's JSON output: the predicate's `scanner.uri` (or the result's
-  `descriptor.name`) names grype, and the result has grype's `matches` list.
-  Another scanner's attestation (Trivy's `--format cosign-vuln`, for one) is
-  still verified, but its findings aren't read: the image's vulnerabilities
-  are unknown (no `vulnerabilities`, a warning, and the scan's `detail` says
-  why), never zero, so `failOn` and `maxScanAgeDays` leave it `unverified`.
+- **Scanners: grype and Trivy, for now.** Vulnerability findings are read
+  from cosign vulnerability attestations (`https://cosign.sigstore.dev/attestation/vuln/v1`)
+  holding grype's JSON output (the predicate's `scanner.uri`, or the result's
+  `descriptor.name`, names grype, and the result has grype's `matches` list)
+  or Trivy's report (`trivy image --format cosign-vuln`: the `scanner.uri`
+  names Trivy, and the result is Trivy's JSON report, schema version 2, with
+  its `Results` list; every finding counts, whatever its `Status`, and a
+  report without `Results`, which Trivy writes when it found nothing it could
+  scan, isn't read). Another scanner's attestation is still verified, but its
+  findings aren't read: the image's vulnerabilities are unknown (no
+  `vulnerabilities`, a warning, and the scan's `detail` says why), never
+  zero, so `failOn` and `maxScanAgeDays` leave it `unverified`. `--rescan`
+  scans with grype.
 - **Tests.** Test evidence counts as a test-result attestation, or as the
   smoke test a verified clearcutt-factory rebase record says passed (a
   recipe's declared test is only `present`): a test-result attestation

@@ -40,6 +40,37 @@ esac
 The global `--format` flag accepts `table` (default), `json`, or `yaml`.
 Unknown values are rejected before the command runs.
 
+`estate verify` and `policy init` show per-image progress on terminal stderr.
+Redirected stderr needs `--verbose` for progress; `--quiet` suppresses it.
+Machine output on stdout remains separate.
+
+## Timeouts
+
+Global `--registry-timeout` (default `1m`) bounds each registry HTTP attempt,
+including its body; retries get fresh budgets. Global `--cosign-timeout`
+(default `2m`) bounds each Cosign invocation. `registry scan --github-timeout`
+(default `30s`) bounds each GitHub Packages API page. `estate verify` also
+accepts `--reproduce-timeout` (default `30m`) and `--grype-timeout` (default
+`10m`). All values must be positive durations. These do not bound the entire
+run. Per-image expiry leaves evidence/rescans unknown or reproduction
+not-checked. Preflight tool/root/database expiry exits 1 before report
+publication. See [timeout behavior and limits](verify-estate.md#external-operation-timeouts).
+
+`estate verify --cache-dir DIR` opts into private local reuse of successful
+verification against pinned evidence and trust bytes. Discovery, caller checks,
+parsing, scan age, policy verdicts, rescans and rebuilds remain fresh. Supported
+Cosign 3.1.3+ DSSE bundles and offline-key legacy checks can reuse results;
+other configurations use live verification. Corrupt/unavailable cache entries
+are misses. Do not load untrusted caches; deleting the directory is safe. See
+[cache scope and invalidation](verify-estate.md#reuse-verified-evidence-across-runs).
+
+`estate verify --notation-path notation --notation-timeout 2m` supports
+explicit `notation: {trustedIdentities: [...], trustRoots: [...]}` in a
+VerificationPolicy. It checks pinned image signatures with isolated strict
+X.509 trust using Notation 1.3.2+ (1.3 series). Missing/unsupported CLI stays
+present; ambiguous failure/timeout is unknown. Use `--fail-on unverified`.
+Notation is never cached. See [Notation trust and limits](verify-estate.md#notation-image-signatures).
+
 ## Install
 
 Releases ship cross-compiled binaries (`clearcutt-verify-<os>-<arch>` for
@@ -75,6 +106,15 @@ go -C cli build -o ../clearcutt-verify ./cmd/clearcutt-verify
 ```
 
 ## Estate Discovery Commands
+
+`policy init --refs refs.txt --out policy` writes `policy.yaml` and
+`trust-policy.yaml` from fresh evidence discovery. `--images images.yaml`
+is the inventory alternative; `--platforms` limits the inspected platform
+scope and `--concurrency` defaults to four. The active trust list is empty;
+certificate claims are commented review candidates. Review requirements and
+trust before gating with the result. Existing output paths are refused, and
+unreadable discovery exits 1 without publishing a starter. See
+[starter policy preparation](verify-estate.md#prepare-a-starter-policy).
 
 Discover and govern an image estate ClearCutt did not build. Every command here is
 read-only against the registry: it reads manifests, configs, and tags, and writes

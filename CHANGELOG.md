@@ -12,6 +12,74 @@ merged pull requests; this file is the curated summary.
 
 ## Unreleased
 
+### Added: explicit Notation verification and signed VEX attribution
+
+- VerificationPolicy `notation: {trustedIdentities, trustRoots}` separately
+  trusts X.509 image signatures. `--notation-path` and `--notation-timeout`
+  (`2m`) use Notation 1.3.2+ in the 1.3 series with a pinned one-signature
+  experimental OCI layout, isolated strict policy/roots and no plugins.
+  Missing/unsupported CLI remains present; timeout or ambiguous failure is
+  unknown. Notation expiry/revocation is always fresh, never cached.
+- Optional report `policy.notation` records identity constraints and resolved
+  root paths. Updated contract schemas are required for this opt-in field.
+- Trusted Factory `metadata.vex.suppressed` supplies attribution for exact
+  existing ignored matches only. Counts and rescans are unchanged; conflicting
+  or missing attribution across platforms remains unknown.
+
+### Added: opt-in verification cache
+
+- `estate verify --cache-dir DIR` reuses successful Cosign answers bound to
+  immutable evidence, local trust material, signer constraints and executable
+  identities. Cosign verifies a pinned metadata-only local OCI snapshot before
+  the result is cached; mutable attachment tags are never cache identities.
+  Supports Cosign 3.1.3+ DSSE bundles and offline local-key legacy evidence;
+  mixed formats and unsupported trust/verification paths stay live.
+- Caller/content checks, parsing, policy/freshness decisions, rescans and
+  rebuilds still run. Unknown/failed checks are never cached. Private atomic
+  entries are bounded; corrupt or unavailable cache data is a miss. Deleting
+  the directory is safe. No estate-report contract changes.
+
+### Added: bounded external operations and per-image progress
+
+- `estate verify` and `policy init` report inspected images on terminal
+  stderr, or redirected stderr with `--verbose`; `--quiet` overrides both.
+  Progress remains separate from JSON/YAML output and counts processing,
+  not successful verification.
+- Global `--registry-timeout` (`1m` per HTTP attempt/body) and
+  `--cosign-timeout` (`2m` per invocation); `registry scan --github-timeout`
+  (`30s` per API page); `estate verify --reproduce-timeout` (`30m`) and
+  `--grype-timeout` (`10m`). All durations must be positive. Registry retries
+  have separate budgets. Expiry preserves unknown evidence/scan coverage
+  and not-checked reproduction. Preflight expiry exits 1 without a report.
+  No report contract fields changed.
+
+### Added: prepare a policy from live evidence discovery
+
+- `policy init --refs refs.txt --out policy` (or `--images images.yaml`)
+  discovers evidence across the estate and writes a starter VerificationPolicy
+  and an inactive TrustPolicy. Required SBOM/scan coverage is per platform;
+  unreadable discovery aborts without publishing a weaker policy. Certificate
+  claims are commented candidates, never automatically trusted. Existing
+  output paths are refused; the validated pair is published together.
+- `--platforms` and `--concurrency` select discovery scope; `--verbose` sends
+  progress to stderr. Global JSON/YAML output contains the discovery summary,
+  including explicitly unverified signer candidates, without changing the
+  estate-report contract.
+
+### Fixed: raw SBOM referrers with omitted artifact types
+
+- Inspect a referrer's manifest for its SBOM artifact type when the registry
+  omits it from the listing. Such unsigned SBOMs are `present`, never verified;
+  they no longer disappear as missing evidence.
+
+### Fixed: Trivy coverage cannot claim a clean scan without package results
+
+- Empty, null, config-only, or unsupported mixed Trivy results are
+  unreadable vulnerability coverage, so they cannot satisfy a clean scan
+  gate. Valid `os-pkgs` and `lang-pkgs` results with no findings still count
+  as scanned.
+
+
 <!--
 Add an entry here in the same PR as any user-visible behavior change (CLI
 commands and flags, the estate report contract, the action, release assets).
@@ -20,6 +88,13 @@ When a release is cut, move these entries under a heading for its version.
 
 ### Breaking
 
+- **Evidence that was `missing` can now be `present`, so some `failed`
+  verdicts are `unverified`.** An image whose required signature is a
+  Notation signature, whose required SBOM is a BuildKit attestation, in
+  cosign's `.sbom` tag, or attached only to its image index, was `failed`
+  ("missing"); it is now `unverified` ("present but not verified"), which
+  `--fail-on failed` doesn't fail. Gate with `--fail-on unverified` to fail
+  on both. (See Added: evidence other tools leave.)
 - **Image IDs come from the whole reference.** An image's `id` was its
   repository's last path segment and tag (`billing-1-2`), with `-2`, `-3`
   added to repeats in the order references were listed, so two registries'
@@ -73,6 +148,42 @@ When a release is cut, move these entries under a heading for its version.
 
 ### Added
 
+- **OpenVEX 0.0.1 documents are read, as clearcutt-factory reads them.** A
+  policy's `vex:` document in OpenVEX 0.0.1 (a `vulnerability` given as a
+  string, `subcomponents` beside the products) was refused; it is now
+  converted on reading, the way clearcutt-factory converts it, so one
+  document means the same to both tools: the string is the vulnerability's
+  name, and a statement's `subcomponents` are those of each product that
+  names none of its own (subcomponents none of which can be read still never
+  widen a statement to every package). grype is handed v0.2.0 statements.
+- **Evidence other tools leave is found, as `present`.** `estate verify`
+  read only cosign's bundles and tags and unsigned SBOM referrers, so a team
+  with existing evidence saw `missing`. It now also finds Notation
+  signatures (referrers of artifact type
+  `application/vnd.cncf.notary.signature`; `source: notation-signature`, the
+  signer shown being the `x509.subject: …` its certificate claims), the SPDX
+  SBOMs and SLSA provenance BuildKit stores in the image index (`docker buildx
+  build --sbom --provenance`; `source: buildx-attestation`), and SBOMs in
+  cosign's `sha256-<digest>.sbom` tag (`cosign attach sbom`; `source:
+  cosign-sbom-tag`). None is verified (Notation signatures aren't checked:
+  no ClearCutt trust policy names a Notation signer yet), so each is
+  `present`, nothing in it is read, and none is handed to cosign or crowds
+  out evidence cosign verified. A platform image with no SBOM or
+  vulnerability report of its own is now judged by any attached to the image
+  index (`cosign attach sbom` or `cosign attest` on a multi-platform tag):
+  `present`, since such a copy doesn't say which platform it describes, where
+  it was `missing`; and `unknown`, not `missing`, when the index's evidence
+  (or BuildKit's attestation manifests) can't be read.
+- **Trivy's vulnerability attestations are read.** A cosign vulnerability
+  attestation holding Trivy's report (`trivy image --format cosign-vuln`)
+  was verified but its findings weren't read, so the image's vulnerabilities
+  were unknown. Its findings are now read like grype's, from verified
+  attestations only: counted, merged across platforms, gated on by `failOn`
+  and `maxScanAgeDays`, with `vulnerabilities.scanner` `trivy <version>`. It
+  is read only when the predicate's `scanner.uri` names Trivy and its result
+  is Trivy's JSON report of schema version 2 with its `Results` list (a
+  report without one, which Trivy writes when it found nothing it could scan,
+  stays unknown, never clean); every finding counts, whatever its `Status`.
 - **`sourceRepositoryOwner` is validated and described.** A trusted signer's
   `sourceRepositoryOwner` must be exactly `https://github.com/OWNER`; the
   policy is refused otherwise (before, a wrong value silently matched nothing
@@ -162,6 +273,20 @@ When a release is cut, move these entries under a heading for its version.
 
 ### Changed
 
+- **The pull request gate runs the race detector, staticcheck, govulncheck,
+  and zizmor.** `go test -race` (images are verified concurrently),
+  staticcheck v0.8.2, and govulncheck v1.9.0 run on the CLI, and zizmor 1.31.1
+  audits the workflows and the action; each is a job the PR Gate Summary
+  requires. The findings zizmor reported when it was added are kept in
+  `.github/zizmor.yml`, each with its reason; any other fails the gate.
+  `make analysis` runs the four locally. govulncheck's first run found
+  GO-2026-6809 (`crypto/x509`, fixed in Go 1.26.10) in the Go 1.26.9 the
+  runners had cached, which the release workflow builds with too:
+  `cli/go.mod` now names `toolchain go1.26.10`, which the CI jobs, the
+  release build, and the action's source build use. A test now covers evidence discovery
+  through the referrers tag (`sha256-<hex>`, registries without the Referrers
+  API), including a tag that can't be read or doesn't hold an index (unknown,
+  never missing).
 - **A run that could check nothing exits 1, not 0.** When every piece of
   evidence of every image is `unknown` (cosign, the registries, or the
   images couldn't be reached), `estate verify` writes the report, which says

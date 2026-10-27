@@ -1,0 +1,30 @@
+# zizmor (https://docs.zizmor.sh) runs in pr-gate.yml. Findings this
+# repository keeps, and why. Each was there when zizmor was added to CI; a
+# finding of another rule, or of these rules in another file, fails the gate.
+rules:
+  # release.yml's checkouts keep their credentials: changing how the release
+  # job checks out its tag is its own change, with its own release to prove it.
+  artipacked:
+    ignore:
+      - release.yml
+  # statuses: write at the workflow level lets the gate report its result back
+  # (the comment beside it in pr-gate.yml).
+  excessive-permissions:
+    ignore:
+      - pr-gate.yml
+  # pr-gate.yml runs the action from the pull request's own checkout (uses:
+  # ./), which is the point: it tests the action as changed.
+  self-repository:
+    ignore:
+      - pr-gate.yml
+  # action.yml installs clearcutt-verify (and cosign) for the caller's later
+  # steps by adding their directory to GITHUB_PATH, after checking the
+  # binary's checksum and Sigstore bundle; that is what the action is for.
+  github-env:
+    ignore:
+      - action.yml
+  # Dependabot proposes updates as soon as they are released; each is a pull
+  # request that runs this gate before anything merges.
+  dependabot-cooldown:
+    ignore:
+      - dependabot.yml

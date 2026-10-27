@@ -155,7 +155,7 @@ func runImportObserve(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("read images inventory: %w", err)
 	}
-	var observer estategraph.ImageObserver = estategraph.RegistryObserver{}
+	var observer estategraph.ImageObserver = estategraph.RegistryObserver{Options: registryOptions()}
 	var fixtureObservations *estategraph.Observations
 	if importObserveOpts.offlineFixtures != "" {
 		fixtures, err := estategraph.ReadObservations(importObserveOpts.offlineFixtures)

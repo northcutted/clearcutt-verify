@@ -56,9 +56,9 @@ retention guarantees, and ` + "`evidence import`" + ` to put it back.`,
 // own registry's (see estateClient).
 func evidenceClient(refs ...string) *evidence.Client {
 	if evidenceOpts.insecure {
-		return evidence.NewInsecureClient()
+		return evidence.NewInsecureClient(registryOptions()...)
 	}
-	return evidence.NewKeychainClient(registryauth.ForRefs(refs...))
+	return evidence.NewKeychainClient(registryauth.ForRefs(refs...), registryOptions()...)
 }
 
 func newEvidenceAttachCmd() *cobra.Command {

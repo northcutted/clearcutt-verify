@@ -194,7 +194,7 @@ func fetchSBOMsWithWarning(observations estategraph.Observations) (estategraph.O
 		plan.Fetches, graphPackagesOpts.concurrency, plan.Saved)
 	fprintf(errOut, "[graph-packages] WARNING: large estates can hit registry rate limits. Nix images need none of this — their package set is already in the config.\n")
 
-	fetcher := estategraph.SBOMFetcher(estategraph.NewRegistrySBOMFetcher())
+	fetcher := estategraph.SBOMFetcher(estategraph.NewRegistrySBOMFetcher(registryOptions()...))
 	if sbomFetcherOverride != nil {
 		fetcher = sbomFetcherOverride
 	}

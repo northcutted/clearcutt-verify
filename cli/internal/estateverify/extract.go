@@ -84,19 +84,22 @@ type vulnScan struct {
 	ScannedAt string
 	Result    grypeResult
 	Database  *report.ScannerDatabase
-	// suppressedBy names what suppressed each ignored match (this run's
-	// scans), by index into Result.IgnoredMatches.
+	// suppressedBy names what suppressed each ignored match, from the trusted
+	// publisher's metadata or this run's VEX, by index into IgnoredMatches.
 	suppressedBy []*report.Suppression
 }
 
-// readVulnPredicate reads a cosign vuln/v1 predicate holding grype output,
-// the only scanner output read (for now). Other scanners write the same
-// predicate type around output of their own shape (Trivy's cosign-vuln
-// format, for one), which would read as grype output with no matches: a
-// clean scan. So a predicate is read only when it says it holds grype's
-// output (its scanner URI, or the result's descriptor, names grype, and
-// neither names another scanner) and the result has grype's matches list.
-// Otherwise the error says why, and its findings are unknown, never zero.
+// readVulnPredicate reads a cosign vuln/v1 predicate holding grype's or
+// Trivy's output, the scanners whose output is read (for now). Other
+// scanners write the same predicate type around output of their own shape,
+// which would read as one of these with no findings: a clean scan. So a
+// predicate is read only when it says which of the two it holds and the
+// result has that scanner's shape: grype's when its scanner URI (or the
+// result's descriptor) names grype, and neither names another scanner, and
+// the result has grype's matches list; Trivy's (trivy --format cosign-vuln)
+// when its scanner URI names Trivy and the result is Trivy's report, schema
+// version 2, with its list of results. Otherwise the error says why, and its
+// findings are unknown, never zero.
 func readVulnPredicate(pred json.RawMessage) (vulnScan, error) {
 	var p struct {
 		Scanner struct {
@@ -105,8 +108,9 @@ func readVulnPredicate(pred json.RawMessage) (vulnScan, error) {
 			Result  json.RawMessage `json:"result"`
 		} `json:"scanner"`
 		Metadata struct {
-			ScanFinishedOn string `json:"scanFinishedOn"`
-			ScanStartedOn  string `json:"scanStartedOn"`
+			ScanFinishedOn string          `json:"scanFinishedOn"`
+			ScanStartedOn  string          `json:"scanStartedOn"`
+			VEX            json.RawMessage `json:"vex"`
 		} `json:"metadata"`
 	}
 	if err := json.Unmarshal(pred, &p); err != nil {
@@ -114,6 +118,10 @@ func readVulnPredicate(pred json.RawMessage) (vulnScan, error) {
 	}
 	if len(p.Scanner.Result) == 0 || string(p.Scanner.Result) == "null" {
 		return vulnScan{}, errors.New("it holds no scanner result")
+	}
+	scannedAt := firstNonEmpty(p.Metadata.ScanFinishedOn, p.Metadata.ScanStartedOn)
+	if scannerName(p.Scanner.URI) == "trivy" {
+		return readTrivy(p.Scanner.Result, p.Scanner.Version, scannedAt)
 	}
 	var r grypeResult
 	var keys map[string]json.RawMessage
@@ -123,17 +131,140 @@ func readVulnPredicate(pred json.RawMessage) (vulnScan, error) {
 	byURI, byDescriptor := scannerName(p.Scanner.URI), strings.ToLower(strings.TrimSpace(r.Descriptor.Name))
 	switch {
 	case byURI == "" && byDescriptor == "":
-		return vulnScan{}, errors.New("it doesn't name its scanner, and only grype's output is read")
+		return vulnScan{}, errors.New("it doesn't name its scanner, and only grype's and Trivy's output is read")
 	case byURI != "" && byURI != "grype", byDescriptor != "" && byDescriptor != "grype":
-		return vulnScan{}, fmt.Errorf("it is %s's output (scanner %s), and only grype's is read", firstNonEmpty(nonGrype(byURI), nonGrype(byDescriptor)), firstNonEmpty(p.Scanner.URI, r.Descriptor.Name))
+		return vulnScan{}, fmt.Errorf("it is %s's output (scanner %s), and only grype's and Trivy's is read", firstNonEmpty(nonGrype(byURI), nonGrype(byDescriptor)), firstNonEmpty(p.Scanner.URI, r.Descriptor.Name))
 	}
 	if m, ok := keys["matches"]; !ok || !strings.HasPrefix(strings.TrimSpace(string(m)), "[") {
 		return vulnScan{}, errors.New("its scanner result has no list of matches, as grype's output does")
 	}
 	version := firstNonEmpty(r.Descriptor.Version, p.Scanner.Version)
 	return vulnScan{
-		Scanner:   strings.TrimSpace("grype " + version),
-		ScannedAt: firstNonEmpty(p.Metadata.ScanFinishedOn, p.Metadata.ScanStartedOn),
+		Scanner:      strings.TrimSpace("grype " + version),
+		ScannedAt:    scannedAt,
+		Result:       r,
+		suppressedBy: attestedSuppressions(p.Metadata.VEX, r.IgnoredMatches),
+	}, nil
+}
+
+// attestedSuppressions reads Factory's signed metadata.vex.suppressed projection.
+// It supplies attribution only: it never suppresses a counted match, adds a
+// finding, or makes the publisher's VEX a policy for this run's rescan.
+func attestedSuppressions(raw json.RawMessage, matches []grypeMatch) []*report.Suppression {
+	var metadata struct {
+		Suppressed []struct {
+			Vulnerability string `json:"vulnerability"`
+			Package       string `json:"package"`
+			Version       string `json:"version"`
+			PURL          string `json:"purl"`
+			Document      string `json:"document"`
+			Product       string `json:"product"`
+			Status        string `json:"status"`
+			Justification string `json:"justification"`
+		} `json:"suppressed"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &metadata) != nil {
+		return nil
+	}
+	out := make([]*report.Suppression, len(matches))
+	for i, match := range matches {
+		vex := false
+		for _, rule := range match.AppliedIgnoreRules {
+			vex = vex || rule.Namespace == "vex"
+		}
+		if !vex {
+			continue
+		}
+		var selected *report.Suppression
+		ambiguous := false
+		for _, row := range metadata.Suppressed {
+			if row.Vulnerability != match.Vulnerability.ID || row.Package != match.Artifact.Name || row.Version != match.Artifact.Version || row.PURL != match.Artifact.PURL {
+				continue
+			}
+			if row.Document == "" || row.Product == "" || row.Status != "not_affected" && row.Status != "fixed" {
+				ambiguous = true
+				break
+			}
+			by := report.Suppression{Source: "vex", Document: row.Document, Product: row.Product, Status: row.Status, Justification: row.Justification}
+			if selected != nil && *selected != by {
+				ambiguous = true
+				break
+			}
+			selected = &by
+		}
+		if !ambiguous {
+			out[i] = selected
+		}
+	}
+	return out
+}
+
+// trivyReport is the part of Trivy's JSON report (schema version 2) the
+// report uses.
+type trivyReport struct {
+	SchemaVersion int    `json:"SchemaVersion"`
+	CreatedAt     string `json:"CreatedAt"`
+	Results       []struct {
+		Target          string `json:"Target"`
+		Class           string `json:"Class"`
+		Vulnerabilities []struct {
+			VulnerabilityID  string `json:"VulnerabilityID"`
+			PkgName          string `json:"PkgName"`
+			InstalledVersion string `json:"InstalledVersion"`
+			FixedVersion     string `json:"FixedVersion"`
+			Severity         string `json:"Severity"`
+			PkgIdentifier    struct {
+				PURL string `json:"PURL"`
+			} `json:"PkgIdentifier"`
+		} `json:"Vulnerabilities"`
+	} `json:"Results"`
+}
+
+// readTrivy reads Trivy's report from a cosign vuln/v1 predicate (trivy
+// image --format cosign-vuln). Its findings become matches like grype's, so
+// they are counted, merged across platforms, and gated on the same way.
+// Only Trivy's report of schema version 2 is read, and only one that lists
+// its results: Trivy leaves Results out when it found nothing it could
+// scan (no operating system or language packages it knows), which is not a
+// clean scan. Every result must cover os-pkgs or lang-pkgs: empty, null,
+// config-only, and mixed unsupported results remain unknown. Every finding
+// counts, whatever its status says.
+func readTrivy(result json.RawMessage, version, scannedAt string) (vulnScan, error) {
+	var keys map[string]json.RawMessage
+	var t trivyReport
+	if json.Unmarshal(result, &keys) != nil || json.Unmarshal(result, &t) != nil {
+		return vulnScan{}, errors.New("its scanner names Trivy, but its result isn't Trivy's JSON report")
+	}
+	if t.SchemaVersion != 2 {
+		return vulnScan{}, fmt.Errorf("its scanner names Trivy, but its result isn't Trivy's report of schema version 2 (SchemaVersion %s)", firstNonEmpty(strings.TrimSpace(string(keys["SchemaVersion"])), "absent"))
+	}
+	if r, ok := keys["Results"]; !ok || !strings.HasPrefix(strings.TrimSpace(string(r)), "[") || len(t.Results) == 0 {
+		return vulnScan{}, errors.New("its Trivy report lists no results (Results), so what Trivy scanned is unknown")
+	}
+	var r grypeResult
+	r.Matches = []grypeMatch{}
+	for _, res := range t.Results {
+		if res.Class != "os-pkgs" && res.Class != "lang-pkgs" {
+			return vulnScan{}, fmt.Errorf("its Trivy report has unsupported vulnerability coverage in %s (Class %q); package vulnerability coverage is unknown", firstNonEmpty(res.Target, "a result"), res.Class)
+		}
+		for _, v := range res.Vulnerabilities {
+			if strings.TrimSpace(v.VulnerabilityID) == "" || strings.TrimSpace(v.PkgName) == "" {
+				return vulnScan{}, fmt.Errorf("its Trivy report has a finding in %s without a vulnerability ID or package name", firstNonEmpty(res.Target, "a result"))
+			}
+			var m grypeMatch
+			m.Vulnerability.ID, m.Vulnerability.Severity = v.VulnerabilityID, v.Severity
+			for _, f := range strings.Split(v.FixedVersion, ",") {
+				if f = strings.TrimSpace(f); f != "" {
+					m.Vulnerability.Fix.Versions = append(m.Vulnerability.Fix.Versions, f)
+				}
+			}
+			m.Artifact.Name, m.Artifact.Version, m.Artifact.PURL = v.PkgName, v.InstalledVersion, v.PkgIdentifier.PURL
+			r.Matches = append(r.Matches, m)
+		}
+	}
+	return vulnScan{
+		Scanner:   strings.TrimSpace("trivy " + strings.TrimPrefix(strings.TrimSpace(version), "v")),
+		ScannedAt: firstNonEmpty(scannedAt, t.CreatedAt),
 		Result:    r,
 	}, nil
 }
@@ -183,6 +314,10 @@ func mergeScans(scans map[string]vulnScan, source string) *report.Vulnerabilitie
 			}
 			byKey[key] = f
 			keys = append(keys, key)
+		} else if f.SuppressedBy == nil || by == nil || *f.SuppressedBy != *by {
+			// One projection describes all listed platforms. Different or
+			// unknown attributions cannot become one document covering them all.
+			f.SuppressedBy = nil
 		}
 		f.Platforms = appendUnique(f.Platforms, platform)
 		// Suppressed on every platform, or counted.

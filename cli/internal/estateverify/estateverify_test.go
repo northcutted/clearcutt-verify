@@ -555,7 +555,8 @@ func fakeCosign(ctx context.Context, forged map[string]bool, args []string) ([]b
 	for _, f := range found {
 		s := f.Signer
 		switch {
-		case f.Format == FormatRawReferrer || forged[f.Ref]:
+		case Unsigned(f.Format) || forged[f.Ref]:
+			// cosign verifies Sigstore signatures and attestations only.
 			continue
 		case key != "":
 			// Key-signed copies carry no certificate; acme's key signed them.

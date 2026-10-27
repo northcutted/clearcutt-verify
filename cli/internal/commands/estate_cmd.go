@@ -188,7 +188,7 @@ func noSignerError(command, what string) error {
 // against signers, with cosign, and returns the item; verified is whether a
 // signer vouched for it.
 func verifyArtifact(ctx context.Context, signers []report.Signer, ref, repo, digest string) (report.EvidenceItem, error) {
-	verifier := &estateverify.Verifier{Signers: signers, Cosign: estateOpts.cosignPath, Run: cosignRunner, TrustedRoot: estateOpts.trustedRoot}
+	verifier := &estateverify.Verifier{Signers: signers, Cosign: estateOpts.cosignPath, Run: cosignRunner, TrustedRoot: estateOpts.trustedRoot, Timeout: GlobalOpts.CosignTimeout}
 	if _, err := verifier.CheckCosign(ctx); err != nil {
 		return report.EvidenceItem{}, err
 	}
@@ -197,7 +197,7 @@ func verifyArtifact(ctx context.Context, signers []report.Signer, ref, repo, dig
 	} else if warning != "" {
 		warnLoudly(errOut, "[estate]", "estate: no single trusted root", warning)
 	}
-	var ropts []remote.Option
+	ropts := registryOptions()
 	if !estateOpts.insecure {
 		ropts = append(ropts, remote.WithAuthFromKeychain(registryauth.ForRefs(ref)))
 	}
@@ -231,9 +231,9 @@ func warnUnverified(ref, why string) {
 // and a laptop with only a docker login both work without a flag.
 func estateClient(refs ...string) *estate.Client {
 	if estateOpts.insecure {
-		return estate.NewInsecureClient()
+		return estate.NewInsecureClient(registryOptions()...)
 	}
-	return estate.NewKeychainClient(registryauth.ForRefs(refs...))
+	return estate.NewKeychainClient(registryauth.ForRefs(refs...), registryOptions()...)
 }
 
 func runEstatePush(ref string) error {
@@ -424,7 +424,7 @@ func runEstatePull(ctx context.Context, ref string) error {
 	if verify {
 		// The tools first: a missing cosign is an operational error, not an
 		// unverified bundle.
-		v := &estateverify.Verifier{Signers: signers, Cosign: estateOpts.cosignPath, Run: cosignRunner, TrustedRoot: estateOpts.trustedRoot}
+		v := &estateverify.Verifier{Signers: signers, Cosign: estateOpts.cosignPath, Run: cosignRunner, TrustedRoot: estateOpts.trustedRoot, Timeout: GlobalOpts.CosignTimeout}
 		if _, err := v.CheckCosign(ctx); err != nil {
 			return err
 		}

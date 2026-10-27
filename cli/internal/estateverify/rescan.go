@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/northcutted/clearcutt-verify/internal/operation"
 	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
@@ -34,6 +35,8 @@ type Scanner interface {
 type GrypeScanner struct {
 	// Binary is the grype binary (default "grype").
 	Binary string
+	// Timeout bounds each invocation, including database preparation.
+	Timeout time.Duration
 	// Run executes grype in dir and returns its standard output and error;
 	// tests replace it.
 	Run func(ctx context.Context, dir, bin string, args ...string) (stdout, stderr []byte, err error)
@@ -56,18 +59,23 @@ func (g *GrypeScanner) bin() string {
 }
 
 func (g *GrypeScanner) run(ctx context.Context, dir string, args ...string) ([]byte, []byte, error) {
+	limit := operation.Limit(g.Timeout, operation.GrypeTimeout)
+	ctx, cancel := context.WithTimeout(ctx, limit)
+	defer cancel()
 	if g.Run != nil {
-		return g.Run(ctx, dir, g.bin(), args...)
+		stdout, stderr, err := g.Run(ctx, dir, g.bin(), args...)
+		return stdout, stderr, operation.Result(ctx, "grype "+args[0], limit, err)
 	}
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, g.bin(), args...)
+	cmd.WaitDelay = operation.PipeWait
 	cmd.Dir, cmd.Stdout, cmd.Stderr = dir, &stdout, &stderr
 	cmd.Env = append(os.Environ(), "GRYPE_CHECK_FOR_APP_UPDATE=false")
 	if g.dbPrepared {
 		cmd.Env = append(cmd.Env, "GRYPE_DB_AUTO_UPDATE=false")
 	}
 	err := cmd.Run()
-	return stdout.Bytes(), stderr.Bytes(), err
+	return stdout.Bytes(), stderr.Bytes(), operation.Result(ctx, "grype "+args[0], limit, err)
 }
 
 // CheckGrype checks, before anything is scanned, that grype runs here, and

@@ -9,6 +9,9 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/northcutted/clearcutt-verify/internal/operation"
 )
 
 // GitHubPackages lists the container packages an organization or user
@@ -27,6 +30,8 @@ type GitHubPackages struct {
 	// https://api.github.com).
 	API    string
 	Client *http.Client
+	// Timeout bounds each API page including reading its body (default 30s).
+	Timeout time.Duration
 
 	ownerKind string // orgs or users, once known
 }
@@ -121,6 +126,14 @@ func (g *GitHubPackages) pages(ctx context.Context, path string, each func([]byt
 	if client == nil {
 		client = http.DefaultClient
 	}
+	// Copy the client: an injected/shared client's configuration is not ours
+	// to mutate. An existing, shorter client timeout still applies.
+	bounded := *client
+	limit := operation.Limit(g.Timeout, operation.GitHubTimeout)
+	if bounded.Timeout == 0 || bounded.Timeout > limit {
+		bounded.Timeout = limit
+	}
+	client = &bounded
 	token := firstNonEmpty(g.Token, os.Getenv("GITHUB_TOKEN"))
 	sep := "&"
 	if strings.HasSuffix(path, "?") {
@@ -138,12 +151,12 @@ func (g *GitHubPackages) pages(ctx context.Context, path string, each func([]byt
 		}
 		resp, err := client.Do(req)
 		if err != nil {
-			return err
+			return fmt.Errorf("GitHub API (limit %s): %w", bounded.Timeout, err)
 		}
 		raw, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 		_ = resp.Body.Close()
 		if err != nil {
-			return err
+			return fmt.Errorf("GitHub API response (limit %s): %w", bounded.Timeout, err)
 		}
 		if resp.StatusCode != http.StatusOK {
 			return &statusError{code: resp.StatusCode, body: strings.TrimSpace(string(raw))}

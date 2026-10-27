@@ -27,6 +27,11 @@ make check
 
 Run it before every pull request, after the focused checks below.
 
+The gate's other Go and workflow jobs (the race detector, staticcheck,
+govulncheck, and zizmor over the workflows) fetch pinned tools over the
+network; `make analysis` runs them all. govulncheck checks the standard
+library of the Go you run it with, so run it with a current Go patch release.
+
 ## Common Checks
 
 ```bash

@@ -77,14 +77,14 @@ func NewClient() *Client {
 // environment for the registries a command names, the Docker keychain, and
 // GITHUB_TOKEN for ghcr.io), so no credential is offered to a registry it
 // isn't for.
-func NewKeychainClient(keychain authn.Keychain) *Client {
-	return &Client{remoteOpts: []remote.Option{remote.WithAuthFromKeychain(keychain)}}
+func NewKeychainClient(keychain authn.Keychain, opts ...remote.Option) *Client {
+	return &Client{remoteOpts: append([]remote.Option{remote.WithAuthFromKeychain(keychain)}, opts...)}
 }
 
 // NewInsecureClient speaks plain HTTP without auth, for hermetic tests against
 // an in-process registry. Do not use it for real traffic.
-func NewInsecureClient() *Client {
-	return &Client{nameOpts: []name.Option{name.Insecure}}
+func NewInsecureClient(opts ...remote.Option) *Client {
+	return &Client{nameOpts: []name.Option{name.Insecure}, remoteOpts: opts}
 }
 
 // Snapshot is the set of files in one estate artifact, keyed by file name.

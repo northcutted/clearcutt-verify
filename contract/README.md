@@ -55,7 +55,12 @@ verified evidence means cosign checked the key's signature but no
 transparency log entry, because the policy's key signer says it signs
 without one. `source: github-attestation` marks a GitHub artifact attestation
 in the registry (told by its verified content, so only on verified
-evidence), and `signerWorkflow` names the GitHub Actions workflow that signed
+evidence); `notation-signature` (a Notation signature, whose `signer.identity`
+is the `x509.subject: …` its certificate claims), `buildx-attestation` (an
+unsigned in-toto statement BuildKit stored in the image index), and
+`cosign-sbom-tag` (an unsigned SBOM in cosign's `sha256-<digest>.sbom` tag)
+are evidence clearcutt-verify finds but doesn't verify, so always `present`;
+and `signerWorkflow` names the GitHub Actions workflow that signed
 verified evidence the way `gh attestation verify --signer-workflow` takes it
 (`signer.sourceRepository` gives its `--repo`). A rebased image's `factory`
 kind, name, and stack (`stack`, `stackRef`, `stackDigest`) come from the
@@ -77,9 +82,10 @@ stale base whose `daysBehind` couldn't be measured: unknown, not zero.
 
 **Vulnerabilities.** An image without `vulnerabilities` has no vulnerability
 data: unknown, not clean. `summary.vulnerabilities.notScanned` counts those.
-Findings are read only from verified scans in grype's format, for now; an
-image whose verified scan is another scanner's has none either, and its
-`evidence.vulnerabilityScan.detail` says so.
+Findings are read only from verified scans of grype's or Trivy's (`trivy
+--format cosign-vuln`) format, for now (`vulnerabilities.scanner` names
+which); an image whose verified scan is another scanner's has none either,
+and its `evidence.vulnerabilityScan.detail` says so.
 `scannedAt` says what day the findings describe: the publisher's scan is as
 old as the image, so what was published since is unknown.
 
@@ -105,8 +111,19 @@ counted. In a rescan, `suppressedBy` names what suppressed it: `source: vex`
 with the OpenVEX document the policy named (`file` as written in the policy,
 `document` its `@id`), the statement's `product` as written, `status`, and
 `justification`; or `source: scanner` for grype's own rules. A suppressed
-finding without `suppressedBy` was suppressed by the publisher's scan with a
-statement this run didn't see. `policy.vex` lists the documents applied.
+finding without `suppressedBy` has unknown or platform-dependent attribution.
+On `source: attestation` findings, matching Factory `metadata.vex.suppressed`
+can supply the publisher's signed document/product/status/justification, with
+no inferred local file or independent VEX verification. Metadata changes no
+finding counts. `policy.vex` lists this run's policy documents.
+
+Optional `policy.notation` contains `trustedIdentities: string[]` and
+`trustRoots: string[]` (resolved certificate paths) for strict Notation image
+signature checks. Verified `source: notation-signature` evidence identifies
+the exact checked artifact. A JWS `signer.identity` is its checked X.509
+subject; an unread COSE subject leaves `signer` absent. Its `issuer` is not
+invented as an OIDC issuer. Older schemas rejecting unknown fields need this
+updated schema when the optional policy block is present.
 
 **Observe-only images.** `images[].observeOnly: true` marks an image the policy
 observes without gating on (`policy.observe` patterns): it has a `verdict`

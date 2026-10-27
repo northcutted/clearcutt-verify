@@ -312,13 +312,13 @@ type RemoteLister struct {
 }
 
 // NewRemoteLister returns a Lister authenticated from the ambient keychain.
-func NewRemoteLister() *RemoteLister {
-	return &RemoteLister{remoteOpts: []remote.Option{remote.WithAuthFromKeychain(registryauth.Keychain)}}
+func NewRemoteLister(opts ...remote.Option) *RemoteLister {
+	return &RemoteLister{remoteOpts: append([]remote.Option{remote.WithAuthFromKeychain(registryauth.Keychain)}, opts...)}
 }
 
 // NewRemoteListerWithBasicAuth returns a Lister using explicit credentials.
-func NewRemoteListerWithBasicAuth(username, password string) *RemoteLister {
-	return &RemoteLister{remoteOpts: []remote.Option{remote.WithAuth(&authn.Basic{Username: username, Password: password})}}
+func NewRemoteListerWithBasicAuth(username, password string, opts ...remote.Option) *RemoteLister {
+	return &RemoteLister{remoteOpts: append([]remote.Option{remote.WithAuth(&authn.Basic{Username: username, Password: password})}, opts...)}
 }
 
 // Repositories enumerates the registry catalog.

@@ -24,6 +24,7 @@ import (
 
 	"github.com/northcutted/clearcutt-verify/internal/estategraph"
 	"github.com/northcutted/clearcutt-verify/internal/estateverify"
+	"github.com/northcutted/clearcutt-verify/internal/operation"
 	"github.com/northcutted/clearcutt-verify/internal/output"
 	"github.com/northcutted/clearcutt-verify/internal/registryauth"
 	"github.com/northcutted/clearcutt-verify/internal/report"
@@ -35,36 +36,43 @@ var cosignRunner func(ctx context.Context, bin string, args ...string) ([]byte, 
 // grypeRunner, when set, runs grype instead of the binary (tests).
 var grypeRunner func(ctx context.Context, dir, bin string, args ...string) (stdout, stderr []byte, err error)
 
+var notationRunner estateverify.NotationRunner
+
 var estateVerifyOpts struct {
-	observations string
-	refs         string
-	policy       string
-	name         string
-	out          string
-	history      string
-	reproduce    bool
-	rescan       bool
-	factoryPath  string
-	cosignPath   string
-	grypePath    string
-	trustedRoot  string
-	generatedAt  string
-	concurrency  int
-	platforms    []string
-	failOn       string
+	observations    string
+	refs            string
+	policy          string
+	name            string
+	out             string
+	history         string
+	reproduce       bool
+	rescan          bool
+	factoryPath     string
+	cosignPath      string
+	grypePath       string
+	trustedRoot     string
+	generatedAt     string
+	concurrency     int
+	platforms       []string
+	failOn          string
+	cacheDir        string
+	notationPath    string
+	notationTimeout time.Duration
 	// Policy without a file.
-	require        []string
-	identityRegexp string
-	sourceOwner    string
-	sourceMatches  bool
-	trustPolicy    string
-	issuer         string
-	severity       string
-	onlyFixed      bool
-	maxScanAge     int
-	scanSource     string
-	vex            []string
-	observe        []string
+	require          []string
+	identityRegexp   string
+	sourceOwner      string
+	sourceMatches    bool
+	trustPolicy      string
+	issuer           string
+	severity         string
+	onlyFixed        bool
+	maxScanAge       int
+	scanSource       string
+	vex              []string
+	observe          []string
+	reproduceTimeout time.Duration
+	grypeTimeout     time.Duration
 }
 
 // newEstateVerifyCmd verifies every image in an estate and writes the estate
@@ -96,7 +104,8 @@ documents are applied to the rescans with every suppressed finding listed.
 Images come from an observations file (clearcutt-verify import observe) or a list of
 references (--refs), which are imported and observed first.
 
-It prints a summary table; --verbose adds why each image that isn't verified
+Progress is written to terminal stderr (or with --verbose); --quiet disables
+it. It prints a summary table; --verbose adds why each image that isn't verified
 isn't, --quiet prints nothing but errors and the --fail-on result, and
 --format json or yaml prints the report itself instead of the table.`,
 		Example: `  clearcutt-verify estate verify --refs refs.txt --policy policy.yaml --name acme --out dist/estate
@@ -119,13 +128,18 @@ isn't, --quiet prints nothing but errors and the --fail-on result, and
 	f.BoolVar(&o.reproduce, "reproduce", false, "Rebuild clearcutt-factory images from their signed recipes and compare digests (images with a verified reproduction attestation aren't rebuilt)")
 	f.StringVar(&o.factoryPath, "factory-path", "clearcutt-factory", "clearcutt-factory binary, for --reproduce")
 	f.StringVar(&o.cosignPath, "cosign-path", "cosign", "cosign v3 binary (checked before the run; missing or another major version exits 1)")
+	f.StringVar(&o.notationPath, "notation-path", "notation", "Notation 1.3.2+ (1.3 series) for explicit notation policy trust; missing/unsupported leaves signatures present")
+	f.DurationVar(&o.notationTimeout, "notation-timeout", estateverify.DefaultNotationTimeout, "Limit each Notation invocation; timeout and ambiguous verification failures remain unknown")
 	f.StringVar(&o.trustedRoot, "trusted-root", "", "Sigstore trusted_root.json for cosign to verify keyless evidence, and key-signed evidence in the transparency log, against (cosign --trusted-root); default: fetched once with cosign initialize before the run")
 	f.BoolVar(&o.rescan, "rescan", false, "Scan each image's verified SBOMs with grype and report the fresh findings beside the attested scan (grype's database is updated once first; GRYPE_DB_AUTO_UPDATE=false keeps the one installed)")
 	f.StringVar(&o.grypePath, "grype-path", "grype", "grype binary, for --rescan (checked before the run; missing exits 1)")
+	f.DurationVar(&o.reproduceTimeout, "reproduce-timeout", operation.ReproduceTimeout, "Limit each clearcutt-factory reproduction; expiry leaves it not-checked")
+	f.DurationVar(&o.grypeTimeout, "grype-timeout", operation.GrypeTimeout, "Limit each grype invocation, including database preparation; per-image expiry leaves its rescan unknown")
 	f.StringVar(&o.generatedAt, "generated-at", "", "Deterministic report timestamp (RFC 3339)")
 	f.IntVar(&o.concurrency, "concurrency", 4, "Images to verify at once")
 	f.StringSliceVar(&o.platforms, "platforms", nil, "Read only these platform images (e.g. linux/amd64,linux/arm64); default all. Cuts requests for bases published for many architectures")
 	f.StringVar(&o.failOn, "fail-on", "never", "Exit 2 when any image is failed, or failed or unverified: failed, unverified, never")
+	f.StringVar(&o.cacheDir, "cache-dir", "", "Opt-in private directory for successful pinned-evidence verification results; discovery, rescans and policy verdicts stay fresh")
 	f.StringSliceVar(&o.require, "require", nil, "Required evidence when there is no --policy (e.g. signature,sbom,vulnerabilityScan,provenance)")
 	f.StringVar(&o.identityRegexp, "trusted-identity-regexp", "", "Trusted signer certificate identity (regular expression) when there is no --policy")
 	f.StringVar(&o.issuer, "trusted-issuer", "", "Trusted signer OIDC issuer when there is no --policy")
@@ -175,10 +189,11 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	// out failed or unknown for a reason that has nothing to do with the
 	// estate. A missing or unusable tool is an operational error (exit 1),
 	// never a policy result.
-	verifier := &estateverify.Verifier{Signers: append(append([]report.Signer{}, policy.TrustedSigners...), policy.StackSigners...), Cosign: o.cosignPath, Run: cosignRunner, TrustedRoot: o.trustedRoot}
+	verifier := &estateverify.Verifier{Signers: append(append([]report.Signer{}, policy.TrustedSigners...), policy.StackSigners...), Cosign: o.cosignPath, Run: cosignRunner, TrustedRoot: o.trustedRoot, Timeout: GlobalOpts.CosignTimeout}
 	var rootWarning string
+	var cosignVersion string
 	if len(policy.TrustedSigners)+len(policy.StackSigners) > 0 {
-		if _, err := verifier.CheckCosign(ctx); err != nil {
+		if cosignVersion, err = verifier.CheckCosign(ctx); err != nil {
 			return err
 		}
 		// Sigstore's trusted root, once, before the concurrent verifications
@@ -208,7 +223,7 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	}
 	var scanner *estateverify.GrypeScanner
 	if o.rescan {
-		scanner = &estateverify.GrypeScanner{Binary: o.grypePath, Run: grypeRunner}
+		scanner = &estateverify.GrypeScanner{Binary: o.grypePath, Run: grypeRunner, Timeout: o.grypeTimeout}
 		version, err := scanner.CheckGrype(ctx)
 		if err != nil {
 			return err
@@ -231,7 +246,17 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		remote.WithRetryStatusCodes(http.StatusRequestTimeout, http.StatusTooManyRequests, http.StatusInternalServerError,
 			http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout),
 		remote.WithRetryBackoff(remote.Backoff{Duration: time.Second, Factor: 2, Jitter: 0.2, Steps: 4}),
-		remote.WithTransport(estateverify.NewManifestCache(remote.DefaultTransport)),
+		remote.WithTransport(estateverify.NewManifestCache(registryTransport())),
+	}
+	if o.cacheDir != "" {
+		verifier.Cache = estateverify.NewVerificationCache(o.cacheDir, Version, cosignVersion, o.cosignPath, ropts)
+		if verifier.Cache.Disabled != "" && GlobalOpts.Verbose && !GlobalOpts.Quiet {
+			fprintf(stderr, "[verify-estate] verification cache disabled: %s; using live verification\n", verifier.Cache.Disabled)
+		}
+	}
+	verifier.Notation, err = estateverify.NewNotationVerifier(ctx, policy.Notation, o.notationPath, o.notationTimeout, ropts, notationRunner)
+	if err != nil {
+		return err
 	}
 	var observations estategraph.Observations
 	if o.observations != "" {
@@ -248,6 +273,9 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 			return err
 		}
 		observer := estategraph.RegistryObserver{Options: ropts}
+		if progressOutput(stderr) {
+			fprintf(stderr, "[verify-estate] resolving %d image reference(s)\n", len(inventory.Images))
+		}
 		observations, _, err = estategraph.ObserveImages(ctx, inventory, observer, estategraph.ObserveOptions{GeneratedAt: o.generatedAt, Concurrency: o.concurrency})
 		if err != nil {
 			return err
@@ -260,9 +288,10 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 		Discoverer: &estateverify.Discoverer{Options: ropts},
 		Verifier:   verifier,
 		Log:        stderr,
+		Progress:   imageProgress(stderr, "verify-estate"),
 	}
 	if o.reproduce {
-		opts.Reproducer = estateverify.FactoryReproducer{Binary: o.factoryPath}
+		opts.Reproducer = estateverify.FactoryReproducer{Binary: o.factoryPath, Timeout: o.reproduceTimeout}
 	}
 	if scanner != nil {
 		opts.Scanner, opts.VEX = scanner, vex
@@ -270,6 +299,10 @@ func runEstateVerify(ctx context.Context, stdout, stderr io.Writer) error {
 	r, err := estateverify.Build(ctx, observations, opts)
 	if err != nil {
 		return err
+	}
+	if verifier.Cache != nil && GlobalOpts.Verbose && !GlobalOpts.Quiet {
+		hits, misses, bypasses := verifier.Cache.Stats()
+		fprintf(stderr, "[verify-estate] verification cache: %d hit(s), %d miss(es), %d bypass(es); policy and rescans evaluated this run\n", hits, misses, bypasses)
 	}
 	if rootWarning != "" {
 		// The report says so too: it is what readers see.

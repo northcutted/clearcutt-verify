@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/northcutted/clearcutt-verify/internal/operation"
 	"github.com/northcutted/clearcutt-verify/internal/report"
 )
 
@@ -28,6 +29,12 @@ type Verifier struct {
 	// reads (cosign --trusted-root), so none fetches it from the TUF
 	// repository itself; PrepareTrustedRoot fetches it once.
 	TrustedRoot string
+	// Timeout bounds each cosign invocation, including initialization.
+	Timeout time.Duration
+	// Cache optionally reuses successful verification of pinned evidence.
+	Cache      *VerificationCache
+	Notation   *NotationVerifier
+	cacheFound []Found
 	// Run executes cosign and returns stdout; tests replace it.
 	Run func(ctx context.Context, bin string, args ...string) ([]byte, error)
 }
@@ -218,6 +225,11 @@ func (v *Verifier) verifyKeys(ctx context.Context, subj Subject) (Verified, erro
 
 // verifyWith runs cosign with flags and returns the statements it verified.
 func (v *Verifier) verifyWith(ctx context.Context, subj Subject, flags []string) ([][]byte, error) {
+	if v.Cache != nil {
+		if statements, used, err := v.Cache.verify(ctx, v, subj, flags); used {
+			return statements, err
+		}
+	}
 	args := []string{"verify-attestation", "--type", subj.PredicateType}
 	if subj.Kind == KindSignature {
 		args = []string{"verify"}
@@ -431,18 +443,25 @@ func callerUnchecked(trusted, signer report.Signer) (string, bool) {
 }
 
 func (v *Verifier) run(ctx context.Context, args ...string) ([]byte, error) {
+	limit := operation.Limit(v.Timeout, operation.CosignTimeout)
+	ctx, cancel := context.WithTimeout(ctx, limit)
+	defer cancel()
 	bin := v.Cosign
 	if bin == "" {
 		bin = "cosign"
 	}
 	if v.Run != nil {
 		out, err := v.Run(ctx, bin, args...)
-		return out, classify(ctx, err)
+		return out, classify(ctx, operation.Result(ctx, "cosign "+args[0], limit, err))
 	}
 	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd.WaitDelay = operation.PipeWait
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
+	if ctx.Err() != nil {
+		return nil, unchecked(operation.Result(ctx, "cosign "+args[0], limit, err))
+	}
 	if err != nil {
 		wrapped := fmt.Errorf("cosign %s: %w: %s", args[0], err, cosignStderr(stderr.String()))
 		var exit *exec.ExitError
@@ -695,6 +714,13 @@ type verifiedCopy struct {
 // exactly, so copies anyone can attach with made-up certificates cost no
 // more than reading them.
 func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageSource string, found []Found) (report.EvidenceItem, []verifiedCopy) {
+	if v.Cache != nil {
+		// Each concurrent image gets its own evidence view; trust and the cache
+		// are shared read-only, never a mutable "current image" on the verifier.
+		scoped := *v
+		scoped.cacheFound = found
+		v = &scoped
+	}
 	copies := copiesOf(found, kind, digest)
 	if len(copies) == 0 {
 		return report.EvidenceItem{Status: "missing"}, nil
@@ -736,8 +762,18 @@ func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageS
 	}
 	for i, f := range copies {
 		switch {
-		case f.Format == FormatRawReferrer:
-			status[i], detail[i] = "present", "An unsigned document; nothing to verify."
+		case f.Format == FormatNotation && kind == KindSignature && v.Notation != nil:
+			status[i], detail[i] = v.Notation.Verify(ctx, ref, f)
+			if status[i] == "verified" {
+				c := &verifiedCopy{Found: f}
+				if f.Signer != nil {
+					c.signer = *f.Signer
+				}
+				passed[i] = c
+			}
+		case Unsigned(f.Format):
+			// Never handed to cosign: nothing a trusted signer signed is in it.
+			status[i], detail[i] = "present", unsignedDetail(f)
 		case len(v.Signers) == 0:
 			status[i], detail[i] = "present", "No trusted signer is configured, so it can't be verified."
 		case invalid != nil:
@@ -865,12 +901,33 @@ func verifyEvidence(ctx context.Context, v *Verifier, repo, digest, kind, imageS
 	signer := best.signer
 	item := report.EvidenceItem{Status: "verified", Source: verifiedSourceName(best), PredicateType: best.PredicateType, Ref: best.Ref, Timestamp: best.Timestamp, Signer: &signer,
 		SignerWorkflow: signerWorkflow(signer)}
+	if best.Format == FormatNotation {
+		item.Detail = "Notation verified this pinned signature with a strict X.509 policy; expiry and revocation are checked this run."
+		if best.Signer == nil {
+			item.Signer = nil
+			item.Detail += " Its signing certificate subject was not read from the envelope."
+		}
+	}
 	if n := len(copies) - len(verified); n == 1 {
-		item.Detail = "1 other attached copy isn't verified and wasn't read."
+		item.Detail = strings.TrimSpace(item.Detail + " 1 other attached copy isn't verified and wasn't read.")
 	} else if n > 1 {
-		item.Detail = fmt.Sprintf("%d other attached copies aren't verified and weren't read.", n)
+		item.Detail = strings.TrimSpace(item.Detail + fmt.Sprintf(" %d other attached copies aren't verified and weren't read.", n))
 	}
 	return item, verified
+}
+
+// unsignedDetail says why evidence clearcutt-verify can't verify is present,
+// not verified.
+func unsignedDetail(f Found) string {
+	switch f.Format {
+	case FormatNotation:
+		return "A Notation signature. Explicit notation trust and a supported notation CLI are required to verify it; otherwise it is present, not verified."
+	case FormatBuildx:
+		return "An unsigned in-toto statement BuildKit stored in the image index (docker buildx build --sbom or --provenance); nothing can verify it, so it isn't read."
+	case FormatCosignSBOM:
+		return "An unsigned SBOM in cosign's sha256-<digest>.sbom tag (cosign attach sbom); nothing can verify it, so it isn't read."
+	}
+	return "An unsigned document; nothing to verify."
 }
 
 func sortedKeys[V any](m map[string]V) []string {

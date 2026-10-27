@@ -90,14 +90,14 @@ func NewClient() *Client {
 // NewKeychainClient authenticates with keychain, which resolves each
 // registry's own credentials (registryauth.ForRefs), so no credential is
 // offered to a registry it isn't for.
-func NewKeychainClient(keychain authn.Keychain) *Client {
-	return &Client{remoteOpts: []remote.Option{remote.WithAuthFromKeychain(keychain)}}
+func NewKeychainClient(keychain authn.Keychain, opts ...remote.Option) *Client {
+	return &Client{remoteOpts: append([]remote.Option{remote.WithAuthFromKeychain(keychain)}, opts...)}
 }
 
 // NewInsecureClient speaks plain HTTP without auth, for hermetic tests against
 // an in-process registry.
-func NewInsecureClient() *Client {
-	return &Client{nameOpts: []name.Option{name.Insecure}}
+func NewInsecureClient(opts ...remote.Option) *Client {
+	return &Client{nameOpts: []name.Option{name.Insecure}, remoteOpts: opts}
 }
 
 // Bundle is a set of evidence files about one image.
