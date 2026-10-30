@@ -1,6 +1,6 @@
 module github.com/northcutted/clearcutt-verify
 
-go 1.26
+go 1.26.0
 
 toolchain go1.26.10
 
@@ -9,7 +9,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.49.0
 	sigs.k8s.io/yaml v1.6.0
 )
 
