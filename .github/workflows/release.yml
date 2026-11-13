@@ -45,7 +45,7 @@ jobs:
 
       - name: Calculate Next Version
         id: versioning
-        uses: paulhatch/semantic-version@4d6da96a9bc3116da3613309a11ff75fba58eb8d # v6.0.4
+        uses: paulhatch/semantic-version@5ae1354e589c5a67345fb2c6e65b025ff676d7c7 # v6.0.7
         with:
           tag_prefix: "v"
           major_pattern: "BREAKING CHANGE"
@@ -164,7 +164,7 @@ jobs:
           cache: true
 
       - name: Install Sigstore Cosign
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
         with:
           cosign-release: 'v3.1.3'
 
